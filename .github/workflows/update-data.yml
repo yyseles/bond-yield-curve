@@ -1,0 +1,39 @@
+name: 每日自动更新国债利率数据
+
+on:
+  schedule:
+    # 北京时间 18:00 (UTC 10:00) 每天运行，此时当日数据通常已发布
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 抓取最新国债利率数据
+        run: python ci_update.py
+
+      - name: 提交并推送更新
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json || echo "No changes to data.json"
+          git diff --cached --quiet || (
+            echo "有新的数据更新，正在提交..."
+            git commit -m "自动更新数据: $(date +'%Y-%m-%d')"
+            git push
+          )

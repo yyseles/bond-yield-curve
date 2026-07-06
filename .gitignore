@@ -1,0 +1,3 @@
+__pycache__/
+*.pyc
+export_data.py

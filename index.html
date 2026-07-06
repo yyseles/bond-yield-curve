@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国债利率曲线分析报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 { font-size: 26px; font-weight: 600; color: #0b1a33; margin-bottom: 6px; }
+        .subtitle { font-size: 14px; color: #5a6e8a; margin-bottom: 20px; border-left: 4px solid #2a6fdb; padding-left: 14px; background: #e8edf4; border-radius: 0 6px 6px 0; line-height: 1.6; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+        .upload-area { display: flex; align-items: center; gap: 12px; background: white; padding: 6px 16px 6px 12px; border-radius: 30px; border: 1px solid #d0dde8; box-shadow: 0 2px 6px rgba(0,0,0,0.02); flex-wrap: wrap; }
+        .upload-area label { font-size: 13px; font-weight: 500; color: #1f4a7a; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .upload-area input[type="file"] { display: none; }
+        .upload-status { font-size: 12px; color: #2e7d32; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-download { font-size: 12px; background: #1f4a7a; color: white; border: none; border-radius: 20px; padding: 4px 16px; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn-download:hover { background: #12345a; }
+        .btn-reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 20px; padding: 2px 14px; cursor: pointer; transition: 0.2s; }
+        .btn-reset:hover { background: #f0f0f0; color: #555; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 18px 20px 20px; border: 1px solid #e6edf5; }
+        .card-title { font-size: 16px; font-weight: 600; color: #1a2b44; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .card-title .badge { font-size: 11px; font-weight: 500; background: #eef3fa; color: #2a5f8a; padding: 0 10px; border-radius: 20px; line-height: 22px; }
+        .date-selector { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .date-selector select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; max-width: 150px; }
+        .chart-box { width: 100%; height: 300px; }
+        .chart-box.tall { height: 340px; }
+        .table-wrap { overflow-x: auto; font-size: 13px; margin-top: 4px; }
+        .table-wrap table { width: 100%; border-collapse: collapse; min-width: 480px; }
+        .table-wrap th { background: #f2f6fc; color: #1e385a; font-weight: 600; padding: 8px 10px; text-align: center; border-bottom: 2px solid #d0ddea; font-size: 12px; white-space: nowrap; }
+        .table-wrap td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #e9eef4; font-size: 13px; white-space: nowrap; }
+        .table-wrap tr:hover td { background: #f6faff; }
+        .footnote { font-size: 12px; color: #6f85a5; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #dce4ed; }
+        .metrics-row { display: flex; flex-wrap: wrap; gap: 12px 30px; background: #f6faff; padding: 10px 16px; border-radius: 10px; margin-bottom: 16px; border: 1px solid #e0e9f2; }
+        .metric-item { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+        .metric-label { font-size: 13px; color: #5a6e8a; font-weight: 500; }
+        .metric-value { font-size: 18px; font-weight: 700; color: #0b1a33; }
+        .metric-value .unit { font-size: 12px; font-weight: 400; color: #7a8ea8; margin-left: 2px; }
+        .metric-change { font-size: 13px; font-weight: 600; margin-left: 4px; }
+        .metric-change.positive { color: #c0392b; }
+        .metric-change.negative { color: #27ae60; }
+        .metric-change.flat { color: #888; }
+        .metric-change .tag { font-weight: 400; color: #7a8ea8; margin-left: 2px; }
+        .view-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; }
+        .view-controls .btn-group { display: flex; gap: 4px; background: #eef3fa; border-radius: 20px; padding: 2px; }
+        .view-controls .btn-group button { border: none; background: transparent; padding: 4px 14px; border-radius: 18px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: 0.2s; }
+        .view-controls .btn-group button.active { background: white; color: #1f4a7a; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        .view-controls .btn-group button:hover:not(.active) { background: rgba(255,255,255,0.5); }
+        .view-controls .date-picker { display: flex; align-items: center; gap: 6px; }
+        .view-controls .date-picker select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; max-width: 180px; }
+        .view-controls .date-picker label { font-size: 13px; font-weight: 500; color: #3e5a7a; }
+        .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+        .play-btn:hover { background: #12345a; }
+        .play-btn.paused { background: #27ae60; }
+        .play-btn.paused:hover { background: #1e8449; }
+        @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { body { padding: 12px; } .card { padding: 14px; } .chart-box { height: 220px; } .chart-box.tall { height: 260px; } .table-wrap { font-size: 12px; } .table-wrap th, .table-wrap td { padding: 5px 6px; } .upload-area { width: 100%; justify-content: flex-start; flex-wrap: wrap; } .date-selector select { max-width: 120px; } .metrics-row { gap: 8px 16px; padding: 8px 12px; } .metric-value { font-size: 16px; } }
+        .table-wrap::-webkit-scrollbar { height: 6px; }
+        .table-wrap::-webkit-scrollbar-track { background: #edf2f8; border-radius: 10px; }
+        .table-wrap::-webkit-scrollbar-thumb { background: #c2d3e6; border-radius: 10px; }
+        .table-wrap::-webkit-scrollbar-thumb:hover { background: #a8bdd6; }
+        .diff-col { font-weight: 500; font-size: 12px; }
+        .diff-col .arrow { margin-right: 2px; }
+        .diff-col.positive { color: #c0392b; }
+        .diff-col.negative { color: #27ae60; }
+        .diff-col.flat { color: #888; }
+        .actual-row { background-color: #e6f2ff !important; font-weight: bold; }
+        /* 加载提示 */
+        .loading-overlay { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 60px 20px; color: #5a6e8a; }
+        .loading-overlay .spinner { width: 36px; height: 36px; border: 3px solid #e0e9f2; border-top-color: #1f4a7a; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .server-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 10px; border-radius: 20px; font-weight: 500; }
+        .server-status.online { background: #e8f5e9; color: #2e7d32; }
+        .server-status.offline { background: #fff3e0; color: #e65100; }
+        .server-status .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+        .server-status.online .dot { background: #2e7d32; }
+        .server-status.offline .dot { background: #e65100; }
+        .btn-sync { font-size: 12px; background: #1565c0; color: white; border: none; border-radius: 20px; padding: 4px 14px; cursor: pointer; transition: .2s; white-space: nowrap; }
+        .btn-sync:hover { background: #0d47a1; }
+        .btn-sync.loading { opacity: 0.7; pointer-events: none; }
+        /* 打印样式 */
+        @media print {
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 16px; }
+            .upload-area, .btn-reset, .btn-download, .btn-sync, .play-btn, .view-controls, .server-status, .subtitle { display: none !important; }
+            .chart-box { height: 280px; }
+            .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+            .table-wrap { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📈 国债利率曲线 · 精算分析报告</h1>
+        <div class="subtitle">
+            <span>
+                数据截至 <strong id="latestDateLabel">—</strong> ｜
+                750日移动平均基于历史交易数据 ｜
+                预测采用平推法，考虑交易日历
+            </span>
+            <div class="upload-area">
+                <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
+                <label for="fileUpload">📤 上传Excel</label>
+                <input type="file" id="fileUpload" accept=".xlsx,.xls">
+                <span class="upload-status" id="uploadStatus">等待加载数据...</span>
+                <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
+                <button class="btn-reset" id="resetDataBtn">清空重置</button>
+            </div>
+        </div>
+
+        <!-- 第一行 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">
+                    <span>📊 中债国债即期利率曲线</span>
+                    <span class="badge">多时点对比</span>
+                    <div class="date-selector">
+                        <label for="curveDateSelect" style="font-size:13px;font-weight:400;">查看日期：</label>
+                        <select id="curveDateSelect"></select>
+                    </div>
+                </div>
+                <div class="metrics-row" id="metricsRow"></div>
+                <div class="chart-box" id="curveChart"></div>
+                <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    <span>📋 关键期限利率</span>
+                    <span class="badge">所选日期 / 750日平均 · 变动比较</span>
+                    <div class="date-selector">
+                        <label for="keyDateSelect" style="font-size:13px;font-weight:400;">查看日期：</label>
+                        <select id="keyDateSelect"></select>
+                    </div>
+                </div>
+                <div class="table-wrap" id="keyTermsTableWrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>期限</th>
+                                <th>所选日 (%)</th>
+                                <th>750平均 (%)</th>
+                                <th>所选-上月 (bp)</th>
+                                <th>750-上月 (bp)</th>
+                                <th>所选-上年 (bp)</th>
+                                <th>750-上年 (bp)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keyTermsBody"></tbody>
+                    </table>
+                </div>
+                <div class="footnote" id="comparisonFootnote">上月/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)</div>
+            </div>
+        </div>
+
+        <!-- 第二行 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">
+                    <span>🔮 750日移动平均利率预测</span>
+                    <span class="badge" id="forecastRefBadge">平推法 · 预测3年</span>
+                    <div class="date-selector">
+                        <label for="forecastRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
+                        <select id="forecastRefDateSelect"></select>
+                    </div>
+                </div>
+                <div class="view-controls">
+                    <div class="btn-group" id="forecastViewBtnGroup">
+                        <button class="active" data-view="timeseries">📈 时间序列</button>
+                        <button data-view="snapshot">📊 曲线快照</button>
+                    </div>
+                    <div class="date-picker" id="forecastDatePicker" style="display:none;">
+                        <label for="forecastDateSelect">选择预测月末：</label>
+                        <select id="forecastDateSelect"></select>
+                        <button class="play-btn" id="playBtn">▶ 播放</button>
+                    </div>
+                </div>
+                <div class="chart-box tall" id="forecastChart"></div>
+                <div class="footnote" id="forecastFootnote">预测从最新日期后一个交易日开始，不含最新日期本身</div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    <span>📅 季度末750预测</span>
+                    <span class="badge">关键期限 · 至3年后</span>
+                    <div class="date-selector">
+                        <label for="quarterRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
+                        <select id="quarterRefDateSelect"></select>
+                    </div>
+                </div>
+                <div class="table-wrap" id="quarterTableWrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>1Y</th><th>5Y</th><th>10Y</th><th>15Y</th>
+                                <th>20Y</th><th>30Y</th><th>50Y</th>
+                                <th>1-10Y</th><th>1-15Y</th><th>1-20Y</th><th>21-40Y</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quarterBody"></tbody>
+                    </table>
+                </div>
+                <div class="footnote" id="quarterFootnote">预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日的750日均值</div>
+            </div>
+        </div>
+
+        <!-- 第三行 -->
+        <div class="card">
+            <div class="card-title">
+                <span>📆 历史关键时点对比</span>
+                <span class="badge">年末 / 月末 · 按列独立着色</span>
+            </div>
+            <div class="table-wrap" id="historyTableWrap">
+                <table>
+                    <thead id="historyHeader"></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+            <div class="footnote">每列独立着色（柔和渐变：低→绿，中→黄，高→红）</div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // 核心清洗函数
+        // ================================================================
+        const MAX_REASONABLE_RATE = 8;  // 宽松上限，兼容高利率时期（如2013年钱荒）
+        const STORAGE_KEY = 'treasury_curve_data_final';
+
+        function sanitizeRate(val) {
+            if (val === null || val === undefined || !isFinite(val)) return null;
+            const num = parseFloat(val);
+            if (isNaN(num)) return null;
+            if (num < 0 || num > MAX_REASONABLE_RATE) return null;
+            return num;
+        }
+
+        function sanitizeRatesObj(obj) {
+            const cleaned = {};
+            for (const [k, v] of Object.entries(obj)) {
+                cleaned[k] = sanitizeRate(v);
+            }
+            return cleaned;
+        }
+
+        function cleanArray(arr) {
+            return arr.map(v => sanitizeRate(v));
+        }
+
+        function safeDiffBp(current, compare) {
+            if (current === null || compare === null) return null;
+            if (!isFinite(current) || !isFinite(compare)) return null;
+            return (current - compare) * 100;
+        }
+
+        // ================================================================
+        // 默认演示数据
+        // ================================================================
+        function getDefaultData() {
+            // 返回空数据状态 —— 真数据应从服务器或 Excel 上传获取
+            return {
+                dates: [],
+                rates: [],
+                latestDate: null,
+                latestRates: {},
+                allTerms: [],
+                isEmpty: true
+            };
+        }
+
+        // ================================================================
+        // 服务器同步
+        // ================================================================
+        const SERVER_BASE = '';
+
+        async function fetchFromServer(silent) {
+            const statusEl = document.getElementById('serverStatus');
+            try {
+                const resp = await fetch('/api/data');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const json = await resp.json();
+                if (json.error) throw new Error(json.error);
+                if (!json.dates || json.dates.length === 0) throw new Error('服务器返回空数据');
+
+                const dates = json.dates;
+                const terms = json.terms;
+                const ratesArr = [];
+                for (const row of json.rows) {
+                    const rowObj = {};
+                    let hasAny = false;
+                    for (let i = 0; i < terms.length; i++) {
+                        const cleaned = sanitizeRate(row[i]);
+                        if (cleaned !== null) {
+                            rowObj[terms[i]] = cleaned;
+                            hasAny = true;
+                        }
+                    }
+                    if (hasAny) ratesArr.push(rowObj);
+                }
+
+                const latestDate = dates[dates.length - 1];
+                const latestRates = ratesArr[ratesArr.length - 1];
+                const allTermsLocal = getAllTerms(latestRates);
+
+                dataStore = {
+                    dates: dates,
+                    rates: ratesArr,
+                    latestDate: latestDate,
+                    latestRates: latestRates,
+                    allTerms: allTermsLocal
+                };
+                allTerms = allTermsLocal;
+                saveDataStore();
+                selectedDate = latestDate;
+
+                statusEl.className = 'server-status online';
+                statusEl.innerHTML = `<span class="dot"></span> 在线 · ${dates.length}条数据`;
+                document.getElementById('uploadStatus').textContent = `从服务器加载 (${dates.length} 条, 截至 ${latestDate})`;
+                document.getElementById('uploadStatus').style.color = '#2e7d32';
+
+                document.getElementById('latestDateLabel').textContent = latestDate;
+                return true;
+            } catch (err) {
+                console.warn('服务器同步失败:', err.message);
+                statusEl.className = 'server-status offline';
+                statusEl.innerHTML = '<span class="dot"></span> 离线';
+                return false;
+            }
+        }
+        // 共享的数据加载器：从 { dates, terms, rows } JSON 格式加载到 dataStore
+        function loadFromRawData(rawData) {
+            const ed = rawData;
+            const ratesArr = ed.rows.map(function(row) {
+                const obj = {};
+                ed.terms.forEach(function(t, i) { if (row[i] !== null) obj[t] = row[i]; });
+                return obj;
+            });
+            dataStore = {
+                dates: ed.dates,
+                rates: ratesArr,
+                latestDate: ed.dates[ed.dates.length - 1],
+                latestRates: ratesArr[ratesArr.length - 1],
+                allTerms: ed.terms
+            };
+            allTerms = ed.terms;
+            selectedDate = dataStore.latestDate;
+        }
+        let dataStore = null;
+        let allTerms = [];
+        const KEY_TERMS = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y'];
+        let selectedDate = null;
+        let forecastDataAll = [];          // 所有预测数据（每天）
+        let forecastAllDates = [];         // 所有预测日期（每天）
+        let forecastMonthEndDates = [];    // 月末交易日列表（用于快照）
+        let forecastViewMode = 'timeseries';
+        let selectedForecastDate = null;
+        let forecastRefDate = null;       // 750MA预测 · 季度末预测 共用基准日
+        let curveChart = null,
+            forecastChart = null;
+        let isPlaying = false;
+        let playTimer = null;
+        let playIndex = 0;
+
+        // ================================================================
+        // localStorage 操作
+        // ================================================================
+        function saveDataStore() {
+            try {
+                const toStore = {
+                    dates: dataStore.dates,
+                    rates: dataStore.rates.map(row => sanitizeRatesObj(row)),
+                    latestDate: dataStore.latestDate,
+                    latestRates: sanitizeRatesObj(dataStore.latestRates),
+                    allTerms: dataStore.allTerms
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+            } catch (e) { console.warn('保存数据失败', e); }
+        }
+
+        function loadDataStore() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    parsed.rates = parsed.rates.map(row => sanitizeRatesObj(row));
+                    parsed.latestRates = sanitizeRatesObj(parsed.latestRates);
+                    return parsed;
+                } catch (e) { console.warn('加载存储数据失败', e); }
+            }
+            return null;
+        }
+
+        function clearDataStore() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
+        function resetToDefault() {
+            const def = getDefaultData();
+            dataStore = def;
+            allTerms = dataStore.allTerms || getAllTerms(def.latestRates);
+            selectedDate = def.latestDate;
+            clearDataStore();
+            saveDataStore();
+            forecastRefDate = null;
+            recalcForecastData();
+            renderAll();
+            document.getElementById('uploadStatus').textContent = '已重置为干净演示数据';
+            document.getElementById('uploadStatus').style.color = '#2e7d32';
+            stopPlayback();
+        }
+
+        // ================================================================
+        // 中国法定节假日（交易日历辅助）
+        // 注：此为常见节日列表，每年需更新。覆盖 2016-2027 主要节假日。
+        // ================================================================
+        const CHINA_HOLIDAYS = new Set([
+            // 2016
+            '2016-01-01','2016-02-08','2016-02-09','2016-02-10','2016-02-11','2016-02-12','2016-04-04','2016-05-02','2016-06-09','2016-06-10','2016-09-15','2016-09-16','2016-10-03','2016-10-04','2016-10-05','2016-10-06','2016-10-07',
+            // 2017
+            '2017-01-02','2017-01-27','2017-01-30','2017-01-31','2017-02-01','2017-02-02','2017-04-03','2017-04-04','2017-05-01','2017-05-29','2017-05-30','2017-10-02','2017-10-03','2017-10-04','2017-10-05','2017-10-06',
+            // 2018
+            '2018-01-01','2018-02-15','2018-02-16','2018-02-19','2018-02-20','2018-02-21','2018-04-05','2018-04-06','2018-04-30','2018-05-01','2018-06-18','2018-09-24','2018-10-01','2018-10-02','2018-10-03','2018-10-04','2018-10-05',
+            // 2019
+            '2019-01-01','2019-02-04','2019-02-05','2019-02-06','2019-02-07','2019-02-08','2019-04-05','2019-05-01','2019-06-07','2019-09-13','2019-10-01','2019-10-02','2019-10-03','2019-10-04','2019-10-07',
+            // 2020
+            '2020-01-01','2020-01-24','2020-01-27','2020-01-28','2020-01-29','2020-01-30','2020-04-06','2020-05-01','2020-05-04','2020-05-05','2020-06-25','2020-06-26','2020-10-01','2020-10-02','2020-10-05','2020-10-06','2020-10-07','2020-10-08',
+            // 2021
+            '2021-01-01','2021-02-11','2021-02-12','2021-02-15','2021-02-16','2021-02-17','2021-04-05','2021-05-03','2021-05-04','2021-05-05','2021-06-14','2021-09-20','2021-09-21','2021-10-01','2021-10-04','2021-10-05','2021-10-06','2021-10-07',
+            // 2022
+            '2022-01-03','2022-01-31','2022-02-01','2022-02-02','2022-02-03','2022-02-04','2022-04-04','2022-04-05','2022-05-02','2022-05-03','2022-05-04','2022-06-03','2022-09-12','2022-10-03','2022-10-04','2022-10-05','2022-10-06','2022-10-07',
+            // 2023
+            '2023-01-02','2023-01-23','2023-01-24','2023-01-25','2023-01-26','2023-01-27','2023-04-05','2023-05-01','2023-05-02','2023-05-03','2023-06-22','2023-06-23','2023-09-29','2023-10-02','2023-10-03','2023-10-04','2023-10-05','2023-10-06',
+            // 2024
+            '2024-01-01','2024-02-12','2024-02-13','2024-02-14','2024-02-15','2024-02-16','2024-04-04','2024-04-05','2024-05-01','2024-05-02','2024-05-03','2024-06-10','2024-09-16','2024-09-17','2024-10-01','2024-10-02','2024-10-03','2024-10-04','2024-10-07',
+            // 2025
+            '2025-01-01','2025-01-29','2025-01-30','2025-01-31','2025-02-03','2025-02-04','2025-04-04','2025-05-01','2025-05-02','2025-06-02','2025-10-01','2025-10-02','2025-10-03','2025-10-06','2025-10-07','2025-10-08',
+            // 2026
+            '2026-01-01','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-23','2026-04-06','2026-05-01','2026-05-04','2026-05-05','2026-06-19','2026-09-25','2026-10-01','2026-10-02','2026-10-05','2026-10-06','2026-10-07',
+            // 2027
+            '2027-01-01','2027-02-08','2027-02-09','2027-02-10','2027-02-11','2027-02-12','2027-03-22','2027-05-03','2027-05-04','2027-05-05','2027-06-09','2027-09-15','2027-10-01','2027-10-04','2027-10-05','2027-10-06','2027-10-07',
+        ]);
+
+        // 因调休补班的周末（这些日期虽然是周六日但也是交易日）
+        const TRADE_WEEKENDS = new Set([
+            '2016-01-30','2016-02-14','2016-06-12','2016-09-18','2016-10-08','2016-10-09',
+            '2017-01-21','2017-02-04','2017-04-01','2017-05-27','2017-09-30',
+            '2018-02-11','2018-02-24','2018-04-08','2018-04-28','2018-09-29','2018-09-30','2018-12-29',
+            '2019-02-02','2019-02-03','2019-04-28','2019-05-05','2019-09-29','2019-10-12',
+            '2020-01-19','2020-02-01','2020-04-26','2020-05-09','2020-06-28','2020-09-27','2020-10-10',
+            '2021-02-07','2021-02-20','2021-04-25','2021-05-08','2021-09-18','2021-09-26','2021-10-09',
+            '2022-01-29','2022-01-30','2022-04-02','2022-04-24','2022-05-07','2022-10-08','2022-10-09',
+            '2023-01-28','2023-01-29','2023-04-23','2023-05-06','2023-06-25','2023-10-07','2023-10-08',
+            '2024-02-04','2024-02-18','2024-04-07','2024-04-28','2024-05-11','2024-09-14','2024-09-29','2024-10-12',
+            '2025-01-26','2025-02-08','2025-04-27','2025-09-28','2025-10-11',
+        ]);
+
+        function isTradingDay(dateStr) {
+            const dt = new Date(dateStr + 'T00:00:00Z');
+            const wd = dt.getUTCDay();
+            // 调休补班：周末但是交易日
+            if (TRADE_WEEKENDS.has(dateStr)) return true;
+            // 法定节假日
+            if (CHINA_HOLIDAYS.has(dateStr)) return false;
+            // 正常周末
+            if (wd === 0 || wd === 6) return false;
+            return true;
+        }
+
+        function avgRates(rates, startTerm, endTerm) {
+            let sum = 0,
+                count = 0;
+            const start = parseFloat(startTerm);
+            const end = parseFloat(endTerm);
+            for (const [k, v] of Object.entries(rates)) {
+                const num = parseFloat(k);
+                if (num >= start && num <= end) {
+                    const cleaned = sanitizeRate(v);
+                    if (cleaned !== null) {
+                        sum += cleaned;
+                        count++;
+                    }
+                }
+            }
+            return count > 0 ? sum / count : null;
+        }
+
+        function getKeyRates(rates) {
+            const result = {};
+            for (const t of KEY_TERMS) {
+                result[t] = sanitizeRate(rates[t]);
+            }
+            result['1-10Y'] = avgRates(rates, '1', '10');
+            result['1-15Y'] = avgRates(rates, '1', '15');
+            result['1-20Y'] = avgRates(rates, '1', '20');
+            result['21-40Y'] = avgRates(rates, '21', '40');
+            return result;
+        }
+
+        function getAllTerms(ratesObj) {
+            return Object.keys(ratesObj).filter(k => !isNaN(parseFloat(k))).sort((a, b) => parseFloat(a) - parseFloat(b));
+        }
+
+        function findLastTradeDate(dates, targetDateStr) {
+            if (dates.includes(targetDateStr)) return targetDateStr;
+            const target = new Date(targetDateStr + 'T00:00:00Z');
+            let best = null,
+                bestDt = null;
+            for (const d of dates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                if (dt <= target) {
+                    if (!bestDt || dt > bestDt) {
+                        bestDt = dt;
+                        best = d;
+                    }
+                }
+            }
+            return best;
+        }
+
+        function findPreviousTradeDate(dates, currentDate) {
+            const idx = dates.indexOf(currentDate);
+            if (idx <= 0) return null;
+            return dates[idx - 1];
+        }
+
+        function businessDaysBetween(startDateStr, endDateStr) {
+            const start = new Date(startDateStr + 'T00:00:00Z');
+            const end = new Date(endDateStr + 'T00:00:00Z');
+            let count = 0;
+            let d = new Date(start);
+            d.setUTCDate(d.getUTCDate() + 1);
+            while (d <= end) {
+                const dStr = d.toISOString().slice(0, 10);
+                if (isTradingDay(dStr)) count++;
+                d.setUTCDate(d.getUTCDate() + 1);
+            }
+            return count;
+        }
+
+        function getComparisonDatesFor(targetDate) {
+            const dates = dataStore.dates;
+            const target = new Date(targetDate + 'T00:00:00Z');
+            const year = target.getUTCFullYear();
+            const month = target.getUTCMonth();
+
+            let lastMonthYear = year;
+            let lastMonthMonth = month - 1;
+            if (lastMonthMonth < 0) {
+                lastMonthMonth = 11;
+                lastMonthYear = year - 1;
+            }
+            let lastMonthTrade = null;
+            for (const d of dates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                if (dt.getUTCFullYear() === lastMonthYear && dt.getUTCMonth() === lastMonthMonth) {
+                    if (!lastMonthTrade || d > lastMonthTrade) {
+                        lastMonthTrade = d;
+                    }
+                }
+            }
+            if (!lastMonthTrade) {
+                const lastDay = new Date(Date.UTC(lastMonthYear, lastMonthMonth + 1, 0));
+                const y = lastDay.getUTCFullYear();
+                const m = String(lastDay.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(lastDay.getUTCDate()).padStart(2, '0');
+                const targetStr = `${y}-${m}-${d}`;
+                lastMonthTrade = findLastTradeDate(dates, targetStr);
+            }
+
+            const lastYearYear = year - 1;
+            let lastYearTrade = null;
+            for (const d of dates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                if (dt.getUTCFullYear() === lastYearYear && dt.getUTCMonth() === 11) {
+                    if (!lastYearTrade || d > lastYearTrade) {
+                        lastYearTrade = d;
+                    }
+                }
+            }
+            if (!lastYearTrade) {
+                const targetStr = lastYearYear + '-12-31';
+                lastYearTrade = findLastTradeDate(dates, targetStr);
+            }
+            return { lastMonthTrade, lastYearTrade };
+        }
+
+        // ================================================================
+        // 750日移动平均
+        // ================================================================
+        function calc750MAForDate(targetDate) {
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            const idx = dates.indexOf(targetDate);
+            if (idx === -1) return null;
+            const n = Math.min(750, idx + 1);
+            const startIdx = idx - n + 1;
+            const sum = {};
+            for (const t of allTerms) sum[t] = 0;
+            let count = 0;
+            for (let i = startIdx; i <= idx; i++) {
+                const row = rates[i];
+                let valid = true;
+                for (const t of allTerms) {
+                    if (sanitizeRate(row[t]) === null) { valid = false; break; }
+                }
+                if (valid) {
+                    for (const t of allTerms) sum[t] += row[t];
+                    count++;
+                }
+            }
+            if (count === 0) return null;
+            const avg = {};
+            for (const t of allTerms) {
+                avg[t] = sanitizeRate(sum[t] / count);
+            }
+            return avg;
+        }
+
+        // ================================================================
+        // 预测计算（每天）
+        // ================================================================
+        function generateForecastDates(refDate) {
+            refDate = refDate || dataStore.latestDate;
+            const [year, month, day] = refDate.split('-').map(Number);
+            const endYear = year + 3;
+            const endDate = new Date(Date.UTC(endYear, 11, 31));
+            const startDate = new Date(Date.UTC(year, month - 1, day));
+            startDate.setUTCDate(startDate.getUTCDate() + 1);
+            const forecastDates = [];
+            let cur = new Date(startDate);
+            let safety = 0;
+            while (cur <= endDate && safety < 2000) {
+                const dStr = cur.toISOString().slice(0, 10);
+                if (isTradingDay(dStr)) {
+                    forecastDates.push(dStr);
+                }
+                cur.setUTCDate(cur.getUTCDate() + 1);
+                safety++;
+            }
+            return forecastDates;
+        }
+
+        function calcForecastMA(refDate) {
+            refDate = refDate || dataStore.latestDate;
+            const forecastDates = generateForecastDates(refDate);
+            const refIdx = dataStore.dates.indexOf(refDate);
+            if (refIdx === -1) return [];
+            const refRates = dataStore.rates[refIdx];
+            const allDates = dataStore.dates.slice(0, refIdx + 1);
+            const allRates = dataStore.rates.slice(0, refIdx + 1);
+            const totalHist = allDates.length;
+
+            const result = [];
+            for (let i = 0; i < forecastDates.length; i++) {
+                const fDate = forecastDates[i];
+                const d = businessDaysBetween(refDate, fDate);
+                let histCount = 750 - d;
+                if (histCount < 0) histCount = 0;
+                const actualHistCount = Math.min(histCount, totalHist);
+                const startIdx = totalHist - actualHistCount;
+                const sum = {};
+                for (const t of allTerms) sum[t] = 0;
+                let validCount = 0;
+                for (let j = startIdx; j < totalHist; j++) {
+                    const row = allRates[j];
+                    let valid = true;
+                    for (const t of allTerms) {
+                        if (sanitizeRate(row[t]) === null) { valid = false; break; }
+                    }
+                    if (valid) {
+                        for (const t of allTerms) sum[t] += row[t];
+                        validCount++;
+                    }
+                }
+                const usedHistCount = validCount;
+                const predCount = 750 - usedHistCount;
+                const avg = {};
+                for (const t of allTerms) {
+                    const refVal = sanitizeRate(refRates[t]);
+                    if (refVal !== null) {
+                        avg[t] = sanitizeRate((sum[t] + predCount * refVal) / 750);
+                    } else {
+                        avg[t] = null;
+                    }
+                }
+                result.push({ date: fDate, rates: avg });
+            }
+            return result;
+        }
+
+        // 提取月末交易日
+        function getMonthEndDates(dates) {
+            if (!dates || dates.length === 0) return [];
+            const map = {};
+            for (const d of dates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                const ym = dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0');
+                // 保留每个月最后出现的日期（即最后一个交易日）
+                map[ym] = d;
+            }
+            return Object.values(map).sort();
+        }
+
+        function recalcForecastData(refDate) {
+            refDate = refDate || forecastRefDate || dataStore.latestDate;
+            forecastRefDate = refDate;
+            forecastDataAll = calcForecastMA(refDate);
+            forecastAllDates = forecastDataAll.map(item => item.date);
+            forecastMonthEndDates = getMonthEndDates(forecastAllDates);
+            if (forecastMonthEndDates.length > 0) {
+                selectedForecastDate = forecastMonthEndDates[0];
+                playIndex = 0;
+            } else {
+                selectedForecastDate = null;
+                playIndex = 0;
+            }
+            stopPlayback();
+        }
+
+        // ================================================================
+        // 辅助：计算纵轴范围（动态，限制0~6）
+        // ================================================================
+        function calcYAxisRange(dataArrays) {
+            const allValid = [];
+            for (const arr of dataArrays) {
+                for (const v of arr) {
+                    const cleaned = sanitizeRate(v);
+                    if (cleaned !== null) allValid.push(cleaned);
+                }
+            }
+            if (allValid.length === 0) {
+                return { min: 0, max: 1 };
+            }
+            let minVal = Math.min(...allValid);
+            let maxVal = Math.max(...allValid);
+            if (maxVal - minVal < 0.5) {
+                const center = (minVal + maxVal) / 2;
+                minVal = Math.max(0, center - 0.25);
+                maxVal = center + 0.25;
+            }
+            const padding = (maxVal - minVal) * 0.15 || 0.5;
+            let min = Math.max(0, minVal - padding);
+            let max = Math.min(MAX_REASONABLE_RATE, maxVal + padding);
+            if (max - min < 0.5) {
+                const center = (min + max) / 2;
+                min = Math.max(0, center - 0.25);
+                max = Math.min(MAX_REASONABLE_RATE, center + 0.25);
+            }
+            return { min, max };
+        }
+
+        // ================================================================
+        // 渲染函数
+        // ================================================================
+        function updateMetrics() {
+            if (!dataStore || !dataStore.latestDate || !dataStore.dates || dataStore.dates.length === 0) return;
+            const targetDate = selectedDate || dataStore.latestDate;
+            const idx = dataStore.dates.indexOf(targetDate);
+            if (idx === -1) return;
+            const targetRates = dataStore.rates[idx];
+            const maTarget = calc750MAForDate(targetDate);
+
+            const prevDate = findPreviousTradeDate(dataStore.dates, targetDate);
+            let prevRates = null,
+                prevMA = null;
+            if (prevDate) {
+                const pIdx = dataStore.dates.indexOf(prevDate);
+                if (pIdx !== -1) {
+                    prevRates = dataStore.rates[pIdx];
+                    prevMA = calc750MAForDate(prevDate);
+                }
+            }
+
+            const tenY = sanitizeRate(targetRates['10Y']);
+            const tenYMA = maTarget ? sanitizeRate(maTarget['10Y']) : null;
+            let changeBP = null,
+                changeMABP = null;
+            if (prevRates && tenY !== null && prevRates['10Y'] !== null) {
+                changeBP = (tenY - prevRates['10Y']) * 100;
+            }
+            if (prevMA && tenYMA !== null && prevMA['10Y'] !== null) {
+                changeMABP = (tenYMA - prevMA['10Y']) * 100;
+            }
+
+            const container = document.getElementById('metricsRow');
+            const fmt = (v) => v !== null ? v.toFixed(4) : '—';
+            const changeStr = (bp) => {
+                if (bp === null) return '';
+                const sign = bp > 0 ? '+' : '';
+                const cls = bp > 0 ? 'positive' : (bp < 0 ? 'negative' : 'flat');
+                return `<span class="metric-change ${cls}">${sign}${bp.toFixed(1)}bp<span class="tag">（较上日）</span></span>`;
+            };
+            container.innerHTML = `
+                <div class="metric-item">
+                    <span class="metric-label">10Y 即期</span>
+                    <span class="metric-value">${fmt(tenY)}<span class="unit">%</span></span>
+                    ${changeStr(changeBP)}
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">10Y 750MA</span>
+                    <span class="metric-value">${fmt(tenYMA)}<span class="unit">%</span></span>
+                    ${changeStr(changeMABP)}
+                </div>
+            `;
+        }
+
+        function renderCurveChart() {
+            if (!curveChart) {
+                curveChart = echarts.init(document.getElementById('curveChart'));
+            }
+            const chart = curveChart;
+            const targetDate = selectedDate || dataStore.latestDate;
+            const termsNumeric = allTerms.map(t => parseFloat(t));
+
+            const idx = dataStore.dates.indexOf(targetDate);
+            if (idx === -1) return;
+            const targetRates = dataStore.rates[idx];
+            const targetCurve = cleanArray(allTerms.map(t => targetRates[t]));
+            const maTarget = calc750MAForDate(targetDate);
+            const maTargetCurve = maTarget ? cleanArray(allTerms.map(t => maTarget[t])) : [];
+
+            const { lastMonthTrade, lastYearTrade } = getComparisonDatesFor(targetDate);
+            let lastMonthRates = null,
+                lastYearRates = null;
+            let lastMonthMARates = null,
+                lastYearMARates = null;
+            if (lastMonthTrade) {
+                const lmIdx = dataStore.dates.indexOf(lastMonthTrade);
+                if (lmIdx !== -1) {
+                    lastMonthRates = dataStore.rates[lmIdx];
+                    lastMonthMARates = calc750MAForDate(lastMonthTrade);
+                }
+            }
+            if (lastYearTrade) {
+                const lyIdx = dataStore.dates.indexOf(lastYearTrade);
+                if (lyIdx !== -1) {
+                    lastYearRates = dataStore.rates[lyIdx];
+                    lastYearMARates = calc750MAForDate(lastYearTrade);
+                }
+            }
+            const lastMonthCurve = lastMonthRates ? cleanArray(allTerms.map(t => lastMonthRates[t])) : [];
+            const lastMonthMACurve = lastMonthMARates ? cleanArray(allTerms.map(t => lastMonthMARates[t])) : [];
+            const lastYearCurve = lastYearRates ? cleanArray(allTerms.map(t => lastYearRates[t])) : [];
+            const lastYearMACurve = lastYearMARates ? cleanArray(allTerms.map(t => lastYearMARates[t])) : [];
+
+            const allSeries = [targetCurve, maTargetCurve, lastMonthCurve, lastMonthMACurve, lastYearCurve, lastYearMACurve];
+            const { min, max } = calcYAxisRange(allSeries);
+
+            const option = {
+                title: { text: '中债国债即期利率曲线 - ' + targetDate, left: 'center', top: 0, textStyle: { fontSize: 14,
+                        fontWeight: 'normal' } },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        let s = '期限: ' + params[0].axisValue + '年<br/>';
+                        for (const p of params) {
+                            if (p.value !== null && p.value !== undefined) {
+                                s += p.marker + ' ' + p.seriesName + ': ' + p.value.toFixed(4) + '%<br/>';
+                            }
+                        }
+                        return s;
+                    }
+                },
+                legend: { data: ['所选日期', '所选750平均', '上月末', '上月末750平均', '上年末', '上年末750平均'], top: 30, right: 10,
+                    textStyle: { fontSize: 11 } },
+                grid: { left: 50, right: 20, top: 70, bottom: 30 },
+                xAxis: { type: 'category', data: termsNumeric, name: '期限 (年)', nameLocation: 'center', nameGap: 25,
+                    axisLabel: { fontSize: 11 } },
+                yAxis: {
+                    type: 'value',
+                    name: '利率 (%)',
+                    nameLocation: 'center',
+                    nameGap: 35,
+                    axisLabel: {
+                        formatter: function(value) {
+                            return value.toFixed(2) + '%';
+                        },
+                        fontSize: 11
+                    },
+                    min: min,
+                    max: max,
+                    boundaryGap: false   // 新增：防止轴自动留白
+                },
+                series: [{
+                    name: '所选日期',
+                    type: 'line',
+                    data: targetCurve,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 5,
+                    lineStyle: { width: 2.5, color: '#1f6fd9' },
+                    itemStyle: { color: '#1f6fd9' },
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0,
+                            color: 'rgba(31,111,217,0.20)' }, { offset: 1,
+                            color: 'rgba(31,111,217,0.02)' }]) }
+                }, {
+                    name: '所选750平均',
+                    type: 'line',
+                    data: maTargetCurve,
+                    smooth: true,
+                    symbol: 'diamond',
+                    symbolSize: 5,
+                    lineStyle: { width: 2, color: '#e67e22', type: 'dashed' },
+                    itemStyle: { color: '#e67e22' }
+                }, {
+                    name: '上月末',
+                    type: 'line',
+                    data: lastMonthCurve,
+                    smooth: true,
+                    symbol: 'triangle',
+                    symbolSize: 6,
+                    lineStyle: { width: 2, color: '#2ecc71' },
+                    itemStyle: { color: '#2ecc71' }
+                }, {
+                    name: '上月末750平均',
+                    type: 'line',
+                    data: lastMonthMACurve,
+                    smooth: true,
+                    symbol: 'diamond',
+                    symbolSize: 5,
+                    lineStyle: { width: 2, color: '#27ae60', type: 'dotted' },
+                    itemStyle: { color: '#27ae60' }
+                }, {
+                    name: '上年末',
+                    type: 'line',
+                    data: lastYearCurve,
+                    smooth: true,
+                    symbol: 'rect',
+                    symbolSize: 6,
+                    lineStyle: { width: 2, color: '#e74c3c' },
+                    itemStyle: { color: '#e74c3c' }
+                }, {
+                    name: '上年末750平均',
+                    type: 'line',
+                    data: lastYearMACurve,
+                    smooth: true,
+                    symbol: 'diamond',
+                    symbolSize: 5,
+                    lineStyle: { width: 2, color: '#c0392b', type: 'dotted' },
+                    itemStyle: { color: '#c0392b' }
+                }]
+            };
+            chart.setOption(option, true);
+            chart.resize();
+        }
+
+        function renderKeyTermsTable() {
+            const tbody = document.getElementById('keyTermsBody');
+            const targetDate = selectedDate || dataStore.latestDate;
+            const idx = dataStore.dates.indexOf(targetDate);
+            if (idx === -1) return;
+            const targetRates = dataStore.rates[idx];
+            const maTarget = calc750MAForDate(targetDate);
+            const targetKey = getKeyRates(targetRates);
+            const maKey = maTarget ? getKeyRates(maTarget) : {};
+
+            const { lastMonthTrade, lastYearTrade } = getComparisonDatesFor(targetDate);
+            let lastMonthRates = null,
+                lastYearRates = null;
+            let lastMonthMARates = null,
+                lastYearMARates = null;
+            if (lastMonthTrade) {
+                const lmIdx = dataStore.dates.indexOf(lastMonthTrade);
+                if (lmIdx !== -1) {
+                    lastMonthRates = dataStore.rates[lmIdx];
+                    lastMonthMARates = calc750MAForDate(lastMonthTrade);
+                }
+            }
+            if (lastYearTrade) {
+                const lyIdx = dataStore.dates.indexOf(lastYearTrade);
+                if (lyIdx !== -1) {
+                    lastYearRates = dataStore.rates[lyIdx];
+                    lastYearMARates = calc750MAForDate(lastYearTrade);
+                }
+            }
+
+            function getRateValue(ratesObj, key) {
+                if (!ratesObj) return null;
+                if (key === '1-10Y') return avgRates(ratesObj, '1', '10');
+                if (key === '1-15Y') return avgRates(ratesObj, '1', '15');
+                if (key === '1-20Y') return avgRates(ratesObj, '1', '20');
+                if (key === '21-40Y') return avgRates(ratesObj, '21', '40');
+                return sanitizeRate(ratesObj[key]);
+            }
+
+            const keys = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y', '1-15Y', '1-20Y', '21-40Y'];
+            const labels = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y平均', '1-15Y平均', '1-20Y平均', '21-40Y平均'];
+
+            let html = '';
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                const todayVal = targetKey[k];
+                const maVal = maKey[k];
+
+                const diffTodayLM = safeDiffBp(todayVal, getRateValue(lastMonthRates, k));
+                const diffMALM = safeDiffBp(maVal, getRateValue(lastMonthMARates, k));
+                const diffTodayLY = safeDiffBp(todayVal, getRateValue(lastYearRates, k));
+                const diffMALY = safeDiffBp(maVal, getRateValue(lastYearMARates, k));
+
+                const fmtDiff = (diff) => {
+                    if (diff === null) return '—';
+                    const sign = diff > 0 ? '+' : '';
+                    const arrow = diff > 0 ? '↑' : (diff < 0 ? '↓' : '');
+                    const cls = diff > 0 ? 'positive' : (diff < 0 ? 'negative' : 'flat');
+                    return `<span class="diff-col ${cls}"><span class="arrow">${arrow}</span>${sign}${diff.toFixed(1)}</span>`;
+                };
+
+                html += '<tr>';
+                html += '<td><strong>' + labels[i] + '</strong></td>';
+                html += '<td>' + (todayVal !== null ? todayVal.toFixed(4) : '—') + '</td>';
+                html += '<td>' + (maVal !== null ? maVal.toFixed(4) : '—') + '</td>';
+                html += '<td>' + fmtDiff(diffTodayLM) + '</td>';
+                html += '<td>' + fmtDiff(diffMALM) + '</td>';
+                html += '<td>' + fmtDiff(diffTodayLY) + '</td>';
+                html += '<td>' + fmtDiff(diffMALY) + '</td>';
+                html += '</tr>';
+            }
+            tbody.innerHTML = html;
+
+            const footnote = document.getElementById('comparisonFootnote');
+            let msg = '上月/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)';
+            if (lastMonthTrade) msg += ` ｜ 上月末: ${lastMonthTrade}`;
+            if (lastYearTrade) msg += ` ｜ 上年末: ${lastYearTrade}`;
+            footnote.textContent = msg;
+        }
+
+        function populateForecastDateSelector() {
+            const select = document.getElementById('forecastDateSelect');
+            select.innerHTML = '';
+            if (!forecastMonthEndDates || forecastMonthEndDates.length === 0) {
+                select.innerHTML = '<option value="">无预测数据</option>';
+                return;
+            }
+            for (const d of forecastMonthEndDates) {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                if (d === selectedForecastDate) opt.selected = true;
+                select.appendChild(opt);
+            }
+        }
+
+        // 播放控制（使用月末列表）
+        function startPlayback() {
+            if (isPlaying) return;
+            if (forecastMonthEndDates.length === 0) return;
+            isPlaying = true;
+            document.getElementById('playBtn').textContent = '⏸ 暂停';
+            document.getElementById('playBtn').classList.add('paused');
+            // 确保当前选中的是月末列表中的日期
+            if (!selectedForecastDate || !forecastMonthEndDates.includes(selectedForecastDate)) {
+                selectedForecastDate = forecastMonthEndDates[0];
+                playIndex = 0;
+                document.getElementById('forecastDateSelect').value = selectedForecastDate;
+            } else {
+                playIndex = forecastMonthEndDates.indexOf(selectedForecastDate);
+                if (playIndex === -1) playIndex = 0;
+            }
+            renderForecastChart();
+
+            if (playTimer) clearInterval(playTimer);
+            playTimer = setInterval(() => {
+                playIndex = (playIndex + 1) % forecastMonthEndDates.length;
+                selectedForecastDate = forecastMonthEndDates[playIndex];
+                document.getElementById('forecastDateSelect').value = selectedForecastDate;
+                renderForecastChart();
+            }, 300);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            if (playTimer) {
+                clearInterval(playTimer);
+                playTimer = null;
+            }
+            const btn = document.getElementById('playBtn');
+            btn.textContent = '▶ 播放';
+            btn.classList.remove('paused');
+        }
+
+        function togglePlayback() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        function renderForecastChart() {
+            if (!forecastChart) {
+                forecastChart = echarts.init(document.getElementById('forecastChart'));
+            }
+            const chart = forecastChart;
+
+            if (forecastViewMode === 'timeseries') {
+                // 时间序列视图（使用全部每日数据）
+                const displayTerms = ['1Y', '5Y', '10Y', '20Y', '30Y', '50Y'];
+                const colors = ['#2c6fbb', '#e67e22', '#27ae60', '#8e44ad', '#d35400', '#1abc9c'];
+                const dates = forecastDataAll.map(d => d.date);
+                const seriesData = [];
+                const allValidData = [];
+                for (const t of displayTerms) {
+                    const raw = forecastDataAll.map(d => d.rates[t]);
+                    const cleaned = cleanArray(raw);
+                    seriesData.push({ name: t, data: cleaned });
+                    allValidData.push(...cleaned.filter(v => v !== null));
+                }
+                const { min, max } = calcYAxisRange([allValidData]);
+
+                const option = {
+                    title: { text: `750日移动平均利率预测 (基准日 ${forecastRefDate || dataStore.latestDate}，平推至3年后)`, left: 'center', top: 0, textStyle: { fontSize: 14,
+                            fontWeight: 'normal' } },
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            for (const p of params) {
+                                if (p.value !== null && p.value !== undefined) {
+                                    s += p.marker + ' ' + p.seriesName + ': ' + p.value.toFixed(4) + '%<br/>';
+                                }
+                            }
+                            return s;
+                        }
+                    },
+                    legend: { data: displayTerms, top: 30, right: 10, textStyle: { fontSize: 11 } },
+                    grid: { left: 50, right: 20, top: 70, bottom: 30 },
+                    xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, rotate: 30, interval: Math.floor(
+                            dates.length / 20) }, name: '日期', nameLocation: 'center', nameGap: 30 },
+                    yAxis: {
+                        type: 'value',
+                        name: '利率 (%)',
+                        nameLocation: 'center',
+                        nameGap: 35,
+                        axisLabel: {
+                            formatter: function(value) {
+                                return value.toFixed(2) + '%';
+                            },
+                            fontSize: 11
+                        },
+                        min: min,
+                        max: max,
+                        boundaryGap: false
+                    },
+                    series: seriesData.map((s, idx) => ({
+                        name: s.name,
+                        type: 'line',
+                        data: s.data,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { width: 2.5, color: colors[idx % colors.length] },
+                        itemStyle: { color: colors[idx % colors.length] },
+                        connectNulls: false
+                    }))
+                };
+                chart.setOption(option, true);
+                chart.resize();
+                document.getElementById('forecastFootnote').textContent = `预测从 ${forecastRefDate || dataStore.latestDate} 后一个交易日开始，不含基准日本身`;
+                if (isPlaying) stopPlayback();
+                document.getElementById('playBtn').style.display = 'none';
+            } else {
+                // 快照视图（使用月末列表）
+                document.getElementById('playBtn').style.display = 'inline-block';
+                if (!selectedForecastDate || !forecastDataAll || forecastDataAll.length === 0) {
+                    chart.setOption({ title: { text: '无预测数据', left: 'center', top: 'center' } }, true);
+                    document.getElementById('forecastFootnote').textContent = '暂无预测数据';
+                    return;
+                }
+
+                // 从全部预测数据中查找该日期的数据（可能是月末）
+                let targetRates = null;
+                for (const item of forecastDataAll) {
+                    if (item.date === selectedForecastDate) {
+                        targetRates = item.rates;
+                        break;
+                    }
+                }
+                if (!targetRates) {
+                    // 若找不到，则找最近的前一个预测日期
+                    let prev = null;
+                    for (const item of forecastDataAll) {
+                        if (item.date < selectedForecastDate) {
+                            prev = item;
+                        } else break;
+                    }
+                    if (prev) {
+                        targetRates = prev.rates;
+                        selectedForecastDate = prev.date;
+                        document.getElementById('forecastDateSelect').value = selectedForecastDate;
+                    }
+                }
+                if (!targetRates) {
+                    chart.setOption({ title: { text: '所选日期无预测数据', left: 'center', top: 'center' } }, true);
+                    document.getElementById('forecastFootnote').textContent = '所选日期不在预测范围内';
+                    return;
+                }
+
+                const termsNumeric = allTerms.map(t => parseFloat(t));
+                const curveData = cleanArray(allTerms.map(t => targetRates[t]));
+
+                const refDate = forecastRefDate || dataStore.latestDate;
+                const refIdx = dataStore.dates.indexOf(refDate);
+                let actualCurve = [];
+                if (refIdx !== -1) {
+                    const actualRates = dataStore.rates[refIdx];
+                    actualCurve = cleanArray(allTerms.map(t => actualRates[t]));
+                }
+
+                const { min, max } = calcYAxisRange([curveData, actualCurve]);
+
+                const option = {
+                    title: { text: `预测利率曲线快照 - ${selectedForecastDate} (基准日 ${refDate})`, left: 'center', top: 0,
+                        textStyle: { fontSize: 14, fontWeight: 'normal' } },
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function(params) {
+                            let s = '期限: ' + params[0].axisValue + '年<br/>';
+                            for (const p of params) {
+                                if (p.value !== null && p.value !== undefined) {
+                                    s += p.marker + ' ' + p.seriesName + ': ' + p.value.toFixed(4) + '%<br/>';
+                                }
+                            }
+                            return s;
+                        }
+                    },
+                    legend: { data: ['预测曲线', '当前实际曲线'], top: 30, right: 10, textStyle: { fontSize: 11 } },
+                    grid: { left: 50, right: 20, top: 70, bottom: 30 },
+                    xAxis: { type: 'category', data: termsNumeric, name: '期限 (年)', nameLocation: 'center',
+                        nameGap: 25, axisLabel: { fontSize: 11 } },
+                    yAxis: {
+                        type: 'value',
+                        name: '利率 (%)',
+                        nameLocation: 'center',
+                        nameGap: 35,
+                        axisLabel: {
+                            formatter: function(value) {
+                                return value.toFixed(2) + '%';
+                            },
+                            fontSize: 11
+                        },
+                        min: min,
+                        max: max,
+                        boundaryGap: false
+                    },
+                    series: [{
+                        name: '预测曲线',
+                        type: 'line',
+                        data: curveData,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 3, color: '#8e44ad' },
+                        itemStyle: { color: '#8e44ad' },
+                        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0,
+                                color: 'rgba(142,68,173,0.20)' }, { offset: 1,
+                                color: 'rgba(142,68,173,0.02)' }]) }
+                    }, {
+                        name: '当前实际曲线',
+                        type: 'line',
+                        data: actualCurve,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        lineStyle: { width: 2, color: '#1f6fd9', type: 'dashed' },
+                        itemStyle: { color: '#1f6fd9' }
+                    }]
+                };
+                chart.setOption(option, true);
+                chart.resize();
+                document.getElementById('forecastFootnote').textContent = `显示 ${selectedForecastDate} 的预测利率曲线，与基准日 ${refDate} 实际曲线对比`;
+            }
+        }
+
+        // ================================================================
+        // 季度末表格（实际行使用750日均值）
+        // ================================================================
+        function renderQuarterTable(refDate) {
+            refDate = refDate || forecastRefDate || dataStore.latestDate;
+            const tbody = document.getElementById('quarterBody');
+            const latestDate = refDate;
+            const latestYear = parseInt(latestDate.slice(0, 4));
+            const endYear = latestYear + 3;
+
+            const allQuarterEnds = [];
+            for (let y = latestYear; y <= endYear; y++) {
+                for (let m = 2; m <= 11; m += 3) {
+                    const monthIdx = m;
+                    const lastDay = new Date(Date.UTC(y, monthIdx + 1, 0)).getUTCDate();
+                    const dateStr = `${y}-${String(monthIdx+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+                    if (dateStr > latestDate) {
+                        allQuarterEnds.push(dateStr);
+                    }
+                }
+            }
+            allQuarterEnds.sort();
+
+            const forecastMap = {};
+            if (forecastDataAll) {
+                for (const item of forecastDataAll) {
+                    forecastMap[item.date] = item.rates;
+                }
+            }
+
+            function getClosestForecast(targetDateStr) {
+                if (forecastMap[targetDateStr]) return forecastMap[targetDateStr];
+                let d = new Date(targetDateStr + 'T00:00:00Z');
+                for (let i = 0; i < 10; i++) {
+                    d.setUTCDate(d.getUTCDate() - 1);
+                    const dStr = d.toISOString().slice(0, 10);
+                    if (forecastMap[dStr]) return forecastMap[dStr];
+                }
+                return null;
+            }
+
+            const maAtLatest = calc750MAForDate(latestDate);
+            let actualKeyRates = null;
+            if (maAtLatest) {
+                actualKeyRates = getKeyRates(maAtLatest);
+            }
+
+            const keys = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y', '1-15Y', '1-20Y', '21-40Y'];
+            let html = '';
+
+            if (actualKeyRates) {
+                html += '<tr class="actual-row">';
+                html += '<td><strong>' + latestDate + '</strong></td>';
+                for (const k of keys) {
+                    const val = actualKeyRates[k];
+                    html += '<td>' + (val !== null ? val.toFixed(4) : '—') + '</td>';
+                }
+                html += '</tr>';
+            } else {
+                html += '<tr><td colspan="12" style="color:#888;">无实际数据</td></tr>';
+            }
+
+            if (allQuarterEnds.length === 0) {
+                html += '<tr><td colspan="12" style="color:#888;">暂无预测季度末数据</td></tr>';
+            } else {
+                for (const qDate of allQuarterEnds) {
+                    const rates = getClosestForecast(qDate);
+                    if (!rates) continue;
+                    const keyRates = getKeyRates(rates);
+                    html += '<tr>';
+                    html += '<td><strong>' + qDate + '</strong></td>';
+                    for (const k of keys) {
+                        const val = keyRates[k];
+                        html += '<td>' + (val !== null ? val.toFixed(4) : '—') + '</td>';
+                    }
+                    html += '</tr>';
+                }
+            }
+            tbody.innerHTML = html;
+            document.getElementById('quarterFootnote').textContent = `预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日 ${refDate} 的750日均值`;
+            document.getElementById('forecastRefBadge').textContent = `平推法 · 起点=${refDate} · 预测3年`;
+        }
+
+        function renderHistoryTable() {
+            const thead = document.getElementById('historyHeader');
+            const tbody = document.getElementById('historyBody');
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            const allTermKeys = allTerms;
+
+            const dateMap = {};
+            for (let i = 0; i < dates.length; i++) {
+                const d = dates[i];
+                const dt = new Date(d + 'T00:00:00Z');
+                const key = dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0');
+                if (!dateMap[key] || d > dateMap[key].date) {
+                    dateMap[key] = { date: d, index: i };
+                }
+            }
+
+            const selected = [];
+            const latestDt = dataStore.latestDate ? new Date(dataStore.latestDate + 'T00:00:00Z') : new Date();
+            const currentYear = latestDt.getUTCFullYear();
+            for (let y = currentYear - 3; y <= currentYear; y++) {
+                const key = y + '-12';
+                if (dateMap[key]) selected.push(dateMap[key]);
+            }
+            for (let m = 1; m <= 12; m++) {
+                const key = currentYear + '-' + String(m).padStart(2, '0');
+                if (dateMap[key]) selected.push(dateMap[key]);
+            }
+            const latest = dataStore.latestDate;
+            if (!selected.some(item => item.date === latest)) {
+                const idx = dates.indexOf(latest);
+                if (idx !== -1) selected.push({ date: latest, index: idx });
+            }
+            selected.sort((a, b) => a.date.localeCompare(b.date));
+
+            let headerHtml = '<th>日期</th>';
+            for (const t of allTermKeys) {
+                headerHtml += '<th>' + t + '</th>';
+            }
+            thead.innerHTML = headerHtml;
+
+            const colValues = {};
+            for (const t of allTermKeys) {
+                colValues[t] = [];
+            }
+            for (const item of selected) {
+                const row = rates[item.index];
+                for (const t of allTermKeys) {
+                    const v = sanitizeRate(row[t]);
+                    if (v !== null) colValues[t].push(v);
+                }
+            }
+            const colMinMax = {};
+            for (const t of allTermKeys) {
+                const vals = colValues[t];
+                if (vals.length > 0) {
+                    colMinMax[t] = { min: Math.min(...vals), max: Math.max(...vals) };
+                } else {
+                    colMinMax[t] = { min: 0, max: 1 };
+                }
+            }
+
+            let bodyHtml = '';
+            for (const item of selected) {
+                const row = rates[item.index];
+                bodyHtml += '<tr>';
+                bodyHtml += '<td><strong>' + item.date + '</strong></td>';
+                for (const t of allTermKeys) {
+                    const val = sanitizeRate(row[t]);
+                    if (val !== null) {
+                        const { min, max } = colMinMax[t];
+                        const range = max - min || 1;
+                        const norm = (val - min) / range;
+                        const r = Math.round(150 * norm + 80);
+                        const g = Math.round(150 * (1 - norm) + 80);
+                        const b = 100;
+                        const bgColor = `rgb(${r}, ${g}, ${b})`;
+                        bodyHtml += `<td style="background-color:${bgColor};">${val.toFixed(4)}</td>`;
+                    } else {
+                        bodyHtml += '<td>—</td>';
+                    }
+                }
+                bodyHtml += '</tr>';
+            }
+            tbody.innerHTML = bodyHtml;
+        }
+
+        // ================================================================
+        // 下载导出
+        // ================================================================
+        function downloadExcel() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) {
+                alert('暂无数据可导出，请先同步或上传数据。');
+                return;
+            }
+            // 生成带日期的 Excel
+            const headerRow = ['日期', ...allTerms];
+            const dataRows = dataStore.dates.map((d, i) => {
+                const rateRow = dataStore.rates[i];
+                return [d, ...allTerms.map(t => rateRow[t] != null ? rateRow[t].toFixed(4) : '')];
+            });
+            const allRows = [headerRow, ...dataRows];
+            const ws = XLSX.utils.aoa_to_sheet(allRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '中债国债即期利率');
+            const today = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `国债即期利率数据_${today}.xlsx`);
+        }
+
+        // ================================================================
+        // 选择器与渲染
+        // ================================================================
+        function populateDateSelectors() {
+            const dates = dataStore.dates;
+            const select1 = document.getElementById('curveDateSelect');
+            const select2 = document.getElementById('keyDateSelect');
+            const currentSelected = selectedDate || dataStore.latestDate;
+            [select1, select2].forEach(sel => {
+                sel.innerHTML = '';
+                for (const d of dates) {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    if (d === currentSelected) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+            });
+            select1.onchange = function() {
+                selectedDate = this.value;
+                updateMetrics();
+                renderCurveChart();
+                renderKeyTermsTable();
+                document.getElementById('keyDateSelect').value = selectedDate;
+            };
+            select2.onchange = function() {
+                selectedDate = this.value;
+                updateMetrics();
+                renderCurveChart();
+                renderKeyTermsTable();
+                document.getElementById('curveDateSelect').value = selectedDate;
+            };
+        }
+
+        function renderAll() {
+            document.getElementById('latestDateLabel').textContent = dataStore.latestDate;
+            if (!selectedDate) selectedDate = dataStore.latestDate;
+            if (!forecastRefDate) forecastRefDate = dataStore.latestDate;
+            populateDateSelectors();
+            populateForecastRefDateSelectors();
+            updateMetrics();
+            renderCurveChart();
+            renderKeyTermsTable();
+            populateForecastDateSelector();
+            renderForecastChart();
+            renderQuarterTable();
+            renderHistoryTable();
+        }
+
+        // 填充预测基准日选择器（750MA预测 + 季度末预测 共用）
+        function populateForecastRefDateSelectors() {
+            const dates = dataStore.dates;
+            if (!dates || dates.length === 0) return;
+            const currentRef = forecastRefDate || dataStore.latestDate;
+            const select1 = document.getElementById('forecastRefDateSelect');
+            const select2 = document.getElementById('quarterRefDateSelect');
+            [select1, select2].forEach(sel => {
+                sel.innerHTML = '';
+                for (const d of dates) {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    if (d === currentRef) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+            });
+            select1.onchange = function() {
+                forecastRefDate = this.value;
+                document.getElementById('quarterRefDateSelect').value = forecastRefDate;
+                recalcForecastData(forecastRefDate);
+                populateForecastDateSelector();
+                renderForecastChart();
+                renderQuarterTable(forecastRefDate);
+            };
+            select2.onchange = function() {
+                forecastRefDate = this.value;
+                document.getElementById('forecastRefDateSelect').value = forecastRefDate;
+                recalcForecastData(forecastRefDate);
+                populateForecastDateSelector();
+                renderForecastChart();
+                renderQuarterTable(forecastRefDate);
+            };
+        }
+
+        // ================================================================
+        // 上传合并
+        // ================================================================
+        function parseExcelData(source) {
+            let workbook;
+            if (source instanceof ArrayBuffer) {
+                workbook = XLSX.read(source, { type: 'array' });
+            } else {
+                throw new Error('不支持的输入类型');
+            }
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(firstSheet, { defval: null });
+            if (!json || json.length === 0) throw new Error('Excel 数据为空');
+            const headers = Object.keys(json[0]).map(h => h.trim());
+
+            const dateKeywords = ['日期', 'date', '交易日', '交易日期', '日', 'dt', 'trade date', 'trading date'];
+            let dateCol = null;
+            for (const h of headers) {
+                const lower = h.toLowerCase();
+                for (const kw of dateKeywords) {
+                    if (lower.includes(kw.toLowerCase())) {
+                        dateCol = h;
+                        break;
+                    }
+                }
+                if (dateCol) break;
+            }
+            if (!dateCol) throw new Error(`未找到日期列，当前列名：${headers.join('、')}`);
+
+            const rateCols = headers.filter(h => /^\d+Y$/.test(h.trim())).sort((a, b) => parseFloat(a) - parseFloat(b));
+            if (rateCols.length === 0) throw new Error('未找到利率列，请确保列名格式为 1Y, 2Y, ... 50Y');
+
+            const newDates = [];
+            const newRates = [];
+            for (const row of json) {
+                const dateStr = row[dateCol];
+                if (!dateStr) continue;
+                let d = null;
+                if (typeof dateStr === 'number') {
+                    const dateObj = XLSX.SSF.parse_date_code(dateStr);
+                    if (dateObj) {
+                        d = `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
+                    }
+                } else if (typeof dateStr === 'string') {
+                    let cleaned = dateStr.trim();
+                    cleaned = cleaned.replace(/年/g, '-').replace(/月/g, '-').replace(/日/g, '');
+                    cleaned = cleaned.replace(/\//g, '-');
+                    const parsed = new Date(cleaned);
+                    if (!isNaN(parsed)) {
+                        d = parsed.toISOString().slice(0, 10);
+                    } else {
+                        const parts = cleaned.split('-');
+                        if (parts.length === 3) {
+                            const y = parseInt(parts[0]);
+                            const m = parseInt(parts[1]);
+                            const day = parseInt(parts[2]);
+                            if (!isNaN(y) && !isNaN(m) && !isNaN(day)) {
+                                d = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            }
+                        }
+                    }
+                }
+                if (!d) continue;
+
+                const rates = {};
+                let hasRate = false;
+                for (const col of rateCols) {
+                    const val = parseFloat(row[col]);
+                    const cleanedVal = sanitizeRate(val);
+                    if (cleanedVal !== null) {
+                        rates[col.trim()] = cleanedVal;
+                        hasRate = true;
+                    }
+                }
+                if (hasRate) {
+                    newDates.push(d);
+                    newRates.push(rates);
+                }
+            }
+            if (newDates.length === 0) throw new Error('未能解析出有效数据行');
+            return { dates: newDates, rates: newRates };
+        }
+
+        function mergeUploadedData(newDates, newRates, replaceMode) {
+            if (!newDates || newDates.length === 0) {
+                alert('上传数据为空');
+                return false;
+            }
+
+            const cleanedRates = newRates.map(row => sanitizeRatesObj(row));
+
+            if (replaceMode) {
+                const sampleRates = cleanedRates[0];
+                const terms = Object.keys(sampleRates).filter(k => !isNaN(parseFloat(k))).sort((a, b) => parseFloat(a) - parseFloat(
+                    b));
+                if (terms.length === 0) {
+                    alert('未识别到有效利率列');
+                    return false;
+                }
+                dataStore = {
+                    dates: newDates,
+                    rates: cleanedRates,
+                    latestDate: newDates[newDates.length - 1],
+                    latestRates: cleanedRates[cleanedRates.length - 1],
+                    allTerms: terms
+                };
+                allTerms = terms;
+                saveDataStore();
+                document.getElementById('uploadStatus').textContent = `已完全替换，共 ${newDates.length} 条数据`;
+                document.getElementById('uploadStatus').style.color = '#2e7d32';
+                selectedDate = dataStore.latestDate;
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return true;
+            }
+
+            // 追加合并
+            const dateMap = {};
+            for (let i = 0; i < dataStore.dates.length; i++) {
+                dateMap[dataStore.dates[i]] = dataStore.rates[i];
+            }
+            let addedCount = 0,
+                updatedCount = 0;
+            for (let i = 0; i < newDates.length; i++) {
+                const d = newDates[i];
+                const r = cleanedRates[i];
+                let valid = true;
+                for (const t of allTerms) {
+                    if (r[t] === null || r[t] === undefined) { valid = false; break; }
+                }
+                if (!valid) continue;
+                if (dateMap[d]) {
+                    dateMap[d] = r;
+                    updatedCount++;
+                } else {
+                    dateMap[d] = r;
+                    addedCount++;
+                }
+            }
+            const mergedDates = Object.keys(dateMap).sort();
+            const mergedRates = mergedDates.map(d => dateMap[d]);
+            const latestDate = mergedDates[mergedDates.length - 1];
+            const latestRates = mergedRates[mergedRates.length - 1];
+            const newAllTerms = getAllTerms(latestRates);
+            dataStore = {
+                dates: mergedDates,
+                rates: mergedRates,
+                latestDate: latestDate,
+                latestRates: latestRates,
+                allTerms: newAllTerms
+            };
+            allTerms = newAllTerms;
+            saveDataStore();
+            document.getElementById('uploadStatus').textContent = `成功: 新增 ${addedCount} 条, 更新 ${updatedCount} 条`;
+            document.getElementById('uploadStatus').style.color = '#2e7d32';
+            selectedDate = dataStore.latestDate;
+            forecastRefDate = null;
+            recalcForecastData();
+            renderAll();
+            return true;
+        }
+
+        // ================================================================
+        // 初始化
+        // ================================================================
+        async function init() {
+            // 第一步：尝试内嵌数据（独立版 HTML 内置）
+            if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA && EMBEDDED_DATA.dates && EMBEDDED_DATA.dates.length > 0) {
+                loadFromRawData(EMBEDDED_DATA);
+                document.getElementById('uploadStatus').textContent = '内嵌数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
+                document.getElementById('uploadStatus').style.color = '#2e7d32';
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第二步：尝试从 data.json 加载（GitHub Pages 自动更新模式）
+            document.getElementById('uploadStatus').textContent = '正在加载最新数据...';
+            document.getElementById('uploadStatus').style.color = '#f57c00';
+            try {
+                const resp = await fetch('data.json', { cache: 'no-cache' });
+                if (resp.ok) {
+                    const rawData = await resp.json();
+                    if (rawData && rawData.dates && rawData.dates.length > 0) {
+                        loadFromRawData(rawData);
+                        saveDataStore();
+                        document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
+                        document.getElementById('uploadStatus').style.color = '#2e7d32';
+                        forecastRefDate = null;
+                        recalcForecastData();
+                        renderAll();
+                        return;
+                    }
+                }
+            } catch (e) {
+                // data.json 不可用，继续尝试其他来源
+            }
+
+            // 第三步：尝试服务器 API
+            const serverOk = await fetchFromServer(true);
+            if (serverOk) {
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第四步：尝试 localStorage
+            const stored = loadDataStore();
+            if (stored && stored.dates && stored.dates.length > 0) {
+                dataStore = stored;
+                allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
+                if (!dataStore.allTerms) dataStore.allTerms = allTerms;
+                selectedDate = dataStore.latestDate;
+                document.getElementById('uploadStatus').textContent = '从浏览器缓存加载 (' + dataStore.dates.length + ' 条)';
+                document.getElementById('uploadStatus').style.color = '#888';
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第五步：空状态
+            dataStore = getDefaultData();
+            allTerms = [];
+            selectedDate = null;
+            document.getElementById('uploadStatus').textContent = '暂无数据，请等待自动更新或上传文件';
+            document.getElementById('uploadStatus').style.color = '#e65100';
+            document.getElementById('latestDateLabel').textContent = '—';
+            renderEmptyState();
+
+            // 视图切换
+            document.querySelectorAll('#forecastViewBtnGroup button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('#forecastViewBtnGroup button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    forecastViewMode = this.dataset.view;
+                    const picker = document.getElementById('forecastDatePicker');
+                    if (forecastViewMode === 'snapshot') {
+                        picker.style.display = 'flex';
+                        if (!selectedForecastDate || !forecastMonthEndDates.includes(selectedForecastDate)) {
+                            if (forecastMonthEndDates.length > 0) {
+                                selectedForecastDate = forecastMonthEndDates[0];
+                                document.getElementById('forecastDateSelect').value = selectedForecastDate;
+                            }
+                        }
+                        document.getElementById('playBtn').style.display = 'inline-block';
+                        if (!isPlaying) {
+                            document.getElementById('playBtn').textContent = '▶ 播放';
+                            document.getElementById('playBtn').classList.remove('paused');
+                        }
+                    } else {
+                        picker.style.display = 'none';
+                        if (isPlaying) stopPlayback();
+                    }
+                    renderForecastChart();
+                });
+            });
+
+            document.getElementById('forecastDateSelect').addEventListener('change', function() {
+                if (isPlaying) stopPlayback();
+                selectedForecastDate = this.value;
+                renderForecastChart();
+            });
+
+            document.getElementById('playBtn').addEventListener('click', togglePlayback);
+
+            // 重置按钮
+            document.getElementById('resetDataBtn').addEventListener('click', function() {
+                if (confirm('确定要清空所有数据吗？清空后可重新从服务器或文件加载。')) {
+                    clearDataStore();
+                    dataStore = getDefaultData();
+                    allTerms = [];
+                    selectedDate = null;
+                    forecastRefDate = null;
+                    document.getElementById('latestDateLabel').textContent = '—';
+                    document.getElementById('uploadStatus').textContent = '数据已清空，请重新同步或上传';
+                    document.getElementById('uploadStatus').style.color = '#e65100';
+                    renderEmptyState();
+                }
+            });
+
+            // 文件上传
+            document.getElementById('fileUpload').addEventListener('change', function(e) {
+                const file = this.files[0];
+                if (!file) return;
+                const statusEl = document.getElementById('uploadStatus');
+                statusEl.textContent = '处理中...';
+                statusEl.style.color = '#f57c00';
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        const arrayBuffer = ev.target.result;
+                        const parsed = parseExcelData(arrayBuffer);
+                        const replaceMode = confirm(
+                            `检测到 ${parsed.dates.length} 条新数据。\n\n是否清空所有旧数据，并用本次上传的新数据完全覆盖？\n\n选择"确定" → 完全替换\n选择"取消" → 追加/合并`
+                        );
+                        mergeUploadedData(parsed.dates, parsed.rates, replaceMode);
+                    } catch (err) {
+                        alert('解析失败: ' + err.message);
+                        statusEl.textContent = '解析失败';
+                        statusEl.style.color = '#c0392b';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                this.value = '';
+            });
+
+            // 服务器同步按钮
+
+            // 导出按钮
+            document.getElementById('downloadSampleBtn').addEventListener('click', downloadExcel);
+
+            // 窗口大小变化 → 图表自适应
+            window.addEventListener('resize', function() {
+                if (curveChart) curveChart.resize();
+                if (forecastChart) forecastChart.resize();
+            });
+
+            // 显示隐藏的card触发图表resize（强制重绘）
+            const observer = new MutationObserver(function() {
+                if (curveChart) curveChart.resize();
+                if (forecastChart) forecastChart.resize();
+            });
+            document.querySelectorAll('.card').forEach(card => {
+                observer.observe(card, { attributes: true, attributeFilter: ['style', 'class'] });
+            });
+        }
+
+        function renderEmptyState() {
+            // 清空所有图表区域的显示，展示友好提示
+            const emptyHtml = '<div class="loading-overlay"><div class="spinner" style="border-color:#ddd;border-top-color:#ccc;animation:none;"></div><p>暂无数据</p><p style="font-size:12px;color:#999;">数据每日自动更新<br>或使用 <strong>📤 上传Excel</strong> 手动导入</p></div>';
+            document.getElementById('metricsRow').innerHTML = '';
+            document.getElementById('latestDateLabel').textContent = '—';
+            // 清空图表
+            document.getElementById('curveChart').innerHTML = emptyHtml;
+            document.getElementById('forecastChart').innerHTML = emptyHtml;
+            document.getElementById('keyTermsBody').innerHTML = '';
+            document.getElementById('quarterBody').innerHTML = '<tr><td colspan="12" style="color:#888;padding:20px;">暂无数据</td></tr>';
+            document.getElementById('historyBody').innerHTML = '<tr><td colspan="2" style="color:#888;padding:20px;">暂无数据</td></tr>';
+            document.getElementById('curveDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('keyDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('forecastDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('forecastRefDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('quarterRefDateSelect').innerHTML = '<option>—</option>';
+            if (curveChart) { curveChart.dispose(); curveChart = null; }
+            if (forecastChart) { forecastChart.dispose(); forecastChart = null; }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
