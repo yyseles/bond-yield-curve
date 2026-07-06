@@ -1716,73 +1716,7 @@
         // ================================================================
         // 初始化
         // ================================================================
-        async function init() {
-            // 第一步：尝试内嵌数据（独立版 HTML 内置）
-            if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA && EMBEDDED_DATA.dates && EMBEDDED_DATA.dates.length > 0) {
-                loadFromRawData(EMBEDDED_DATA);
-                document.getElementById('uploadStatus').textContent = '内嵌数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
-                document.getElementById('uploadStatus').style.color = '#2e7d32';
-                forecastRefDate = null;
-                recalcForecastData();
-                renderAll();
-                return;
-            }
-
-            // 第二步：尝试从 data.json 加载（GitHub Pages 自动更新模式）
-            document.getElementById('uploadStatus').textContent = '正在加载最新数据...';
-            document.getElementById('uploadStatus').style.color = '#f57c00';
-            try {
-                const resp = await fetch('data.json', { cache: 'no-cache' });
-                if (resp.ok) {
-                    const rawData = await resp.json();
-                    if (rawData && rawData.dates && rawData.dates.length > 0) {
-                        loadFromRawData(rawData);
-                        saveDataStore();
-                        document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
-                        document.getElementById('uploadStatus').style.color = '#2e7d32';
-                        forecastRefDate = null;
-                        recalcForecastData();
-                        renderAll();
-                        return;
-                    }
-                }
-            } catch (e) {
-                // data.json 不可用，继续尝试其他来源
-            }
-
-            // 第三步：尝试服务器 API
-            const serverOk = await fetchFromServer(true);
-            if (serverOk) {
-                forecastRefDate = null;
-                recalcForecastData();
-                renderAll();
-                return;
-            }
-
-            // 第四步：尝试 localStorage
-            const stored = loadDataStore();
-            if (stored && stored.dates && stored.dates.length > 0) {
-                dataStore = stored;
-                allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
-                if (!dataStore.allTerms) dataStore.allTerms = allTerms;
-                selectedDate = dataStore.latestDate;
-                document.getElementById('uploadStatus').textContent = '从浏览器缓存加载 (' + dataStore.dates.length + ' 条)';
-                document.getElementById('uploadStatus').style.color = '#888';
-                forecastRefDate = null;
-                recalcForecastData();
-                renderAll();
-                return;
-            }
-
-            // 第五步：空状态
-            dataStore = getDefaultData();
-            allTerms = [];
-            selectedDate = null;
-            document.getElementById('uploadStatus').textContent = '暂无数据，请等待自动更新或上传文件';
-            document.getElementById('uploadStatus').style.color = '#e65100';
-            document.getElementById('latestDateLabel').textContent = '—';
-            renderEmptyState();
-
+        function setupEventListeners() {
             // 视图切换
             document.querySelectorAll('#forecastViewBtnGroup button').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1860,8 +1794,6 @@
                 this.value = '';
             });
 
-            // 服务器同步按钮
-
             // 导出按钮
             document.getElementById('downloadSampleBtn').addEventListener('click', downloadExcel);
 
@@ -1879,6 +1811,77 @@
             document.querySelectorAll('.card').forEach(card => {
                 observer.observe(card, { attributes: true, attributeFilter: ['style', 'class'] });
             });
+        }
+
+        async function init() {
+            // 先绑定所有事件监听器（无论数据加载成功与否都需要）
+            setupEventListeners();
+
+            // 第一步：尝试内嵌数据（独立版 HTML 内置）
+            if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA && EMBEDDED_DATA.dates && EMBEDDED_DATA.dates.length > 0) {
+                loadFromRawData(EMBEDDED_DATA);
+                document.getElementById('uploadStatus').textContent = '内嵌数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
+                document.getElementById('uploadStatus').style.color = '#2e7d32';
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第二步：尝试从 data.json 加载（GitHub Pages 自动更新模式）
+            document.getElementById('uploadStatus').textContent = '正在加载最新数据...';
+            document.getElementById('uploadStatus').style.color = '#f57c00';
+            try {
+                const resp = await fetch('data.json', { cache: 'no-cache' });
+                if (resp.ok) {
+                    const rawData = await resp.json();
+                    if (rawData && rawData.dates && rawData.dates.length > 0) {
+                        loadFromRawData(rawData);
+                        saveDataStore();
+                        document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
+                        document.getElementById('uploadStatus').style.color = '#2e7d32';
+                        forecastRefDate = null;
+                        recalcForecastData();
+                        renderAll();
+                        return;
+                    }
+                }
+            } catch (e) {
+                // data.json 不可用，继续尝试其他来源
+            }
+
+            // 第三步：尝试服务器 API
+            const serverOk = await fetchFromServer(true);
+            if (serverOk) {
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第四步：尝试 localStorage
+            const stored = loadDataStore();
+            if (stored && stored.dates && stored.dates.length > 0) {
+                dataStore = stored;
+                allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
+                if (!dataStore.allTerms) dataStore.allTerms = allTerms;
+                selectedDate = dataStore.latestDate;
+                document.getElementById('uploadStatus').textContent = '从浏览器缓存加载 (' + dataStore.dates.length + ' 条)';
+                document.getElementById('uploadStatus').style.color = '#888';
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
+
+            // 第五步：空状态
+            dataStore = getDefaultData();
+            allTerms = [];
+            selectedDate = null;
+            document.getElementById('uploadStatus').textContent = '暂无数据，请等待自动更新或上传文件';
+            document.getElementById('uploadStatus').style.color = '#e65100';
+            document.getElementById('latestDateLabel').textContent = '—';
+            renderEmptyState();
         }
 
         function renderEmptyState() {
