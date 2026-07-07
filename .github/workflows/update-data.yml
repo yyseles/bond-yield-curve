@@ -2,8 +2,10 @@ name: 每日自动更新国债利率数据并部署
 
 on:
   schedule:
-    # 北京时间 18:00 (UTC 10:00) 每天运行，此时当日数据通常已发布
-    - cron: '0 10 * * 1-5'
+    # 北京时间 20:00 (UTC 12:00) 主运行，避开 GitHub Actions 高峰
+    - cron: '0 12 * * 1-5'
+    # 北京时间 23:00 (UTC 15:00) 兜底运行，确保当日数据已发布
+    - cron: '0 15 * * 1-5'
   workflow_dispatch:  # 允许手动触发
   push:               # 每次推送也自动部署
     branches: [main]
@@ -18,8 +20,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-data:
+  update-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: 检出代码
@@ -47,23 +52,13 @@ jobs:
             git push
           )
 
-  deploy:
-    needs: update-data
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
       - name: 设置 Pages
         uses: actions/configure-pages@v5
 
       - name: 上传站点文件
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'  # 上传根目录下所有文件（index.html, data.json 等）
+          path: '.'
 
       - name: 部署到 GitHub Pages
         id: deployment
