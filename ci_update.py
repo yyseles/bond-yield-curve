@@ -32,9 +32,6 @@ HEADERS = {
 # 关键期限 1Y ~ 50Y (整数年)
 ALL_TERMS = [f"{i}Y" for i in range(1, 51)]
 
-# 从这天起重新用中债网数据覆盖（修复 chinamoney 数据偏差）
-BACKFILL_START = "2026-06-30"
-
 # 北京时区 UTC+8
 BJ_TZ = timezone(timedelta(hours=8))
 
@@ -146,7 +143,6 @@ def main():
     print("=" * 55)
 
     existing = load_existing_data()
-    existing_dates = set(existing["dates"])
     print(f"现有数据: {len(existing['dates'])} 条")
 
     today_bj = now_beijing()
@@ -162,10 +158,9 @@ def main():
     else:
         fetch_start_new = "2020-01-01"
 
-    # 回填窗口：从 BACKFILL_START 开始重新抓取（修正历史数据）
-    fetch_start = min(BACKFILL_START, fetch_start_new)
+    # 只抓最后日期之后的新数据（回填已完成，不再重复抓取）
+    fetch_start = fetch_start_new
     print(f"抓取范围: {fetch_start} → {today_str}")
-    print(f"  - 回填窗口起始: {BACKFILL_START}")
     print(f"  - 已有最后日期: {existing['dates'][-1] if existing['dates'] else '无'}")
 
     # 逐日抓取
@@ -175,28 +170,20 @@ def main():
 
     skipped = 0
     fetched = 0
-    skipped_existing = 0
     while current <= end:
         ds = current.strftime("%Y-%m-%d")
         # 跳过周末
         if current.weekday() < 5:
-            # 如果该日期已有数据且不在回填窗口内，跳过以节省时间
-            if ds in existing_dates and ds >= fetch_start_new:
-                skipped_existing += 1
-                current += timedelta(days=1)
-                continue
-
             rates = fetch_spot_rates_chinabond(ds)
             if rates:
                 all_new[ds] = rates
                 fetched += 1
-                if fetched <= 3 or fetched % 10 == 0:
-                    print(f"  ✓ {ds}: {len(rates)} 个期限")
+                print(f"  ✓ {ds}: {len(rates)} 个期限")
             else:
                 skipped += 1
         current += timedelta(days=1)
 
-    print(f"\n获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天, 已有跳过: {skipped_existing} 天")
+    print(f"\n获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
 
     if not all_new:
         print("\n⚠ 没有获取到新数据（可能当日数据尚未发布或非交易日）")
