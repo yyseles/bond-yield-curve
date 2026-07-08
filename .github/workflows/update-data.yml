@@ -2,10 +2,16 @@ name: 每日自动更新国债利率数据并部署
 
 on:
   schedule:
-    # 北京时间 20:00 (UTC 12:00) 主运行，避开 GitHub Actions 高峰
-    - cron: '0 12 * * 1-5'
-    # 北京时间 23:00 (UTC 15:00) 兜底运行，确保当日数据已发布
-    - cron: '0 15 * * 1-5'
+    # 北京时间 18:13 (UTC 10:13) —— 避开整点高峰，用奇数分钟
+    - cron: '13 10 * * 1-5'
+    # 北京时间 19:37 (UTC 11:37) —— 第二次尝试
+    - cron: '37 11 * * 1-5'
+    # 北京时间 20:23 (UTC 12:23) —— 主运行
+    - cron: '23 12 * * 1-5'
+    # 北京时间 21:47 (UTC 13:47) —— 兜底
+    - cron: '47 13 * * 1-5'
+    # 北京时间 22:19 (UTC 14:19) —— 最后兜底
+    - cron: '19 14 * * 1-5'
   workflow_dispatch:  # 允许手动触发
   push:               # 每次推送也自动部署
     branches: [main]
@@ -30,6 +36,9 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
+      - name: 设置时区为北京时间
+        run: sudo timedatectl set-timezone Asia/Shanghai
+
       - name: 设置 Python
         uses: actions/setup-python@v5
         with:
@@ -41,16 +50,34 @@ jobs:
       - name: 抓取最新国债利率数据
         run: python ci_update.py
 
-      - name: 提交并推送更新
+      - name: 提交并推送更新（含 keepalive 保活）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json || echo "No changes to data.json"
-          git diff --cached --quiet || (
+          # 检查 data.json 是否有实质变化
+          if git diff --cached --quiet; then
+            echo "数据无变化，检查是否需要 keepalive 保活..."
+            # 距离上次 commit 超过 23 小时则提交一次空 commit 保活
+            # 防止 GitHub 因 60 天无活动禁用 scheduled workflows
+            LAST_COMMIT_TS=$(git log -1 --format="%ct")
+            NOW_TS=$(date +%s)
+            DIFF_HOURS=$(( (NOW_TS - LAST_COMMIT_TS) / 3600 ))
+            echo "距上次提交: ${DIFF_HOURS} 小时"
+            if [ "$DIFF_HOURS" -gt 23 ]; then
+              echo "超过23小时无提交，执行 keepalive 保活..."
+              git commit --allow-empty -m "keepalive: $(date +'%Y-%m-%d %H:%M') 保活提交"
+              git push
+              echo "✓ keepalive 保活完成"
+            else
+              echo "无需保活"
+            fi
+          else
             echo "有新的数据更新，正在提交..."
-            git commit -m "自动更新数据: $(date +'%Y-%m-%d')"
+            git commit -m "自动更新数据: $(date +'%Y-%m-%d %H:%M')"
             git push
-          )
+            echo "✓ 数据更新完成"
+          fi
 
       - name: 设置 Pages
         uses: actions/configure-pages@v5
