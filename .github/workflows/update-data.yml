@@ -36,7 +36,7 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests
+        run: pip install requests openpyxl
 
       - name: 抓取最新国债利率数据
         run: python ci_update.py
