@@ -31,7 +31,7 @@
         .date-selector { display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .date-selector select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; max-width: 150px; }
         .chart-box { width: 100%; height: 380px; }
-        .chart-box.tall { height: 420px; }
+        .chart-box.tall { height: 440px; }
         .table-wrap { overflow-x: auto; font-size: 13px; margin-top: 4px; }
         .table-wrap table { width: 100%; border-collapse: collapse; min-width: 480px; }
         .table-wrap th { background: #f2f6fc; color: #1e385a; font-weight: 600; padding: 8px 10px; text-align: center; border-bottom: 2px solid #d0ddea; font-size: 12px; white-space: nowrap; }
@@ -874,7 +874,7 @@
                 },
                 legend: { data: ['所选日期', '所选750平均', '上月末', '上月末750平均', '上年末', '上年末750平均'], top: 30, right: 10,
                     textStyle: { fontSize: 11 } },
-                grid: { left: 50, right: 20, top: 70, bottom: 30 },
+                grid: { left: 50, right: 20, top: 70, bottom: 60 },
                 xAxis: { type: 'category', data: termsNumeric, name: '期限 (年)', nameLocation: 'center', nameGap: 25,
                     axisLabel: { fontSize: 11 } },
                 yAxis: {
@@ -1134,9 +1134,9 @@
                         }
                     },
                     legend: { data: displayTerms, top: 30, right: 10, textStyle: { fontSize: 11 } },
-                    grid: { left: 50, right: 20, top: 70, bottom: 30 },
+                    grid: { left: 50, right: 20, top: 70, bottom: 70 },
                     xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, rotate: 30, interval: Math.floor(
-                            dates.length / 20) }, name: '日期', nameLocation: 'center', nameGap: 30 },
+                            dates.length / 20) }, name: '日期', nameLocation: 'center', nameGap: 45 },
                     yAxis: {
                         type: 'value',
                         name: '利率 (%)',
