@@ -206,7 +206,7 @@
                         <tbody id="quarterBody"></tbody>
                     </table>
                 </div>
-                <div class="footnote" id="quarterFootnote">预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日的750日均值</div>
+                <div class="footnote" id="quarterFootnote">预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日的750日均值 ｜ 背景色按列独立着色，箭头为较上一行变动(bp)</div>
             </div>
         </div>
 
@@ -1324,35 +1324,69 @@
             }
 
             const keys = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y', '1-15Y', '1-20Y', '21-40Y'];
-            let html = '';
 
+            // 构建行数据数组（含实际行 + 预测行）
+            const rowData = [];
             if (actualKeyRates) {
-                html += '<tr class="actual-row">';
-                html += '<td><strong>' + latestDate + '</strong></td>';
-                for (const k of keys) {
-                    const val = actualKeyRates[k];
-                    html += '<td>' + (val !== null ? val.toFixed(4) : '—') + '</td>';
-                }
-                html += '</tr>';
-            } else {
-                html += '<tr><td colspan="12" style="color:#888;">无实际数据</td></tr>';
+                rowData.push({ date: latestDate, rates: actualKeyRates, isActual: true });
+            }
+            for (const qDate of allQuarterEnds) {
+                const rates = getClosestForecast(qDate);
+                if (!rates) continue;
+                rowData.push({ date: qDate, rates: getKeyRates(rates), isActual: false });
             }
 
-            if (allQuarterEnds.length === 0) {
-                html += '<tr><td colspan="12" style="color:#888;">暂无预测季度末数据</td></tr>';
-            } else {
-                for (const qDate of allQuarterEnds) {
-                    const rates = getClosestForecast(qDate);
-                    if (!rates) continue;
-                    const keyRates = getKeyRates(rates);
-                    html += '<tr>';
-                    html += '<td><strong>' + qDate + '</strong></td>';
-                    for (const k of keys) {
-                        const val = keyRates[k];
-                        html += '<td>' + (val !== null ? val.toFixed(4) : '—') + '</td>';
-                    }
-                    html += '</tr>';
+            // 每列独立计算 min/max 用于热力图着色
+            const colMinMax = {};
+            for (const k of keys) {
+                const vals = rowData.map(r => r.rates[k]).filter(v => v !== null && v !== undefined && isFinite(v));
+                if (vals.length > 0) {
+                    colMinMax[k] = { min: Math.min(...vals), max: Math.max(...vals) };
+                } else {
+                    colMinMax[k] = { min: 0, max: 1 };
                 }
+            }
+
+            // 渲染
+            let html = '';
+            for (let rowIdx = 0; rowIdx < rowData.length; rowIdx++) {
+                const row = rowData[rowIdx];
+                const rowClass = row.isActual ? 'actual-row' : '';
+                html += `<tr class="${rowClass}">`;
+                html += '<td><strong>' + row.date + '</strong></td>';
+                for (const k of keys) {
+                    const val = row.rates[k];
+                    if (val !== null && val !== undefined && isFinite(val)) {
+                        const { min, max } = colMinMax[k];
+                        const range = max - min || 1;
+                        const norm = (val - min) / range;
+                        const hue = Math.round(120 * (1 - norm));
+                        const sat = 35 + Math.round(15 * (1 - Math.abs(norm - 0.5) * 2));
+                        const bgColor = `hsl(${hue}, ${sat}%, 90%)`;
+
+                        // 与上一行对比的趋势箭头
+                        let trendHtml = '';
+                        if (rowIdx > 0) {
+                            const prevVal = rowData[rowIdx - 1].rates[k];
+                            if (prevVal !== null && prevVal !== undefined && isFinite(prevVal)) {
+                                const diff = (val - prevVal) * 100;
+                                if (Math.abs(diff) >= 0.1) {
+                                    const arrow = diff > 0 ? '↑' : '↓';
+                                    const cls = diff > 0 ? 'positive' : 'negative';
+                                    const sign = diff > 0 ? '+' : '';
+                                    trendHtml = ` <span class="diff-col ${cls}" style="font-size:11px;">${arrow}${sign}${diff.toFixed(1)}</span>`;
+                                } else {
+                                    trendHtml = ` <span class="diff-col flat" style="font-size:11px;">→</span>`;
+                                }
+                            }
+                        }
+
+                        html += `<td style="background-color:${bgColor};">${val.toFixed(4)}${trendHtml}</td>`;
+                    } else {
+                        html += '<td>—</td>';
+                    }
+                }
+                html += '</tr>';
             }
             tbody.innerHTML = html;
             document.getElementById('quarterFootnote').textContent = `预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日 ${refDate} 的750日均值`;
