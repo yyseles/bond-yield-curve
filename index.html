@@ -11,9 +11,10 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
-        .container { max-width: 1600px; margin: 0 auto; }
-        h1 { font-size: 26px; font-weight: 600; color: #0b1a33; margin-bottom: 6px; }
-        .subtitle { font-size: 14px; color: #5a6e8a; margin-bottom: 20px; border-left: 4px solid #2a6fdb; padding-left: 14px; background: #e8edf4; border-radius: 0 6px 6px 0; line-height: 1.6; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 16px 24px; border: 1px solid #e6edf5; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        h1 { font-size: 22px; font-weight: 600; color: #0b1a33; margin: 0; white-space: nowrap; }
+        .subtitle { font-size: 13px; color: #5a6e8a; border-left: none; padding-left: 0; background: transparent; border-radius: 0; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 0; }
         .upload-area { display: flex; align-items: center; gap: 12px; background: white; padding: 6px 16px 6px 12px; border-radius: 30px; border: 1px solid #d0dde8; box-shadow: 0 2px 6px rgba(0,0,0,0.02); flex-wrap: wrap; }
         .upload-area label { font-size: 13px; font-weight: 500; color: #1f4a7a; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .upload-area input[type="file"] { display: none; }
@@ -88,6 +89,7 @@
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 16px; }
             .upload-area, .btn-reset, .btn-download, .btn-sync, .play-btn, .view-controls, .server-status, .subtitle { display: none !important; }
+            .header-card { box-shadow: none; border: none; padding: 0; }
             .chart-box { height: 280px; }
             .grid-2 { grid-template-columns: 1fr; gap: 12px; }
             .table-wrap { font-size: 11px; }
@@ -98,20 +100,22 @@
 </head>
 <body>
     <div class="container">
-        <h1>📈 国债利率曲线 · 精算分析报告</h1>
-        <div class="subtitle">
-            <span>
-                数据截至 <strong id="latestDateLabel">—</strong> ｜
-                750日移动平均基于历史交易数据 ｜
-                预测采用平推法，考虑交易日历
-            </span>
-            <div class="upload-area">
-                <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
-                <label for="fileUpload">📤 上传Excel</label>
-                <input type="file" id="fileUpload" accept=".xlsx,.xls">
-                <span class="upload-status" id="uploadStatus">等待加载数据...</span>
-                <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
-                <button class="btn-reset" id="resetDataBtn">清空重置</button>
+        <div class="header-card">
+            <h1>📈 国债利率曲线 · 精算分析报告</h1>
+            <div class="subtitle">
+                <span>
+                    数据截至 <strong id="latestDateLabel">—</strong> ｜
+                    750日移动平均基于历史交易数据 ｜
+                    预测采用平推法，考虑交易日历
+                </span>
+                <div class="upload-area">
+                    <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
+                    <label for="fileUpload">📤 上传Excel</label>
+                    <input type="file" id="fileUpload" accept=".xlsx,.xls">
+                    <span class="upload-status" id="uploadStatus">等待加载数据...</span>
+                    <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
+                    <button class="btn-reset" id="resetDataBtn">清空重置</button>
+                </div>
             </div>
         </div>
 
