@@ -204,7 +204,7 @@
                                 <th>日期</th>
                                 <th>1Y</th><th>5Y</th><th>10Y</th><th>15Y</th>
                                 <th>20Y</th><th>30Y</th><th>50Y</th>
-                                <th>1-10Y</th><th>1-15Y</th><th>1-20Y</th><th>21-40Y</th>
+                                <th>1-10Y</th><th>1-20Y</th><th>21-40Y</th>
                             </tr>
                         </thead>
                         <tbody id="quarterBody"></tbody>
@@ -1327,7 +1327,7 @@
                 actualKeyRates = getKeyRates(maAtLatest);
             }
 
-            const keys = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y', '1-15Y', '1-20Y', '21-40Y'];
+            const keys = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y', '1-10Y', '1-20Y', '21-40Y'];
 
             // 构建行数据数组（含实际行 + 预测行）
             const rowData = [];
@@ -1433,11 +1433,20 @@
             selected.sort((a, b) => a.date.localeCompare(b.date));
 
             let headerHtml = '<th>日期</th>';
-            // 只显示关键期限（1Y/2Y/3Y/5Y/7Y/10Y/15Y/20Y/30Y/50Y），避免50列横向溢出
+            // 显示全部期限 + 4个组合平均列，与季度表对齐
             const displayTerms = allTermKeys.filter(t => {
                 const n = parseFloat(t);
-                return [1, 2, 3, 5, 7, 10, 15, 20, 30, 50].includes(n);
-            });
+                return !isNaN(n);
+            }).concat(['1-10Y', '1-15Y', '1-20Y', '21-40Y']);
+
+            // 组合列取值函数
+            function getHistVal(row, t) {
+                if (t === '1-10Y') return avgRates(row, '1', '10');
+                if (t === '1-15Y') return avgRates(row, '1', '15');
+                if (t === '1-20Y') return avgRates(row, '1', '20');
+                if (t === '21-40Y') return avgRates(row, '21', '40');
+                return sanitizeRate(row[t]);
+            }
             for (const t of displayTerms) {
                 headerHtml += '<th>' + t + '</th>';
             }
@@ -1450,7 +1459,7 @@
             for (const item of selected) {
                 const row = rates[item.index];
                 for (const t of displayTerms) {
-                    const v = sanitizeRate(row[t]);
+                    const v = getHistVal(row, t);
                     if (v !== null) colValues[t].push(v);
                 }
             }
@@ -1470,7 +1479,7 @@
                 bodyHtml += '<tr>';
                 bodyHtml += '<td><strong>' + item.date + '</strong></td>';
                 for (const t of displayTerms) {
-                    const val = sanitizeRate(row[t]);
+                    const val = getHistVal(row, t);
                     if (val !== null) {
                         const { min, max } = colMinMax[t];
                         const range = max - min || 1;
