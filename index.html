@@ -91,6 +91,8 @@
             .chart-box { height: 280px; }
             .grid-2 { grid-template-columns: 1fr; gap: 12px; }
             .table-wrap { font-size: 11px; }
+            #historyTableWrap { font-size: 10px; }
+            #historyTableWrap th, #historyTableWrap td { padding: 4px 6px; }
         }
     </style>
 </head>
@@ -220,7 +222,7 @@
                     <tbody id="historyBody"></tbody>
                 </table>
             </div>
-            <div class="footnote">每列独立着色（柔和渐变：低→绿，中→黄，高→红）</div>
+            <div class="footnote">每列独立着色（柔和热力图：低→淡绿，中→淡黄，高→淡红）</div>
         </div>
     </div>
 
@@ -922,8 +924,8 @@
                     smooth: true,
                     symbol: 'diamond',
                     symbolSize: 5,
-                    lineStyle: { width: 2, color: '#27ae60', type: 'dotted' },
-                    itemStyle: { color: '#27ae60' }
+                    lineStyle: { width: 2, color: '#16a085', type: 'dotted' },
+                    itemStyle: { color: '#16a085' }
                 }, {
                     name: '上年末',
                     type: 'line',
@@ -940,8 +942,8 @@
                     smooth: true,
                     symbol: 'diamond',
                     symbolSize: 5,
-                    lineStyle: { width: 2, color: '#c0392b', type: 'dotted' },
-                    itemStyle: { color: '#c0392b' }
+                    lineStyle: { width: 2, color: '#922b21', type: 'dotted' },
+                    itemStyle: { color: '#922b21' }
                 }]
             };
             chart.setOption(option, true);
@@ -1393,24 +1395,29 @@
             selected.sort((a, b) => a.date.localeCompare(b.date));
 
             let headerHtml = '<th>日期</th>';
-            for (const t of allTermKeys) {
+            // 只显示关键期限（1Y/2Y/3Y/5Y/7Y/10Y/15Y/20Y/30Y/50Y），避免50列横向溢出
+            const displayTerms = allTermKeys.filter(t => {
+                const n = parseFloat(t);
+                return [1, 2, 3, 5, 7, 10, 15, 20, 30, 50].includes(n);
+            });
+            for (const t of displayTerms) {
                 headerHtml += '<th>' + t + '</th>';
             }
             thead.innerHTML = headerHtml;
 
             const colValues = {};
-            for (const t of allTermKeys) {
+            for (const t of displayTerms) {
                 colValues[t] = [];
             }
             for (const item of selected) {
                 const row = rates[item.index];
-                for (const t of allTermKeys) {
+                for (const t of displayTerms) {
                     const v = sanitizeRate(row[t]);
                     if (v !== null) colValues[t].push(v);
                 }
             }
             const colMinMax = {};
-            for (const t of allTermKeys) {
+            for (const t of displayTerms) {
                 const vals = colValues[t];
                 if (vals.length > 0) {
                     colMinMax[t] = { min: Math.min(...vals), max: Math.max(...vals) };
@@ -1424,17 +1431,19 @@
                 const row = rates[item.index];
                 bodyHtml += '<tr>';
                 bodyHtml += '<td><strong>' + item.date + '</strong></td>';
-                for (const t of allTermKeys) {
+                for (const t of displayTerms) {
                     const val = sanitizeRate(row[t]);
                     if (val !== null) {
                         const { min, max } = colMinMax[t];
                         const range = max - min || 1;
+                        // 柔和热力图：色相 绿(120)→黄(60)→红(0)，低饱和度、高亮度
                         const norm = (val - min) / range;
-                        const r = Math.round(150 * norm + 80);
-                        const g = Math.round(150 * (1 - norm) + 80);
-                        const b = 100;
-                        const bgColor = `rgb(${r}, ${g}, ${b})`;
-                        bodyHtml += `<td style="background-color:${bgColor};">${val.toFixed(4)}</td>`;
+                        const hue = Math.round(120 * (1 - norm));   // 120→0
+                        const sat = 35 + Math.round(15 * (1 - Math.abs(norm - 0.5) * 2)); // 35~50%
+                        const bgColor = `hsl(${hue}, ${sat}%, 90%)`;
+                        // 文字色：靠近两端加深，靠近中段保持原色
+                        const textColor = norm < 0.15 || norm > 0.85 ? '#1a2b44' : '#3a4a64';
+                        bodyHtml += `<td style="background-color:${bgColor};color:${textColor};">${val.toFixed(4)}</td>`;
                     } else {
                         bodyHtml += '<td>—</td>';
                     }
