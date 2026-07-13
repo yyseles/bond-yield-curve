@@ -89,7 +89,7 @@
         @media print {
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 16px; }
-            .upload-area, .btn-reset, .btn-download, .btn-sync, .play-btn, .view-controls, .server-status, .subtitle { display: none !important; }
+            .upload-area, .btn-reset, .btn-download, .btn-sync, .play-btn, .view-controls, .server-status, .subtitle, .ma-controls { display: none !important; }
             .header-card { box-shadow: none; border: none; padding: 0; }
             .chart-box { height: 320px; }
             .grid-2 { grid-template-columns: 1fr; gap: 12px; }
@@ -97,6 +97,21 @@
             #historyTableWrap { font-size: 10px; }
             #historyTableWrap th, #historyTableWrap td { padding: 4px 6px; }
         }
+        /* MA分析面板 */
+        .ma-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 12px; padding: 10px 14px; background: #f6faff; border-radius: 10px; border: 1px solid #e0e9f2; }
+        .ma-controls label { font-size: 13px; font-weight: 500; color: #3e5a7a; }
+        .ma-controls select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; }
+        .ma-period-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+        .ma-period-item { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: #3e5a7a; cursor: pointer; }
+        .ma-period-item input[type="checkbox"] { accent-color: #1f4a7a; width: 14px; height: 14px; }
+        .ma-custom-row { display: inline-flex; align-items: center; gap: 4px; }
+        .ma-custom-row input { width: 50px; padding: 3px 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; text-align: center; }
+        .ma-custom-row button { padding: 3px 10px; border-radius: 6px; border: none; background: #1f4a7a; color: white; font-size: 11px; cursor: pointer; }
+        .ma-custom-row button:hover { background: #12345a; }
+        .ma-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #eef3fa; color: #2a5f8a; }
+        .ma-chip .remove { cursor: pointer; font-weight: bold; opacity: 0.6; }
+        .ma-chip .remove:hover { opacity: 1; }
+        .ma-legend-dot { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -228,6 +243,46 @@
                 </table>
             </div>
             <div class="footnote">每列独立着色（柔和热力图：低→淡绿，中→淡黄，高→淡红）</div>
+        </div>
+
+        <!-- 第四行：移动平均分析 -->
+        <div class="grid-2" style="margin-top: 20px;">
+            <!-- 子图A：时间序列 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📊 移动平均 · 时间序列</span>
+                    <span class="badge">单期限 · 多MA周期</span>
+                </div>
+                <div class="ma-controls">
+                    <label>期限</label>
+                    <select id="maTermSelect"></select>
+                    <div class="ma-period-group" id="maPeriodGroupA"></div>
+                    <div class="ma-custom-row">
+                        <input type="number" id="maCustomInputA" placeholder="天数" min="1" max="5000">
+                        <button onclick="addMAPeriod('A')">+添加</button>
+                    </div>
+                </div>
+                <div class="chart-box tall" id="maTimeSeriesChart"></div>
+                <div class="footnote">选定期限的即期利率 vs 各周期移动平均，横轴为日期</div>
+            </div>
+            <!-- 子图B：期限曲线 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📊 移动平均 · 期限曲线</span>
+                    <span class="badge">单日期 · 多MA周期</span>
+                </div>
+                <div class="ma-controls">
+                    <label>日期</label>
+                    <select id="maDateSelect"></select>
+                    <div class="ma-period-group" id="maPeriodGroupB"></div>
+                    <div class="ma-custom-row">
+                        <input type="number" id="maCustomInputB" placeholder="天数" min="1" max="5000">
+                        <button onclick="addMAPeriod('B')">+添加</button>
+                    </div>
+                </div>
+                <div class="chart-box tall" id="maCurveChart"></div>
+                <div class="footnote">选定日期各期限的即期曲线 vs 各周期移动平均曲线</div>
+            </div>
         </div>
     </div>
 
@@ -1557,6 +1612,335 @@
             };
         }
 
+        // ================================================================
+        // 移动平均分析模块
+        // ================================================================
+        const MA_PRESETS = [60, 120, 250, 500, 750, 1000, 2500];
+        const MA_COLORS = ['#1f4a7a', '#e74c3c', '#27ae60', '#f39c12', '#8e44ad', '#16a085', '#e67e22', '#2c3e50', '#d35400', '#7f8c8d'];
+        let maActivePeriods = [750, 250, 60];           // 默认开启的周期
+        let maSelectedTerm = '10Y';
+        let maSelectedDate = null;
+        let maTimeSeriesChart = null;
+        let maCurveChartEcharts = null;
+        let maInitialized = false;
+
+        // 通用MA计算：返回某日期某期限的N日移动平均
+        function calcMAForDate(targetDate, period) {
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            const idx = dates.indexOf(targetDate);
+            if (idx === -1) return null;
+            const n = Math.min(period, idx + 1);
+            const startIdx = idx - n + 1;
+            const sum = {};
+            for (const t of allTerms) sum[t] = 0;
+            let count = 0;
+            for (let i = startIdx; i <= idx; i++) {
+                const row = rates[i];
+                let valid = true;
+                for (const t of allTerms) {
+                    if (sanitizeRate(row[t]) === null) { valid = false; break; }
+                }
+                if (valid) {
+                    for (const t of allTerms) sum[t] += row[t];
+                    count++;
+                }
+            }
+            if (count === 0) return null;
+            const avg = {};
+            for (const t of allTerms) {
+                avg[t] = sanitizeRate(sum[t] / count);
+            }
+            return avg;
+        }
+
+        // 计算某期限的时间序列MA（返回 [{date, value}] 数组）
+        function calcMATimeSeries(term, period) {
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            const result = [];
+            for (let i = 0; i < dates.length; i++) {
+                const n = Math.min(period, i + 1);
+                const startIdx = i - n + 1;
+                let sum = 0, count = 0;
+                for (let j = startIdx; j <= i; j++) {
+                    const v = sanitizeRate(rates[j][term]);
+                    if (v !== null) { sum += v; count++; }
+                }
+                if (count > 0) {
+                    result.push({ date: dates[i], value: sanitizeRate(sum / count) });
+                } else {
+                    result.push({ date: dates[i], value: null });
+                }
+            }
+            return result;
+        }
+
+        // 计算原始利率时间序列
+        function calcRawTimeSeries(term) {
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            return dates.map((d, i) => ({ date: d, value: sanitizeRate(rates[i][term]) }));
+        }
+
+        function initMAAnalysis() {
+            if (maInitialized) {
+                // 更新选择器选项但保持选中状态
+                populateMASelectors();
+                return;
+            }
+            maInitialized = true;
+            maSelectedDate = maSelectedDate || dataStore.latestDate;
+            populateMASelectors();
+            renderMAPeriodControls();
+            bindMAEvents();
+        }
+
+        function populateMASelectors() {
+            // 期限选择器
+            const termSelect = document.getElementById('maTermSelect');
+            const termsToShow = allTerms.filter(t => {
+                const n = parseFloat(t);
+                return !isNaN(n);
+            });
+            termSelect.innerHTML = termsToShow.map(t =>
+                `<option value="${t}" ${t === maSelectedTerm ? 'selected' : ''}>${t}</option>`
+            ).join('');
+            // 日期选择器
+            const dateSelect = document.getElementById('maDateSelect');
+            const dates = dataStore.dates;
+            // 只放最近500个交易日，避免下拉太长
+            const recentDates = dates.slice(-500);
+            dateSelect.innerHTML = recentDates.map(d =>
+                `<option value="${d}" ${d === maSelectedDate ? 'selected' : ''}>${d}</option>`
+            ).join('');
+        }
+
+        function renderMAPeriodControls() {
+            const allPeriods = [...new Set([...MA_PRESETS, ...maActivePeriods])].sort((a, b) => a - b);
+            ['A', 'B'].forEach(suffix => {
+                const container = document.getElementById('maPeriodGroup' + suffix);
+                let html = '';
+                for (const p of allPeriods) {
+                    const checked = maActivePeriods.includes(p) ? 'checked' : '';
+                    const colorIdx = maActivePeriods.indexOf(p);
+                    const color = colorIdx >= 0 ? MA_COLORS[colorIdx % MA_COLORS.length] : '#aaa';
+                    html += `<label class="ma-period-item">
+                        <input type="checkbox" ${checked} onchange="toggleMAPeriod(${p}, this.checked)">
+                        <span class="ma-legend-dot" style="background:${color}"></span>MA${p}
+                    </label>`;
+                }
+                container.innerHTML = html;
+            });
+        }
+
+        function toggleMAPeriod(period, checked) {
+            if (checked) {
+                if (!maActivePeriods.includes(period)) maActivePeriods.push(period);
+            } else {
+                maActivePeriods = maActivePeriods.filter(p => p !== period);
+            }
+            maActivePeriods.sort((a, b) => a - b);
+            renderMAPeriodControls();
+            renderMATimeSeriesChart();
+            renderMACurveChart();
+        }
+
+        function addMAPeriod(suffix) {
+            const input = document.getElementById('maCustomInput' + suffix);
+            const val = parseInt(input.value);
+            if (isNaN(val) || val < 2 || val > 5000) {
+                input.style.borderColor = '#e74c3c';
+                setTimeout(() => input.style.borderColor = '', 1500);
+                return;
+            }
+            if (!maActivePeriods.includes(val)) {
+                maActivePeriods.push(val);
+                maActivePeriods.sort((a, b) => a - b);
+            }
+            input.value = '';
+            renderMAPeriodControls();
+            renderMATimeSeriesChart();
+            renderMACurveChart();
+        }
+
+        function bindMAEvents() {
+            document.getElementById('maTermSelect').addEventListener('change', function() {
+                maSelectedTerm = this.value;
+                renderMATimeSeriesChart();
+            });
+            document.getElementById('maDateSelect').addEventListener('change', function() {
+                maSelectedDate = this.value;
+                renderMACurveChart();
+            });
+            // 回车提交
+            document.getElementById('maCustomInputA').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') addMAPeriod('A');
+            });
+            document.getElementById('maCustomInputB').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') addMAPeriod('B');
+            });
+        }
+
+        function renderMATimeSeriesChart() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) return;
+            const container = document.getElementById('maTimeSeriesChart');
+            if (!container) return;
+            if (maTimeSeriesChart) { maTimeSeriesChart.dispose(); }
+            maTimeSeriesChart = echarts.init(container);
+
+            const dates = dataStore.dates;
+            const term = maSelectedTerm;
+
+            // 原始利率 + 每个MA周期
+            const series = [];
+            // 原始利率（深色细线）
+            const rawData = calcRawTimeSeries(term);
+            series.push({
+                name: '即期利率',
+                type: 'line',
+                data: rawData.map(d => d.value),
+                showSymbol: false,
+                smooth: false,
+                lineStyle: { width: 1, color: '#bdc3c7', type: 'solid' },
+                itemStyle: { color: '#bdc3c7' },
+                connectNulls: false
+            });
+            // MA线
+            for (let i = 0; i < maActivePeriods.length; i++) {
+                const p = maActivePeriods[i];
+                const maData = calcMATimeSeries(term, p);
+                const color = MA_COLORS[i % MA_COLORS.length];
+                series.push({
+                    name: 'MA' + p,
+                    type: 'line',
+                    data: maData.map(d => d.value),
+                    showSymbol: false,
+                    smooth: true,
+                    lineStyle: { width: 2, color: color },
+                    itemStyle: { color: color },
+                    connectNulls: false
+                });
+            }
+
+            // Y轴范围
+            let min = Infinity, max = -Infinity;
+            for (const s of series) {
+                for (const v of s.data) {
+                    if (v !== null && v < min) min = v;
+                    if (v !== null && v > max) max = v;
+                }
+            }
+            if (min === Infinity) { min = 0; max = 5; }
+            const padding = (max - min) * 0.1 || 0.5;
+
+            maTimeSeriesChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        let s = params[0].axisValue + '<br/>';
+                        for (const p of params) {
+                            if (p.value !== null) s += p.marker + ' ' + p.seriesName + ': ' + p.value.toFixed(4) + '%<br/>';
+                        }
+                        return s;
+                    }
+                },
+                legend: { top: 5, textStyle: { fontSize: 11 } },
+                grid: { left: 55, right: 20, top: 45, bottom: 70 },
+                xAxis: { type: 'category', data: dates,
+                    axisLabel: { fontSize: 10, rotate: 30, interval: Math.floor(dates.length / 15) },
+                    name: '日期', nameLocation: 'center', nameGap: 45
+                },
+                yAxis: { type: 'value', name: '利率 (%)', nameLocation: 'center', nameGap: 40,
+                    axisLabel: { formatter: v => v.toFixed(2) + '%', fontSize: 11 },
+                    min: min - padding, max: max + padding, boundaryGap: false
+                },
+                series: series,
+                dataZoom: [{ type: 'inside', start: 60, end: 100 }, { type: 'slider', start: 60, end: 100, height: 18, bottom: 8 }]
+            });
+        }
+
+        function renderMACurveChart() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) return;
+            const container = document.getElementById('maCurveChart');
+            if (!container) return;
+            if (maCurveChartEcharts) { maCurveChartEcharts.dispose(); }
+            maCurveChartEcharts = echarts.init(container);
+
+            const targetDate = maSelectedDate || dataStore.latestDate;
+            const termsNumeric = allTerms.filter(t => !isNaN(parseFloat(t)));
+            const termsLabels = termsNumeric.map(t => t);
+
+            // 原始曲线
+            const rawRates = dataStore.rates[dataStore.dates.indexOf(targetDate)] || {};
+            const rawCurve = termsNumeric.map(t => sanitizeRate(rawRates[t]));
+
+            const series = [{
+                name: '即期利率',
+                type: 'line',
+                data: rawCurve,
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 5,
+                lineStyle: { width: 2, color: '#34495e' },
+                itemStyle: { color: '#34495e' }
+            }];
+
+            // MA曲线
+            for (let i = 0; i < maActivePeriods.length; i++) {
+                const p = maActivePeriods[i];
+                const maResult = calcMAForDate(targetDate, p);
+                const color = MA_COLORS[i % MA_COLORS.length];
+                let maCurve = [];
+                if (maResult) {
+                    maCurve = termsNumeric.map(t => maResult[t]);
+                }
+                series.push({
+                    name: 'MA' + p,
+                    type: 'line',
+                    data: maCurve,
+                    smooth: true,
+                    symbol: 'diamond',
+                    symbolSize: 4,
+                    lineStyle: { width: 2, color: color, type: 'dashed' },
+                    itemStyle: { color: color }
+                });
+            }
+
+            // Y轴范围
+            let min = Infinity, max = -Infinity;
+            for (const s of series) {
+                for (const v of s.data) {
+                    if (v !== null && v < min) min = v;
+                    if (v !== null && v > max) max = v;
+                }
+            }
+            if (min === Infinity) { min = 0; max = 5; }
+            const padding = (max - min) * 0.1 || 0.5;
+
+            maCurveChartEcharts.setOption({
+                tooltip: { trigger: 'axis',
+                    formatter: function(params) {
+                        let s = '期限: ' + params[0].axisValue + '<br/>';
+                        for (const p of params) {
+                            if (p.value !== null) s += p.marker + ' ' + p.seriesName + ': ' + p.value.toFixed(4) + '%<br/>';
+                        }
+                        return s;
+                    }
+                },
+                legend: { top: 5, textStyle: { fontSize: 11 } },
+                grid: { left: 55, right: 20, top: 45, bottom: 70 },
+                xAxis: { type: 'category', data: termsLabels,
+                    axisLabel: { fontSize: 11 },
+                    name: '期限 (年)', nameLocation: 'center', nameGap: 30
+                },
+                yAxis: { type: 'value', name: '利率 (%)', nameLocation: 'center', nameGap: 40,
+                    axisLabel: { formatter: v => v.toFixed(2) + '%', fontSize: 11 },
+                    min: min - padding, max: max + padding, boundaryGap: false
+                },
+                series: series
+            });
+        }
+
         function renderAll() {
             document.getElementById('latestDateLabel').textContent = dataStore.latestDate;
             if (!selectedDate) selectedDate = dataStore.latestDate;
@@ -1570,6 +1954,9 @@
             renderForecastChart();
             renderQuarterTable();
             renderHistoryTable();
+            initMAAnalysis();
+            renderMATimeSeriesChart();
+            renderMACurveChart();
         }
 
         // 填充预测基准日选择器（750MA预测 + 季度末预测 共用）
@@ -1858,6 +2245,8 @@
             window.addEventListener('resize', function() {
                 if (curveChart) curveChart.resize();
                 if (forecastChart) forecastChart.resize();
+                if (maTimeSeriesChart) maTimeSeriesChart.resize();
+                if (maCurveChartEcharts) maCurveChartEcharts.resize();
             });
 
             // 显示隐藏的card触发图表resize（强制重绘）
@@ -1957,8 +2346,17 @@
             document.getElementById('forecastDateSelect').innerHTML = '<option>—</option>';
             document.getElementById('forecastRefDateSelect').innerHTML = '<option>—</option>';
             document.getElementById('quarterRefDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('maTermSelect').innerHTML = '<option>—</option>';
+            document.getElementById('maDateSelect').innerHTML = '<option>—</option>';
+            document.getElementById('maPeriodGroupA').innerHTML = '';
+            document.getElementById('maPeriodGroupB').innerHTML = '';
+            document.getElementById('maTimeSeriesChart').innerHTML = emptyHtml;
+            document.getElementById('maCurveChart').innerHTML = emptyHtml;
             if (curveChart) { curveChart.dispose(); curveChart = null; }
             if (forecastChart) { forecastChart.dispose(); forecastChart = null; }
+            if (maTimeSeriesChart) { maTimeSeriesChart.dispose(); maTimeSeriesChart = null; }
+            if (maCurveChartEcharts) { maCurveChartEcharts.dispose(); maCurveChartEcharts = null; }
+            maInitialized = false;
         }
 
         document.addEventListener('DOMContentLoaded', init);
