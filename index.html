@@ -56,10 +56,28 @@
         .view-controls .date-picker { display: flex; align-items: center; gap: 6px; }
         .view-controls .date-picker select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; max-width: 180px; }
         .view-controls .date-picker label { font-size: 13px; font-weight: 500; color: #3e5a7a; }
-        .bond-toggle { display: inline-flex; gap: 2px; background: #eef3fa; border-radius: 20px; padding: 2px; }
-        .bond-toggle button { border: none; background: transparent; padding: 3px 14px; border-radius: 18px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .bond-toggle { display: inline-flex; flex-wrap: wrap; gap: 2px; background: #eef3fa; border-radius: 12px; padding: 3px; }
+        .bond-toggle button { border: none; background: transparent; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .bond-toggle button.active { background: #1f4a7a; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
         .bond-toggle button:hover:not(.active) { background: rgba(255,255,255,0.6); }
+        .bond-toggle button:disabled { opacity: 0.5; cursor: wait; }
+        .dashboard { margin-bottom: 20px; }
+        .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .dash-card { background: #fff; border-radius: 12px; border: 1px solid #e6edf5; padding: 14px 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,20,50,0.04); }
+        .dash-card:hover { border-color: #1f4a7a; box-shadow: 0 4px 12px rgba(0,20,50,0.1); transform: translateY(-1px); }
+        .dash-card.active { border-color: #1f4a7a; border-width: 2px; padding: 13px 15px; }
+        .dash-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .dash-card-name { font-size: 14px; font-weight: 600; color: #1a2b44; }
+        .dash-card-date { font-size: 11px; color: #8898b0; }
+        .dash-terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+        .term-cell { text-align: center; padding: 4px 2px; }
+        .term-label { font-size: 10px; color: #8898b0; margin-bottom: 2px; }
+        .term-val { font-size: 14px; font-weight: 600; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; }
+        .term-chg { font-size: 10px; font-family: 'SF Mono', 'Consolas', monospace; margin-top: 1px; }
+        .chg-up { color: #c0392b; }
+        .chg-dn { color: #27ae60; }
+        .chg-flat { color: #aaa; }
+        @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
         .play-btn.paused { background: #27ae60; }
@@ -123,8 +141,10 @@
         <div class="header-card">
             <h1>📈 国债利率曲线 · 精算分析报告</h1>
             <div class="bond-toggle" id="bondToggle">
-                <button class="active" data-bond="gov">国债</button>
-                <button data-bond="cdb">国开债</button>
+                <button class="active" data-bond="gov_spot">国债即期</button>
+                <button data-bond="gov_ytm">国债到期</button>
+                <button data-bond="cdb_spot">国开即期</button>
+                <button data-bond="cdb_ytm">国开到期</button>
             </div>
             <div class="subtitle">
                 <span>
@@ -141,6 +161,11 @@
                     <button class="btn-reset" id="resetDataBtn">清空重置</button>
                 </div>
             </div>
+        </div>
+
+        <!-- 总览仪表盘 -->
+        <div class="dashboard" id="dashboard" style="display:none;">
+            <div class="dash-grid" id="dashGrid"></div>
         </div>
 
         <!-- 第一行：即期曲线 | 关键期限利率 -->
@@ -421,12 +446,14 @@
         }
         let dataStore = null;
         let allTerms = [];
-        let currentBondType = 'gov';
-        let govDataStore = null;
-        let cdbDataStore = null;
-        let cdbLoading = false;
-        const bondNames = { gov: '国债', cdb: '国开债' };
+        let currentBondType = 'gov_spot';
+        let dataStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
+        let bondLoading = {};
+        const bondNames = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开债即期', cdb_ytm: '国开债到期' };
+        const bondFiles = { gov_spot: 'data.json', gov_ytm: 'data_gov_ytm.json', cdb_spot: 'data_cdb.json', cdb_ytm: 'data_cdb_ytm.json' };
+        const bondShortNames = { gov_spot: '国债', gov_ytm: '国债', cdb_spot: '国开债', cdb_ytm: '国开债' };
         function bondName() { return bondNames[currentBondType]; }
+        function bondShortName() { return bondShortNames[currentBondType]; }
         const KEY_TERMS = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y'];
         let selectedDate = null;
         let forecastDataAll = [];          // 所有预测数据（每天）
@@ -927,7 +954,7 @@
             const { min, max } = calcYAxisRange(allSeries);
 
             const option = {
-                title: { text: '中债' + bondName() + '即期利率曲线 - ' + targetDate, left: 'center', top: 0, textStyle: { fontSize: 14,
+                title: { text: '中债' + bondName() + '利率曲线 - ' + targetDate, left: 'center', top: 0, textStyle: { fontSize: 14,
                         fontWeight: 'normal' } },
                 tooltip: {
                     trigger: 'axis',
@@ -1587,9 +1614,9 @@
             const allRows = [headerRow, ...dataRows];
             const ws = XLSX.utils.aoa_to_sheet(allRows);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '中债' + bondName() + '即期利率');
+            XLSX.utils.book_append_sheet(wb, ws, '中债' + bondName() + '利率');
             const today = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, bondName() + `即期利率数据_${today}.xlsx`);
+            XLSX.writeFile(wb, bondName() + `利率数据_${today}.xlsx`);
         }
 
         // ================================================================
@@ -2285,46 +2312,37 @@
             if (type === currentBondType) return;
 
             // 保存当前 dataStore
-            if (currentBondType === 'gov') govDataStore = dataStore;
-            else cdbDataStore = dataStore;
+            dataStores[currentBondType] = dataStore;
 
-            if (type === 'cdb') {
-                // 懒加载国开债数据
-                if (!cdbDataStore && !cdbLoading) {
-                    cdbLoading = true;
-                    const statusEl = document.getElementById('uploadStatus');
-                    statusEl.textContent = '正在加载国开债数据...';
-                    statusEl.style.color = '#f57c00';
-                    document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = true);
-                    try {
-                        const resp = await fetch('data_cdb.json', { cache: 'no-cache' });
-                        if (resp.ok) {
-                            const rawData = await resp.json();
-                            if (rawData && rawData.dates && rawData.dates.length > 0) {
-                                loadFromRawData(rawData);
-                                cdbDataStore = dataStore;
-                            }
+            // 懒加载目标数据
+            if (!dataStores[type] && !bondLoading[type]) {
+                bondLoading[type] = true;
+                const statusEl = document.getElementById('uploadStatus');
+                statusEl.textContent = '正在加载' + bondNames[type] + '数据...';
+                statusEl.style.color = '#f57c00';
+                document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = true);
+                try {
+                    const resp = await fetch(bondFiles[type] + '?' + Date.now(), { cache: 'no-store' });
+                    if (resp.ok) {
+                        const rawData = await resp.json();
+                        if (rawData && rawData.dates && rawData.dates.length > 0) {
+                            loadFromRawData(rawData);
+                            dataStores[type] = dataStore;
                         }
-                    } catch (e) {
-                        console.error('加载国开债数据失败:', e);
-                    } finally {
-                        cdbLoading = false;
-                        document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = false);
                     }
-                } else if (cdbDataStore) {
-                    dataStore = cdbDataStore;
-                    allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
+                } catch (e) {
+                    console.error('加载' + bondNames[type] + '数据失败:', e);
+                } finally {
+                    bondLoading[type] = false;
+                    document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = false);
                 }
-            } else {
-                // 切回国债
-                if (govDataStore) {
-                    dataStore = govDataStore;
-                    allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
-                }
+            } else if (dataStores[type]) {
+                dataStore = dataStores[type];
+                allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
             }
 
             currentBondType = type;
-            selectedDate = dataStore.latestDate;
+            selectedDate = dataStore ? dataStore.latestDate : null;
             forecastRefDate = null;
             recalcForecastData();
             renderAll();
@@ -2335,21 +2353,70 @@
             document.querySelectorAll('#bondToggle button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.bond === currentBondType);
             });
+            document.querySelectorAll('.dash-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.bond === currentBondType);
+            });
             const name = bondName();
             document.title = name + '利率曲线分析报告';
-            document.querySelector('h1').textContent = '📈 ' + name + '利率曲线 · 精算分析报告';
+            document.querySelector('h1').textContent = '📈 ' + bondShortName() + '利率曲线 · 精算分析报告';
             document.querySelectorAll('.bond-name').forEach(el => {
-                el.textContent = '📊 中债' + name + '即期利率曲线';
+                el.textContent = '📊 中债' + name + '利率曲线';
             });
+        }
+
+        async function loadDashboard() {
+            try {
+                const resp = await fetch('summary.json?' + Date.now(), { cache: 'no-store' });
+                if (!resp.ok) return;
+                const summary = await resp.json();
+                if (!summary || !summary.curves) return;
+
+                const order = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
+                const grid = document.getElementById('dashGrid');
+                grid.innerHTML = '';
+
+                for (const key of order) {
+                    const c = summary.curves[key];
+                    if (!c) continue;
+                    const card = document.createElement('div');
+                    card.className = 'dash-card' + (key === currentBondType ? ' active' : '');
+                    card.dataset.bond = key;
+                    card.onclick = () => switchBondType(key);
+
+                    let termsHtml = '';
+                    const terms = ['1Y', '3Y', '5Y', '10Y', '20Y', '30Y', '50Y'];
+                    const showTerms = terms.filter(t => c.terms[t]).slice(0, 4);
+                    for (const t of showTerms) {
+                        const td = c.terms[t];
+                        const val = td.value != null ? td.value.toFixed(2) : '—';
+                        let chgHtml = '<span class="term-chg chg-flat">—</span>';
+                        if (td.change != null) {
+                            if (td.change > 0) chgHtml = '<span class="term-chg chg-up">+' + td.change.toFixed(2) + '</span>';
+                            else if (td.change < 0) chgHtml = '<span class="term-chg chg-dn">' + td.change.toFixed(2) + '</span>';
+                            else chgHtml = '<span class="term-chg chg-flat">0.00</span>';
+                        }
+                        termsHtml += '<div class="term-cell"><div class="term-label">' + t + '</div><div class="term-val">' + val + '</div>' + chgHtml + '</div>';
+                    }
+
+                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-terms">' + termsHtml + '</div>';
+                    grid.appendChild(card);
+                }
+
+                document.getElementById('dashboard').style.display = summary.date ? 'block' : 'none';
+            } catch (e) {
+                console.warn('加载仪表盘失败:', e);
+            }
         }
 
         async function init() {
             // 先绑定所有事件监听器（无论数据加载成功与否都需要）
             setupEventListeners();
+            loadDashboard();
 
             // 第一步：尝试内嵌数据（独立版 HTML 内置）
             if (typeof EMBEDDED_DATA !== 'undefined' && EMBEDDED_DATA && EMBEDDED_DATA.dates && EMBEDDED_DATA.dates.length > 0) {
                 loadFromRawData(EMBEDDED_DATA);
+                dataStores.gov_spot = dataStore;
                 document.getElementById('uploadStatus').textContent = '内嵌数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
                 document.getElementById('uploadStatus').style.color = '#2e7d32';
                 forecastRefDate = null;
@@ -2367,6 +2434,7 @@
                     const rawData = await resp.json();
                     if (rawData && rawData.dates && rawData.dates.length > 0) {
                         loadFromRawData(rawData);
+                        dataStores.gov_spot = dataStore;
                         saveDataStore();
                         document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
                         document.getElementById('uploadStatus').style.color = '#2e7d32';
@@ -2383,6 +2451,7 @@
             // 第三步：尝试服务器 API
             const serverOk = await fetchFromServer(true);
             if (serverOk) {
+                dataStores.gov_spot = dataStore;
                 forecastRefDate = null;
                 recalcForecastData();
                 renderAll();
@@ -2393,6 +2462,7 @@
             const stored = loadDataStore();
             if (stored && stored.dates && stored.dates.length > 0) {
                 dataStore = stored;
+                dataStores.gov_spot = dataStore;
                 allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
                 if (!dataStore.allTerms) dataStore.allTerms = allTerms;
                 selectedDate = dataStore.latestDate;

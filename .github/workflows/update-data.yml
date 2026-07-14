@@ -47,29 +47,27 @@ jobs:
       - name: 安装依赖
         run: pip install requests openpyxl
 
-      - name: 抓取最新利率数据（国债+国开债）
+      - name: 抓取最新利率数据（四曲线）
         run: python ci_update.py
 
       - name: 校验数据文件
         run: |
-          echo "data.json 大小: $(wc -c < data.json) bytes"
-          if [ ! -f data.json ] || [ "$(wc -c < data.json)" -lt 1000 ]; then
-            echo "⚠ data.json 异常，不提交"
-            exit 1
-          fi
-          if [ -f data_cdb.json ]; then
-            echo "data_cdb.json 大小: $(wc -c < data_cdb.json) bytes"
-            if [ "$(wc -c < data_cdb.json)" -lt 1000 ]; then
-              echo "⚠ data_cdb.json 异常，不提交"
-              exit 1
+          for f in data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json; do
+            if [ -f "$f" ]; then
+              SIZE=$(wc -c < "$f")
+              echo "$f 大小: $SIZE bytes"
+              if [ "$SIZE" -lt 100 ] && [ "$f" != "summary.json" ]; then
+                echo "⚠ $f 异常（<100B），不提交"
+                exit 1
+              fi
             fi
-          fi
+          done
 
       - name: 提交并推送更新（含 keepalive 保活）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json data_cdb.json 2>/dev/null || git add data.json || echo "No data files to add"
+          git add data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json 2>/dev/null || git add data.json || echo "No data files to add"
           # 检查 data.json 是否有实质变化
           if git diff --cached --quiet; then
             echo "数据无变化，检查是否需要 keepalive 保活..."

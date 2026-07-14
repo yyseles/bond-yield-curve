@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 export_data.py
 backfill_cdb.py
+backfill_ytm.py
+test_cdb_fetch.py
