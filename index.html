@@ -56,6 +56,10 @@
         .view-controls .date-picker { display: flex; align-items: center; gap: 6px; }
         .view-controls .date-picker select { padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 13px; max-width: 180px; }
         .view-controls .date-picker label { font-size: 13px; font-weight: 500; color: #3e5a7a; }
+        .bond-toggle { display: inline-flex; gap: 2px; background: #eef3fa; border-radius: 20px; padding: 2px; }
+        .bond-toggle button { border: none; background: transparent; padding: 3px 14px; border-radius: 18px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .bond-toggle button.active { background: #1f4a7a; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+        .bond-toggle button:hover:not(.active) { background: rgba(255,255,255,0.6); }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
         .play-btn.paused { background: #27ae60; }
@@ -118,6 +122,10 @@
     <div class="container">
         <div class="header-card">
             <h1>📈 国债利率曲线 · 精算分析报告</h1>
+            <div class="bond-toggle" id="bondToggle">
+                <button class="active" data-bond="gov">国债</button>
+                <button data-bond="cdb">国开债</button>
+            </div>
             <div class="subtitle">
                 <span>
                     数据截至 <strong id="latestDateLabel">—</strong> ｜
@@ -139,7 +147,7 @@
         <div class="grid-2">
             <div class="card">
                 <div class="card-title">
-                    <span>📊 中债国债即期利率曲线</span>
+                    <span class="bond-name">📊 中债国债即期利率曲线</span>
                     <span class="badge">多时点对比</span>
                     <div class="date-selector">
                         <label for="curveDateSelect" style="font-size:13px;font-weight:400;">查看日期：</label>
@@ -413,6 +421,12 @@
         }
         let dataStore = null;
         let allTerms = [];
+        let currentBondType = 'gov';
+        let govDataStore = null;
+        let cdbDataStore = null;
+        let cdbLoading = false;
+        const bondNames = { gov: '国债', cdb: '国开债' };
+        function bondName() { return bondNames[currentBondType]; }
         const KEY_TERMS = ['1Y', '5Y', '10Y', '15Y', '20Y', '30Y', '50Y'];
         let selectedDate = null;
         let forecastDataAll = [];          // 所有预测数据（每天）
@@ -913,7 +927,7 @@
             const { min, max } = calcYAxisRange(allSeries);
 
             const option = {
-                title: { text: '中债国债即期利率曲线 - ' + targetDate, left: 'center', top: 0, textStyle: { fontSize: 14,
+                title: { text: '中债' + bondName() + '即期利率曲线 - ' + targetDate, left: 'center', top: 0, textStyle: { fontSize: 14,
                         fontWeight: 'normal' } },
                 tooltip: {
                     trigger: 'axis',
@@ -1573,9 +1587,9 @@
             const allRows = [headerRow, ...dataRows];
             const ws = XLSX.utils.aoa_to_sheet(allRows);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '中债国债即期利率');
+            XLSX.utils.book_append_sheet(wb, ws, '中债' + bondName() + '即期利率');
             const today = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `国债即期利率数据_${today}.xlsx`);
+            XLSX.writeFile(wb, bondName() + `即期利率数据_${today}.xlsx`);
         }
 
         // ================================================================
@@ -2256,6 +2270,76 @@
             });
             document.querySelectorAll('.card').forEach(card => {
                 observer.observe(card, { attributes: true, attributeFilter: ['style', 'class'] });
+            });
+
+            // 债券类型切换
+            document.querySelectorAll('#bondToggle button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (this.classList.contains('active')) return;
+                    switchBondType(this.dataset.bond);
+                });
+            });
+        }
+
+        async function switchBondType(type) {
+            if (type === currentBondType) return;
+
+            // 保存当前 dataStore
+            if (currentBondType === 'gov') govDataStore = dataStore;
+            else cdbDataStore = dataStore;
+
+            if (type === 'cdb') {
+                // 懒加载国开债数据
+                if (!cdbDataStore && !cdbLoading) {
+                    cdbLoading = true;
+                    const statusEl = document.getElementById('uploadStatus');
+                    statusEl.textContent = '正在加载国开债数据...';
+                    statusEl.style.color = '#f57c00';
+                    document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = true);
+                    try {
+                        const resp = await fetch('data_cdb.json', { cache: 'no-cache' });
+                        if (resp.ok) {
+                            const rawData = await resp.json();
+                            if (rawData && rawData.dates && rawData.dates.length > 0) {
+                                loadFromRawData(rawData);
+                                cdbDataStore = dataStore;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('加载国开债数据失败:', e);
+                    } finally {
+                        cdbLoading = false;
+                        document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = false);
+                    }
+                } else if (cdbDataStore) {
+                    dataStore = cdbDataStore;
+                    allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
+                }
+            } else {
+                // 切回国债
+                if (govDataStore) {
+                    dataStore = govDataStore;
+                    allTerms = dataStore.allTerms || getAllTerms(dataStore.latestRates);
+                }
+            }
+
+            currentBondType = type;
+            selectedDate = dataStore.latestDate;
+            forecastRefDate = null;
+            recalcForecastData();
+            renderAll();
+            updateBondTypeUI();
+        }
+
+        function updateBondTypeUI() {
+            document.querySelectorAll('#bondToggle button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.bond === currentBondType);
+            });
+            const name = bondName();
+            document.title = name + '利率曲线分析报告';
+            document.querySelector('h1').textContent = '📈 ' + name + '利率曲线 · 精算分析报告';
+            document.querySelectorAll('.bond-name').forEach(el => {
+                el.textContent = '📊 中债' + name + '即期利率曲线';
             });
         }
 

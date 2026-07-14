@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 GitHub Actions CI 数据更新脚本
-每天自动从中债网抓取最新国债即期利率，更新 data.json
-数据源: https://yield.chinabond.com.cn/cbweb-mn/yc/bxjInit (csz=1, 即期利率)
-通过 bxjDownload 接口下载完整 XLSX, 包含 0~50Y 每5天一个数据点
+每天自动从中债网抓取最新国债和国开债即期利率，更新 data.json 和 data_cdb.json
 
-改进点:
-- 使用北京时间判断"今天"，匹配中债网数据发布节奏
-- 增加重试机制，应对中债网偶发性超时
-- 仅抓取缺失的新日期，避免重复抓取已有数据（除非在回填窗口内）
-- 详细的日志输出，便于排查
+国债数据源: bxjDownload 接口 (XLSX, 含 0~50Y)
+国开债数据源: searchYc 接口 (JSON, 含 0~50Y)
+
+两种债券独立抓取，互不影响：
+- 国债失败不影响国开债，反之亦然
+- 仅抓取缺失的新日期，避免重复抓取
+- 原子写入：写临时文件后 rename，防止半成品
 """
 import json
 import os
@@ -23,10 +23,18 @@ import requests
 from openpyxl import load_workbook
 
 DATA_FILE = "data.json"
+CDB_DATA_FILE = "data_cdb.json"
 CHINABOND_DOWNLOAD_URL = "https://yield.chinabond.com.cn/cbweb-mn/yc/bxjDownload"
+CDB_SEARCH_URL = "https://yield.chinabond.com.cn/cbweb-mn/yc/searchYc"
+CDB_CURVE_ID = "8a8b2ca037a7ca910137bfaa94fa5057"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Referer": "https://yield.chinabond.com.cn/cbweb-mn/yc/bxjInit?locale=zh_CN",
+}
+CDB_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://yield.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN",
+    "Content-Type": "application/x-www-form-urlencoded",
 }
 
 # 关键期限 1Y ~ 50Y (整数年)
@@ -116,6 +124,62 @@ def fetch_spot_rates_chinabond(query_date: str) -> dict:
     return {}
 
 
+def fetch_cdb_spot_rates(query_date: str) -> dict:
+    """
+    从中债 searchYc 接口抓取国开债即期利率。
+    返回 {"1Y": rate, ...} 或空字典。
+    """
+    params = {
+        "xyzSelect": "txy",
+        "workTimes": query_date,
+        "dxbj": "0",
+        "qxll": "1",
+        "yqqxN": "N",
+        "yqqxK": "K",
+        "ycDefIds": CDB_CURVE_ID,
+        "wrjxCBFlag": "0",
+        "locale": "zh_CN",
+    }
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.post(
+                CDB_SEARCH_URL, data=params, headers=CDB_HEADERS, timeout=30
+            )
+            r.raise_for_status()
+            data = r.json()
+
+            if not data or not isinstance(data, list):
+                if attempt < MAX_RETRIES:
+                    print(f"  [CDB] {query_date}: 返回空，第{attempt}次重试...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                print(f"  [CDB] {query_date}: 无数据 (非交易日或未发布)")
+                return {}
+
+            series = data[0].get("seriesData", [])
+            result = {}
+            for tenor, val in series:
+                if abs(tenor - round(tenor)) < 1e-6 and 1 <= tenor <= 50:
+                    result[f"{int(tenor)}Y"] = round(val, 8)
+
+            if not result:
+                print(f"  [CDB] {query_date}: 无整数年限数据")
+                return {}
+
+            return result
+
+        except Exception as e:
+            if attempt < MAX_RETRIES:
+                print(f"  [CDB] {query_date}: 请求失败({e})，第{attempt}次重试...")
+                time.sleep(RETRY_DELAY)
+            else:
+                print(f"  [CDB] {query_date}: 请求失败 - {e}")
+                return {}
+
+    return {}
+
+
 def load_existing_data() -> dict:
     """加载现有 data.json"""
     if not os.path.exists(DATA_FILE):
@@ -131,48 +195,59 @@ def load_existing_data() -> dict:
 
 
 def save_data(data: dict):
-    """保存 data.json"""
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+    """保存 data.json（原子写入）"""
+    tmp = DATA_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, DATA_FILE)
 
 
-def main():
-    print("=" * 55)
-    print("  国债即期利率 · CI 自动更新 (中债网)")
-    print(f"  北京时间: {datetime.now(BJ_TZ).strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 55)
+def load_existing_cdb_data() -> dict:
+    """加载现有 data_cdb.json"""
+    if not os.path.exists(CDB_DATA_FILE):
+        return {"dates": [], "terms": ALL_TERMS, "rows": []}
+    with open(CDB_DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if len(data.get("terms", [])) < 50:
+        data["terms"] = ALL_TERMS
+    return data
+
+
+def save_cdb_data(data: dict):
+    """保存 data_cdb.json（原子写入）"""
+    tmp = CDB_DATA_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, CDB_DATA_FILE)
+
+
+def update_gov_bond(today_str: str):
+    """更新国债数据，失败时保留原文件不覆盖"""
+    print("\n" + "-" * 40)
+    print("  [国债] 开始更新")
+    print("-" * 40)
 
     existing = load_existing_data()
-    print(f"现有数据: {len(existing['dates'])} 条")
+    print(f"  现有数据: {len(existing['dates'])} 条")
 
-    today_bj = now_beijing()
-    today_str = today_bj.strftime("%Y-%m-%d")
-
-    # 确定起始日期
     if existing["dates"]:
         last_date = existing["dates"][-1]
-        # 从最后日期的次日开始抓新数据
-        fetch_start_new = (
+        fetch_start = (
             datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
         ).strftime("%Y-%m-%d")
     else:
-        fetch_start_new = "2020-01-01"
+        fetch_start = "2020-01-01"
 
-    # 只抓最后日期之后的新数据（回填已完成，不再重复抓取）
-    fetch_start = fetch_start_new
-    print(f"抓取范围: {fetch_start} → {today_str}")
-    print(f"  - 已有最后日期: {existing['dates'][-1] if existing['dates'] else '无'}")
+    print(f"  抓取范围: {fetch_start} → {today_str}")
 
-    # 逐日抓取
     all_new = {}
     current = datetime.strptime(fetch_start, "%Y-%m-%d")
     end = datetime.strptime(today_str, "%Y-%m-%d")
-
-    skipped = 0
     fetched = 0
+    skipped = 0
+
     while current <= end:
         ds = current.strftime("%Y-%m-%d")
-        # 跳过周末
         if current.weekday() < 5:
             rates = fetch_spot_rates_chinabond(ds)
             if rates:
@@ -183,14 +258,13 @@ def main():
                 skipped += 1
         current += timedelta(days=1)
 
-    print(f"\n获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
+    print(f"  获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
 
     if not all_new:
-        print("\n⚠ 没有获取到新数据（可能当日数据尚未发布或非交易日）")
-        # 即使没新数据也返回 0，让 workflow 的 keepalive 逻辑判断是否需要保活
-        sys.exit(0)
+        print("  ⚠ [国债] 没有获取到新数据")
+        return False
 
-    # 合并数据
+    # 合并
     date_to_row = {}
     for i, d in enumerate(existing["dates"]):
         date_to_row[d] = existing["rows"][i]
@@ -198,8 +272,7 @@ def main():
     new_count = 0
     update_count = 0
     for d in sorted(all_new.keys()):
-        rates = all_new[d]
-        row = [rates.get(t) for t in ALL_TERMS]
+        row = [all_new[d].get(t) for t in ALL_TERMS]
         if d in date_to_row:
             date_to_row[d] = row
             update_count += 1
@@ -210,11 +283,115 @@ def main():
     sorted_dates = sorted(date_to_row.keys())
     sorted_rows = [date_to_row[d] for d in sorted_dates]
 
+    # 校验：新数据不应导致总条数减少
+    if len(sorted_dates) < len(existing["dates"]):
+        print(f"  ⚠ [国债] 数据条数减少({len(existing['dates'])}→{len(sorted_dates)})，放弃更新")
+        return False
+
     output = {"dates": sorted_dates, "terms": ALL_TERMS, "rows": sorted_rows}
     save_data(output)
 
-    print(f"\n✅ 更新完成: 新增 {new_count} 条, 修正 {update_count} 条")
-    print(f"   总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
+    print(f"  ✅ [国债] 新增 {new_count} 条, 修正 {update_count} 条")
+    print(f"     总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
+    return True
+
+
+def update_cdb_bond(today_str: str):
+    """更新国开债数据，失败时保留原文件不覆盖"""
+    print("\n" + "-" * 40)
+    print("  [国开债] 开始更新")
+    print("-" * 40)
+
+    existing = load_existing_cdb_data()
+    print(f"  现有数据: {len(existing['dates'])} 条")
+
+    if existing["dates"]:
+        last_date = existing["dates"][-1]
+        fetch_start = (
+            datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)
+        ).strftime("%Y-%m-%d")
+    else:
+        fetch_start = "2020-01-01"
+
+    print(f"  抓取范围: {fetch_start} → {today_str}")
+
+    all_new = {}
+    current = datetime.strptime(fetch_start, "%Y-%m-%d")
+    end = datetime.strptime(today_str, "%Y-%m-%d")
+    fetched = 0
+    skipped = 0
+
+    while current <= end:
+        ds = current.strftime("%Y-%m-%d")
+        if current.weekday() < 5:
+            rates = fetch_cdb_spot_rates(ds)
+            if rates:
+                all_new[ds] = rates
+                fetched += 1
+                print(f"  ✓ [CDB] {ds}: {len(rates)} 个期限")
+            else:
+                skipped += 1
+        current += timedelta(days=1)
+
+    print(f"  获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
+
+    if not all_new:
+        print("  ⚠ [国开债] 没有获取到新数据")
+        return False
+
+    # 合并
+    date_to_row = {}
+    for i, d in enumerate(existing["dates"]):
+        date_to_row[d] = existing["rows"][i]
+
+    new_count = 0
+    update_count = 0
+    for d in sorted(all_new.keys()):
+        row = [all_new[d].get(t) for t in ALL_TERMS]
+        if d in date_to_row:
+            date_to_row[d] = row
+            update_count += 1
+        else:
+            date_to_row[d] = row
+            new_count += 1
+
+    sorted_dates = sorted(date_to_row.keys())
+    sorted_rows = [date_to_row[d] for d in sorted_dates]
+
+    # 校验
+    if len(sorted_dates) < len(existing["dates"]):
+        print(f"  ⚠ [国开债] 数据条数减少({len(existing['dates'])}→{len(sorted_dates)})，放弃更新")
+        return False
+
+    output = {"dates": sorted_dates, "terms": ALL_TERMS, "rows": sorted_rows}
+    save_cdb_data(output)
+
+    print(f"  ✅ [国开债] 新增 {new_count} 条, 修正 {update_count} 条")
+    print(f"     总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
+    return True
+
+
+def main():
+    print("=" * 55)
+    print("  利率曲线 · CI 自动更新 (国债 + 国开债)")
+    print(f"  北京时间: {datetime.now(BJ_TZ).strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 55)
+
+    today_bj = now_beijing()
+    today_str = today_bj.strftime("%Y-%m-%d")
+
+    # 两种债券独立更新，互不影响
+    gov_ok = update_gov_bond(today_str)
+    cdb_ok = update_cdb_bond(today_str)
+
+    print("\n" + "=" * 55)
+    print(f"  汇总: 国债 {'✅' if gov_ok else '⚠'} | 国开债 {'✅' if cdb_ok else '⚠'}")
+    print("=" * 55)
+
+    # 只有两者都失败才退出非0
+    if not gov_ok and not cdb_ok:
+        print("\n⚠ 国债和国开债均无新数据")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
