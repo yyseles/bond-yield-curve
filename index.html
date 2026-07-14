@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -711,13 +711,10 @@
             const forecastDates = generateForecastDates(refDate);
             const refIdx = dataStore.dates.indexOf(refDate);
             if (refIdx === -1) return [];
-            const pf = ensurePrefix();
             const refRates = dataStore.rates[refIdx];
-            const totalHist = refIdx + 1;
-
-            // 预取基准日各期限有效值，避免循环内重复 sanitize
-            const refValid = {};
-            for (const t of allTerms) refValid[t] = sanitizeRate(refRates[t]);
+            const allDates = dataStore.dates.slice(0, refIdx + 1);
+            const allRates = dataStore.rates.slice(0, refIdx + 1);
+            const totalHist = allDates.length;
 
             const result = [];
             for (let i = 0; i < forecastDates.length; i++) {
@@ -727,15 +724,27 @@
                 if (histCount < 0) histCount = 0;
                 const actualHistCount = Math.min(histCount, totalHist);
                 const startIdx = totalHist - actualHistCount;
-                // 整行口径的有效天数 + 各期限窗口和（前缀和 O(terms)）
-                const validCount = pf.rowValidCnt[totalHist] - pf.rowValidCnt[startIdx];
-                const predCount = 750 - validCount;
+                const sum = {};
+                for (const t of allTerms) sum[t] = 0;
+                let validCount = 0;
+                for (let j = startIdx; j < totalHist; j++) {
+                    const row = allRates[j];
+                    let valid = true;
+                    for (const t of allTerms) {
+                        if (sanitizeRate(row[t]) === null) { valid = false; break; }
+                    }
+                    if (valid) {
+                        for (const t of allTerms) sum[t] += row[t];
+                        validCount++;
+                    }
+                }
+                const usedHistCount = validCount;
+                const predCount = 750 - usedHistCount;
                 const avg = {};
                 for (const t of allTerms) {
-                    const refVal = refValid[t];
+                    const refVal = sanitizeRate(refRates[t]);
                     if (refVal !== null) {
-                        const sum = pf.rowSum[t][totalHist] - pf.rowSum[t][startIdx];
-                        avg[t] = sanitizeRate((sum + predCount * refVal) / 750);
+                        avg[t] = sanitizeRate((sum[t] + predCount * refVal) / 750);
                     } else {
                         avg[t] = null;
                     }
@@ -1615,28 +1624,54 @@
         let maCurveChartEcharts = null;
         let maInitialized = false;
 
-        // 通用MA计算：返回某日期某期限的N日移动平均（整行口径，前缀和加速）
+        // 通用MA计算：返回某日期某期限的N日移动平均
         function calcMAForDate(targetDate, period) {
-            return calcMAForDateN(targetDate, period);
+            const dates = dataStore.dates;
+            const rates = dataStore.rates;
+            const idx = dates.indexOf(targetDate);
+            if (idx === -1) return null;
+            const n = Math.min(period, idx + 1);
+            const startIdx = idx - n + 1;
+            const sum = {};
+            for (const t of allTerms) sum[t] = 0;
+            let count = 0;
+            for (let i = startIdx; i <= idx; i++) {
+                const row = rates[i];
+                let valid = true;
+                for (const t of allTerms) {
+                    if (sanitizeRate(row[t]) === null) { valid = false; break; }
+                }
+                if (valid) {
+                    for (const t of allTerms) sum[t] += row[t];
+                    count++;
+                }
+            }
+            if (count === 0) return null;
+            const avg = {};
+            for (const t of allTerms) {
+                avg[t] = sanitizeRate(sum[t] / count);
+            }
+            return avg;
         }
 
-        // 计算某期限的时间序列MA（单期限口径，前缀和 O(N) 加速）
+        // 计算某期限的时间序列MA（返回 [{date, value}] 数组）
         function calcMATimeSeries(term, period) {
-            const pf = ensurePrefix();
             const dates = dataStore.dates;
+            const rates = dataStore.rates;
             const result = [];
-            if (!pf || !pf.termSum[term]) {
-                // 兜底：期限不在前缀表内时退回逐点（极少发生）
-                for (let i = 0; i < dates.length; i++) result.push({ date: dates[i], value: null });
-                return result;
-            }
-            const ts = pf.termSum[term], tc = pf.termCnt[term];
             for (let i = 0; i < dates.length; i++) {
                 const n = Math.min(period, i + 1);
                 const startIdx = i - n + 1;
-                const sum = ts[i + 1] - ts[startIdx];
-                const count = tc[i + 1] - tc[startIdx];
-                result.push({ date: dates[i], value: count > 0 ? sanitizeRate(sum / count) : null });
+                let sum = 0, count = 0;
+                for (let j = startIdx; j <= i; j++) {
+                    const v = sanitizeRate(rates[j][term]);
+                    if (v !== null) { sum += v; count++; }
+                }
+                if (count > 0) {
+                    result.push({ date: dates[i], value: sanitizeRate(sum / count) });
+                } else {
+                    result.push({ date: dates[i], value: null });
+                }
             }
             return result;
         }
@@ -1904,26 +1939,6 @@
                 },
                 series: series
             });
-        }
-
-        // 首屏快速视图：只渲染最上面的即期曲线 + 关键期限表 + 指标卡，
-        // 下半部分（预测/季度/历史/MA）显示占位，等全量数据到位后由 renderAll 补齐。
-        function renderQuickView() {
-            document.getElementById('latestDateLabel').textContent = dataStore.latestDate;
-            if (!selectedDate) selectedDate = dataStore.latestDate;
-            populateDateSelectors();
-            updateMetrics();
-            renderCurveChart();
-            renderKeyTermsTable();
-            const loading = '<div class="loading-overlay"><div class="spinner"></div><p>完整历史加载中…</p></div>';
-            const setLoad = (id) => { const el = document.getElementById(id); if (el) el.innerHTML = loading; };
-            setLoad('forecastChart');
-            setLoad('maTimeSeriesChart');
-            setLoad('maCurveChart');
-            const qb = document.getElementById('quarterBody');
-            if (qb) qb.innerHTML = '<tr><td colspan="12" style="color:#888;padding:20px;">完整历史加载中…</td></tr>';
-            const hb = document.getElementById('historyBody');
-            if (hb) hb.innerHTML = '<tr><td colspan="2" style="color:#888;padding:20px;">完整历史加载中…</td></tr>';
         }
 
         function renderAll() {
