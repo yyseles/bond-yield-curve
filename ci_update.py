@@ -49,7 +49,7 @@ SEARCHYC_HEADERS = {
 }
 
 ALL_TERMS = [f"{i}Y" for i in range(1, 51)]
-SUMMARY_TERMS = ["1Y", "3Y", "5Y", "10Y", "20Y", "30Y", "50Y"]
+SUMMARY_TERMS = ["1Y", "5Y", "10Y", "20Y", "30Y"]
 
 BJ_TZ = timezone(timedelta(hours=8))
 MAX_RETRIES = 3

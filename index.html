@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>国债利率曲线分析报告</title>
+    <title>利率曲线监测及分析报告</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
@@ -33,6 +33,7 @@
         .chart-box { width: 100%; height: 380px; }
         .chart-box.tall { height: 440px; }
         .table-wrap { overflow-x: auto; font-size: 13px; margin-top: 4px; }
+        .table-wrap.scrollable-y { max-height: 520px; overflow-y: auto; }
         .table-wrap table { width: 100%; border-collapse: collapse; min-width: 480px; }
         .table-wrap th { background: #f2f6fc; color: #1e385a; font-weight: 600; padding: 8px 10px; text-align: center; border-bottom: 2px solid #d0ddea; font-size: 12px; white-space: nowrap; }
         .table-wrap td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #e9eef4; font-size: 13px; white-space: nowrap; }
@@ -63,20 +64,25 @@
         .bond-toggle button:disabled { opacity: 0.5; cursor: wait; }
         .dashboard { margin-bottom: 20px; }
         .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        .dash-card { background: #fff; border-radius: 12px; border: 1px solid #e6edf5; padding: 14px 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,20,50,0.04); }
-        .dash-card:hover { border-color: #1f4a7a; box-shadow: 0 4px 12px rgba(0,20,50,0.1); transform: translateY(-1px); }
+        .dash-card { background: #fff; border-radius: 12px; border: 1px solid #e6edf5; padding: 14px 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,20,50,0.04); position: relative; overflow: hidden; }
+        .dash-card:hover { border-color: #1f4a7a; box-shadow: 0 6px 20px rgba(0,20,50,0.12); transform: translateY(-2px); }
         .dash-card.active { border-color: #1f4a7a; border-width: 2px; padding: 13px 15px; }
         .dash-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .dash-card-name { font-size: 14px; font-weight: 600; color: #1a2b44; }
+        .dash-card-name { font-size: 14px; font-weight: 600; color: #1a2b44; display: flex; align-items: center; gap: 6px; }
         .dash-card-date { font-size: 11px; color: #8898b0; }
-        .dash-terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
-        .term-cell { text-align: center; padding: 4px 2px; }
+        .dash-card-icon { font-size: 16px; }
+        .dash-terms { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+        .term-cell { text-align: center; padding: 4px 2px; border-radius: 6px; transition: background 0.2s; }
+        .term-cell.chg-up-bg { background: rgba(192, 57, 43, 0.06); }
+        .term-cell.chg-dn-bg { background: rgba(39, 174, 96, 0.06); }
         .term-label { font-size: 10px; color: #8898b0; margin-bottom: 2px; }
         .term-val { font-size: 14px; font-weight: 600; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; }
         .term-chg { font-size: 10px; font-family: 'SF Mono', 'Consolas', monospace; margin-top: 1px; }
         .chg-up { color: #c0392b; }
         .chg-dn { color: #27ae60; }
         .chg-flat { color: #aaa; }
+        .btn-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #1f4a7a; background: #eef3fa; border: none; border-radius: 20px; padding: 6px 18px; cursor: pointer; transition: 0.2s; margin-bottom: 16px; }
+        .btn-back:hover { background: #dde8f5; }
         @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
@@ -139,7 +145,7 @@
 <body>
     <div class="container">
         <div class="header-card">
-            <h1>📈 国债利率曲线 · 精算分析报告</h1>
+            <h1 id="mainTitle">📈 利率曲线监测及分析报告</h1>
             <div class="bond-toggle" id="bondToggle">
                 <button class="active" data-bond="gov_spot">国债即期</button>
                 <button data-bond="gov_ytm">国债到期</button>
@@ -149,8 +155,8 @@
             <div class="subtitle">
                 <span>
                     数据截至 <strong id="latestDateLabel">—</strong> ｜
-                    750日移动平均基于历史交易数据 ｜
-                    预测采用平推法，考虑交易日历
+                    移动平均基于历史交易数据 ｜
+                    预测采用平推法，支持250/500/750/2500日周期
                 </span>
                 <div class="upload-area">
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
@@ -163,10 +169,16 @@
             </div>
         </div>
 
-        <!-- 总览仪表盘 -->
-        <div class="dashboard" id="dashboard" style="display:none;">
-            <div class="dash-grid" id="dashGrid"></div>
+        <!-- 总览视图 -->
+        <div class="view-overview" id="viewOverview">
+            <div class="dashboard" id="dashboard">
+                <div class="dash-grid" id="dashGrid"></div>
+            </div>
         </div>
+
+        <!-- 详情视图 -->
+        <div class="view-detail" id="viewDetail" style="display:none;">
+        <button class="btn-back" id="btnBackToOverview" onclick="showOverview()">← 返回总览</button>
 
         <!-- 第一行：即期曲线 | 关键期限利率 -->
         <div class="grid-2">
@@ -198,7 +210,7 @@
                             <tr>
                                 <th>期限</th>
                                 <th>所选日 (%)</th>
-                                <th>750平均 (%)</th>
+                                <th>750MA (%)</th>
                                 <th>所选-上月 (bp)</th>
                                 <th>750-上月 (bp)</th>
                                 <th>所选-上年 (bp)</th>
@@ -216,9 +228,16 @@
         <div class="grid-2">
             <div class="card">
                 <div class="card-title">
-                    <span>🔮 750日移动平均利率预测</span>
+                    <span>🔮 移动平均利率预测</span>
                     <span class="badge" id="forecastRefBadge">平推法 · 预测3年</span>
                     <div class="date-selector">
+                        <label for="forecastPeriodSelect" style="font-size:13px;font-weight:400;">周期：</label>
+                        <select id="forecastPeriodSelect">
+                            <option value="250">250日 (1年)</option>
+                            <option value="500">500日 (2年)</option>
+                            <option value="750" selected>750日 (3年)</option>
+                            <option value="2500">2500日 (10年)</option>
+                        </select>
                         <label for="forecastRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
                         <select id="forecastRefDateSelect"></select>
                     </div>
@@ -239,8 +258,8 @@
             </div>
             <div class="card">
                 <div class="card-title">
-                    <span>📅 季度末750预测</span>
-                    <span class="badge">关键期限 · 至3年后</span>
+                    <span>📅 季度末移动平均预测</span>
+                    <span class="badge">关键期限 · 动态周期</span>
                     <div class="date-selector">
                         <label for="quarterRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
                         <select id="quarterRefDateSelect"></select>
@@ -303,6 +322,7 @@
                 <div class="card-title">
                     <span>📊 移动平均 · 期限曲线</span>
                     <span class="badge">单日期 · 多MA周期</span>
+                    <button class="btn-download" id="maCurveDownloadBtn" style="font-size:11px;padding:3px 12px;">📥 导出XLSX</button>
                 </div>
                 <div class="ma-controls">
                     <label>日期</label>
@@ -317,6 +337,7 @@
                 <div class="footnote">选定日期各期限的即期曲线 vs 各周期移动平均曲线</div>
             </div>
         </div>
+        </div><!-- /view-detail -->
     </div>
 
     <script>
@@ -462,6 +483,8 @@
         let forecastViewMode = 'timeseries';
         let selectedForecastDate = null;
         let forecastRefDate = null;       // 750MA预测 · 季度末预测 共用基准日
+        let forecastPeriod = 750;        // 预测周期（250/500/750/2500）
+        const FORECAST_PERIODS = [250, 500, 750, 2500];
         let curveChart = null,
             forecastChart = null;
         let isPlaying = false;
@@ -692,14 +715,15 @@
         }
 
         // ================================================================
-        // 750日移动平均
+        // N日移动平均（通用，默认750）
         // ================================================================
-        function calc750MAForDate(targetDate) {
+        function calc750MAForDate(targetDate, period) {
+            period = period || 750;
             const dates = dataStore.dates;
             const rates = dataStore.rates;
             const idx = dates.indexOf(targetDate);
             if (idx === -1) return null;
-            const n = Math.min(750, idx + 1);
+            const n = Math.min(period, idx + 1);
             const startIdx = idx - n + 1;
             const sum = {};
             for (const t of allTerms) sum[t] = 0;
@@ -726,17 +750,19 @@
         // ================================================================
         // 预测计算（每天）
         // ================================================================
-        function generateForecastDates(refDate) {
+        function generateForecastDates(refDate, period) {
+            period = period || forecastPeriod || 750;
             refDate = refDate || dataStore.latestDate;
             const [year, month, day] = refDate.split('-').map(Number);
-            const endYear = year + 3;
+            const forecastYears = Math.ceil(period / 250);
+            const endYear = year + forecastYears;
             const endDate = new Date(Date.UTC(endYear, 11, 31));
             const startDate = new Date(Date.UTC(year, month - 1, day));
             startDate.setUTCDate(startDate.getUTCDate() + 1);
             const forecastDates = [];
             let cur = new Date(startDate);
             let safety = 0;
-            while (cur <= endDate && safety < 2000) {
+            while (cur <= endDate && safety < 5000) {
                 const dStr = cur.toISOString().slice(0, 10);
                 if (isTradingDay(dStr)) {
                     forecastDates.push(dStr);
@@ -749,7 +775,8 @@
 
         function calcForecastMA(refDate) {
             refDate = refDate || dataStore.latestDate;
-            const forecastDates = generateForecastDates(refDate);
+            const period = forecastPeriod || 750;
+            const forecastDates = generateForecastDates(refDate, period);
             const refIdx = dataStore.dates.indexOf(refDate);
             if (refIdx === -1) return [];
             const refRates = dataStore.rates[refIdx];
@@ -761,7 +788,7 @@
             for (let i = 0; i < forecastDates.length; i++) {
                 const fDate = forecastDates[i];
                 const d = businessDaysBetween(refDate, fDate);
-                let histCount = 750 - d;
+                let histCount = period - d;
                 if (histCount < 0) histCount = 0;
                 const actualHistCount = Math.min(histCount, totalHist);
                 const startIdx = totalHist - actualHistCount;
@@ -780,12 +807,12 @@
                     }
                 }
                 const usedHistCount = validCount;
-                const predCount = 750 - usedHistCount;
+                const predCount = period - usedHistCount;
                 const avg = {};
                 for (const t of allTerms) {
                     const refVal = sanitizeRate(refRates[t]);
                     if (refVal !== null) {
-                        avg[t] = sanitizeRate((sum[t] + predCount * refVal) / 750);
+                        avg[t] = sanitizeRate((sum[t] + predCount * refVal) / period);
                     } else {
                         avg[t] = null;
                     }
@@ -1215,7 +1242,7 @@
                 const { min, max } = calcYAxisRange([allValidData]);
 
                 const option = {
-                    title: { text: `750日移动平均利率预测 (基准日 ${forecastRefDate || dataStore.latestDate}，平推至3年后)`, left: 'center', top: 0, textStyle: { fontSize: 14,
+                    title: { text: `${forecastPeriod}日移动平均利率预测 (基准日 ${forecastRefDate || dataStore.latestDate}，平推至${Math.ceil(forecastPeriod/250)}年后)`, left: 'center', top: 0, textStyle: { fontSize: 14,
                             fontWeight: 'normal' } },
                     tooltip: {
                         trigger: 'axis',
@@ -1385,7 +1412,9 @@
             const tbody = document.getElementById('quarterBody');
             const latestDate = refDate;
             const latestYear = parseInt(latestDate.slice(0, 4));
-            const endYear = latestYear + 3;
+            const period = forecastPeriod || 750;
+            const forecastYears = Math.ceil(period / 250);
+            const endYear = latestYear + forecastYears;
 
             const allQuarterEnds = [];
             for (let y = latestYear; y <= endYear; y++) {
@@ -1418,7 +1447,7 @@
                 return null;
             }
 
-            const maAtLatest = calc750MAForDate(latestDate);
+            const maAtLatest = calc750MAForDate(latestDate, period);
             let actualKeyRates = null;
             if (maAtLatest) {
                 actualKeyRates = getKeyRates(maAtLatest);
@@ -1490,8 +1519,15 @@
                 html += '</tr>';
             }
             tbody.innerHTML = html;
-            document.getElementById('quarterFootnote').textContent = `预测值 = 加权平均后的750日移动平均 ｜ 实际行（蓝色）为基准日 ${refDate} 的750日均值`;
-            document.getElementById('forecastRefBadge').textContent = `平推法 · 起点=${refDate} · 预测3年`;
+            // 超过12行时启用垂直滚动
+            const wrap = document.getElementById('quarterTableWrap');
+            if (rowData.length > 12) {
+                wrap.classList.add('scrollable-y');
+            } else {
+                wrap.classList.remove('scrollable-y');
+            }
+            document.getElementById('quarterFootnote').textContent = `预测值 = 加权平均后的${period}日移动平均 ｜ 实际行（蓝色）为基准日 ${refDate} 的${period}日均值`;
+            document.getElementById('forecastRefBadge').textContent = `平推法 · 起点=${refDate} · 预测${forecastYears}年`;
         }
 
         function renderHistoryTable() {
@@ -1982,6 +2018,40 @@
             });
         }
 
+        function downloadMACurveExcel() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) return;
+            const targetDate = maSelectedDate || dataStore.latestDate;
+            const termsNumeric = allTerms.filter(t => !isNaN(parseFloat(t)));
+
+            // 即期利率
+            const rawRates = dataStore.rates[dataStore.dates.indexOf(targetDate)] || {};
+            const rawCurve = termsNumeric.map(t => sanitizeRate(rawRates[t]));
+
+            // 各MA曲线
+            const maCurves = [];
+            for (const p of maActivePeriods) {
+                const maResult = calcMAForDate(targetDate, p);
+                const curve = maResult ? termsNumeric.map(t => maResult[t]) : termsNumeric.map(() => null);
+                maCurves.push({ period: p, data: curve });
+            }
+
+            // 构建 sheet data：行=期限，列=即期+各MA
+            const header = ['期限', '即期利率(%)'];
+            for (const mc of maCurves) header.push('MA' + mc.period + '(%)');
+            const rows = [header];
+            for (let i = 0; i < termsNumeric.length; i++) {
+                const row = [termsNumeric[i], rawCurve[i]];
+                for (const mc of maCurves) row.push(mc.data[i]);
+                rows.push(row);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'MA期限曲线');
+            const bondLabel = bondNames[currentBondType] || '';
+            XLSX.writeFile(wb, bondLabel + '_MA期限曲线_' + targetDate + '.xlsx');
+        }
+
         function renderAll() {
             document.getElementById('latestDateLabel').textContent = dataStore.latestDate;
             if (!selectedDate) selectedDate = dataStore.latestDate;
@@ -2199,6 +2269,43 @@
         }
 
         // ================================================================
+        // 视图切换：总览 ↔ 详情
+        // ================================================================
+        function showOverview() {
+            document.getElementById('viewOverview').style.display = '';
+            document.getElementById('viewDetail').style.display = 'none';
+            if (location.hash) history.replaceState(null, '', location.pathname);
+        }
+
+        async function showDetail(type) {
+            document.getElementById('viewOverview').style.display = 'none';
+            document.getElementById('viewDetail').style.display = '';
+            // 触发图表 resize
+            setTimeout(() => {
+                if (curveChart) curveChart.resize();
+                if (forecastChart) forecastChart.resize();
+                if (maTimeSeriesChart) maTimeSeriesChart.resize();
+                if (maCurveChartEcharts) maCurveChartEcharts.resize();
+            }, 50);
+            // 切换曲线类型
+            if (type !== currentBondType) {
+                await switchBondType(type);
+            }
+            // 更新 URL hash
+            history.replaceState(null, '', '#' + type);
+        }
+
+        function handleHashChange() {
+            const hash = location.hash.replace('#', '');
+            const validTypes = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
+            if (validTypes.includes(hash)) {
+                showDetail(hash);
+            } else {
+                showOverview();
+            }
+        }
+
+        // ================================================================
         // 初始化
         // ================================================================
         function setupEventListeners() {
@@ -2281,6 +2388,17 @@
 
             // 导出按钮
             document.getElementById('downloadSampleBtn').addEventListener('click', downloadExcel);
+            document.getElementById('maCurveDownloadBtn').addEventListener('click', downloadMACurveExcel);
+
+            // 预测周期选择器
+            document.getElementById('forecastPeriodSelect').addEventListener('change', function() {
+                forecastPeriod = parseInt(this.value);
+                const refDate = forecastRefDate || dataStore.latestDate;
+                recalcForecastData(refDate);
+                populateForecastDateSelector();
+                renderForecastChart();
+                renderQuarterTable(refDate);
+            });
 
             // 窗口大小变化 → 图表自适应
             window.addEventListener('resize', function() {
@@ -2299,11 +2417,11 @@
                 observer.observe(card, { attributes: true, attributeFilter: ['style', 'class'] });
             });
 
-            // 债券类型切换
+            // 债券类型切换（从详情页内的 toggle 按钮）
             document.querySelectorAll('#bondToggle button').forEach(btn => {
                 btn.addEventListener('click', function() {
                     if (this.classList.contains('active')) return;
-                    switchBondType(this.dataset.bond);
+                    showDetail(this.dataset.bond);
                 });
             });
         }
@@ -2357,8 +2475,8 @@
                 card.classList.toggle('active', card.dataset.bond === currentBondType);
             });
             const name = bondName();
-            document.title = name + '利率曲线分析报告';
-            document.querySelector('h1').textContent = '📈 ' + bondShortName() + '利率曲线 · 精算分析报告';
+            document.title = name + ' · 利率曲线分析';
+            document.getElementById('mainTitle').textContent = '📈 ' + name + ' · 利率曲线分析';
             document.querySelectorAll('.bond-name').forEach(el => {
                 el.textContent = '📊 中债' + name + '利率曲线';
             });
@@ -2381,28 +2499,34 @@
                     const card = document.createElement('div');
                     card.className = 'dash-card' + (key === currentBondType ? ' active' : '');
                     card.dataset.bond = key;
-                    card.onclick = () => switchBondType(key);
+                    card.onclick = () => showDetail(key);
+
+                    // 图标：即期用⚡，到期用📅
+                    const isSpot = key.endsWith('_spot');
+                    const iconHtml = isSpot ? '<span class="dash-card-icon">⚡</span>' : '<span class="dash-card-icon">📅</span>';
 
                     let termsHtml = '';
-                    const terms = ['1Y', '3Y', '5Y', '10Y', '20Y', '30Y', '50Y'];
-                    const showTerms = terms.filter(t => c.terms[t]).slice(0, 4);
-                    for (const t of showTerms) {
+                    const terms = ['1Y', '5Y', '10Y', '20Y', '30Y'];
+                    for (const t of terms) {
                         const td = c.terms[t];
-                        const val = td.value != null ? td.value.toFixed(2) : '—';
+                        if (!td) { termsHtml += '<div class="term-cell"><div class="term-label">' + t + '</div><div class="term-val">—</div></div>'; continue; }
+                        const val = td.value != null ? td.value.toFixed(4) : '—';
                         let chgHtml = '<span class="term-chg chg-flat">—</span>';
+                        let bgClass = '';
                         if (td.change != null) {
-                            if (td.change > 0) chgHtml = '<span class="term-chg chg-up">+' + td.change.toFixed(2) + '</span>';
-                            else if (td.change < 0) chgHtml = '<span class="term-chg chg-dn">' + td.change.toFixed(2) + '</span>';
-                            else chgHtml = '<span class="term-chg chg-flat">0.00</span>';
+                            const chgBp = td.change * 100;
+                            if (chgBp > 0) { chgHtml = '<span class="term-chg chg-up">+' + chgBp.toFixed(1) + 'bp</span>'; bgClass = 'chg-up-bg'; }
+                            else if (chgBp < 0) { chgHtml = '<span class="term-chg chg-dn">' + chgBp.toFixed(1) + 'bp</span>'; bgClass = 'chg-dn-bg'; }
+                            else chgHtml = '<span class="term-chg chg-flat">0.0bp</span>';
                         }
-                        termsHtml += '<div class="term-cell"><div class="term-label">' + t + '</div><div class="term-val">' + val + '</div>' + chgHtml + '</div>';
+                        termsHtml += '<div class="term-cell ' + bgClass + '"><div class="term-label">' + t + '</div><div class="term-val">' + val + '</div>' + chgHtml + '</div>';
                     }
 
-                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-terms">' + termsHtml + '</div>';
+                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-terms">' + termsHtml + '</div>';
                     grid.appendChild(card);
                 }
 
-                document.getElementById('dashboard').style.display = summary.date ? 'block' : 'none';
+                // 总览视图始终显示，有数据则渲染卡片
             } catch (e) {
                 console.warn('加载仪表盘失败:', e);
             }
@@ -2513,7 +2637,12 @@
             maInitialized = false;
         }
 
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', async function() {
+            await init();
+            // 初始化完成后处理 URL hash（支持刷新/分享链接直接进入详情页）
+            handleHashChange();
+        });
+        window.addEventListener('hashchange', handleHashChange);
     </script>
 </body>
 </html>
