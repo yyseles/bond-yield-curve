@@ -11,7 +11,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
-        .container { max-width: 1700px; margin: 0 auto; }
+        .container { max-width: none; margin: 0 auto; }
         .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 16px 24px; border: 1px solid #e6edf5; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
         h1 { font-size: 22px; font-weight: 600; color: #0b1a33; margin: 0; white-space: nowrap; }
         .subtitle { font-size: 13px; color: #5a6e8a; border-left: none; padding-left: 0; background: transparent; border-radius: 0; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 0; }
@@ -62,28 +62,44 @@
         .bond-toggle button.active { background: #1f4a7a; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
         .bond-toggle button:hover:not(.active) { background: rgba(255,255,255,0.6); }
         .bond-toggle button:disabled { opacity: 0.5; cursor: wait; }
-        .dashboard { margin-bottom: 20px; }
-        .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        .dash-card { background: #fff; border-radius: 12px; border: 1px solid #e6edf5; padding: 14px 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,20,50,0.04); position: relative; overflow: hidden; }
-        .dash-card:hover { border-color: #1f4a7a; box-shadow: 0 6px 20px rgba(0,20,50,0.12); transform: translateY(-2px); }
-        .dash-card.active { border-color: #1f4a7a; border-width: 2px; padding: 13px 15px; }
-        .dash-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .dash-card-name { font-size: 14px; font-weight: 600; color: #1a2b44; display: flex; align-items: center; gap: 6px; }
-        .dash-card-date { font-size: 11px; color: #8898b0; }
-        .dash-card-icon { font-size: 16px; }
-        .dash-terms { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
-        .term-cell { text-align: center; padding: 4px 2px; border-radius: 6px; transition: background 0.2s; }
-        .term-cell.chg-up-bg { background: rgba(192, 57, 43, 0.06); }
-        .term-cell.chg-dn-bg { background: rgba(39, 174, 96, 0.06); }
-        .term-label { font-size: 10px; color: #8898b0; margin-bottom: 2px; }
-        .term-val { font-size: 14px; font-weight: 600; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; }
-        .term-chg { font-size: 10px; font-family: 'SF Mono', 'Consolas', monospace; margin-top: 1px; }
+        /* 总览视图：铺满两排 2×2 */
+        .view-overview { min-height: calc(100vh - 170px); display: flex; flex-direction: column; }
+        .dashboard { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
+        .dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: 18px; flex: 1; }
+        .dash-card { border-radius: 16px; padding: 28px 32px; cursor: pointer; transition: all 0.2s; box-shadow: 0 3px 12px rgba(0,20,50,0.08); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .dash-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+        .dash-card:hover { box-shadow: 0 10px 30px rgba(0,20,50,0.16); transform: translateY(-3px); }
+        .dash-card.active { box-shadow: 0 0 0 3px rgba(31,74,122,0.55), 0 10px 30px rgba(0,20,50,0.16); }
+        .dash-card[data-bond="gov_spot"] { background: linear-gradient(135deg, #eef5ff 0%, #f7fbff 100%); border: 1px solid #bcd4f5; }
+        .dash-card[data-bond="gov_spot"]::before { background: #2f6fd0; }
+        .dash-card[data-bond="gov_ytm"] { background: linear-gradient(135deg, #eafaf1 0%, #f5fdf8 100%); border: 1px solid #aee3c4; }
+        .dash-card[data-bond="gov_ytm"]::before { background: #1f9d57; }
+        .dash-card[data-bond="cdb_spot"] { background: linear-gradient(135deg, #fff5ec 0%, #fffaf5 100%); border: 1px solid #f3cda6; }
+        .dash-card[data-bond="cdb_spot"]::before { background: #e8821e; }
+        .dash-card[data-bond="cdb_ytm"] { background: linear-gradient(135deg, #fdeef3 0%, #fff8fb 100%); border: 1px solid #f2bcd2; }
+        .dash-card[data-bond="cdb_ytm"]::before { background: #d6336c; }
+        .dash-card.active[data-bond="gov_spot"] { box-shadow: 0 0 0 3px rgba(47,111,208,0.55), 0 10px 30px rgba(0,20,50,0.16); }
+        .dash-card.active[data-bond="gov_ytm"] { box-shadow: 0 0 0 3px rgba(31,157,87,0.55), 0 10px 30px rgba(0,20,50,0.16); }
+        .dash-card.active[data-bond="cdb_spot"] { box-shadow: 0 0 0 3px rgba(232,130,30,0.55), 0 10px 30px rgba(0,20,50,0.16); }
+        .dash-card.active[data-bond="cdb_ytm"] { box-shadow: 0 0 0 3px rgba(214,51,108,0.55), 0 10px 30px rgba(0,20,50,0.16); }
+        .dash-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .dash-card-name { font-size: 18px; font-weight: 700; color: #1a2b44; display: flex; align-items: center; gap: 8px; }
+        .dash-card-date { font-size: 13px; color: #8898b0; font-weight: 500; }
+        .dash-card-icon { font-size: 22px; }
+        .dash-card-subtitle { font-size: 13px; color: #7a8ba8; margin-bottom: auto; font-weight: 500; }
+        .dash-terms { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-content: center; flex: 1; min-width: 0; }
+        .term-cell { text-align: center; padding: 14px 4px; border-radius: 12px; transition: background 0.2s; background: rgba(255,255,255,0.7); box-shadow: 0 1px 4px rgba(0,20,50,0.04); display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+        .term-cell.chg-up-bg { background: rgba(192, 57, 43, 0.10); }
+        .term-cell.chg-dn-bg { background: rgba(39, 174, 96, 0.10); }
+        .term-label { font-size: clamp(11px, 1.1vw, 13px); color: #6b7c96; margin-bottom: 6px; font-weight: 600; }
+        .term-val { font-size: clamp(18px, 2.4vw, 26px); font-weight: 700; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; line-height: 1; white-space: nowrap; }
+        .term-chg { font-size: clamp(10px, 1.0vw, 13px); font-family: 'SF Mono', 'Consolas', monospace; margin-top: 6px; font-weight: 600; }
         .chg-up { color: #c0392b; }
         .chg-dn { color: #27ae60; }
         .chg-flat { color: #aaa; }
         .btn-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #1f4a7a; background: #eef3fa; border: none; border-radius: 20px; padding: 6px 18px; cursor: pointer; transition: 0.2s; margin-bottom: 16px; }
         .btn-back:hover { background: #dde8f5; }
-        @media (max-width: 900px) { .dash-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } .dash-terms { grid-template-columns: repeat(5, 1fr); } }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
         .play-btn.paused { background: #27ae60; }
@@ -2522,7 +2538,7 @@
                         termsHtml += '<div class="term-cell ' + bgClass + '"><div class="term-label">' + t + '</div><div class="term-val">' + val + '</div>' + chgHtml + '</div>';
                     }
 
-                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-terms">' + termsHtml + '</div>';
+                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-card-subtitle">最新关键期限利率</div><div class="dash-terms">' + termsHtml + '</div>';
                     grid.appendChild(card);
                 }
 
