@@ -131,9 +131,20 @@ def load_existing_data() -> dict:
 
 
 def save_data(data: dict):
-    """保存 data.json"""
+    """保存 data.json，并额外生成 data_recent.json（最近约800交易日，供前端首屏快速加载）"""
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+
+    # 近期分层文件：覆盖750日移动平均所需历史窗口，体积约为全量的 1/3
+    recent_n = min(800, len(data["dates"]))
+    recent = {
+        "dates": data["dates"][-recent_n:],
+        "terms": data["terms"],
+        "rows": data["rows"][-recent_n:],
+    }
+    with open("data_recent.json", "w", encoding="utf-8") as f:
+        json.dump(recent, f, ensure_ascii=False)
+    print(f"已生成 data_recent.json ({recent_n} 条)")
 
 
 def main():

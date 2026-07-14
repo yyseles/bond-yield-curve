@@ -2259,43 +2259,64 @@
                 return;
             }
 
-            // 第二步：尝试从 data.json 加载（GitHub Pages 自动更新模式）
-            // 加 cache-buster：防止浏览器缓存空文件/过期文件，尤其是数据恢复后
-            async function tryLoadDataJson(attempt) {
-                attempt = attempt || 1;
-                document.getElementById('uploadStatus').textContent = '正在加载最新数据...' + (attempt > 1 ? ` (第 ${attempt} 次尝试)` : '');
-                document.getElementById('uploadStatus').style.color = '#f57c00';
-                try {
-                    const cacheBuster = 'v=' + Date.now() + '_' + attempt;
-                    const resp = await fetch('data.json?' + cacheBuster, { cache: 'no-store' });
-                    if (resp.ok) {
-                        const rawData = await resp.json();
-                        if (rawData && rawData.dates && rawData.dates.length > 0) {
-                            loadFromRawData(rawData);
-                            saveDataStore();
-                            document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
-                            document.getElementById('uploadStatus').style.color = '#2e7d32';
-                            forecastRefDate = null;
-                            recalcForecastData();
-                            renderAll();
-                            return true;
-                        }
-                    }
-                } catch (e) {
-                    // data.json 不可用，继续尝试
-                }
-                return false;
+            // 第二步：渐进加载（先小文件快速首屏，再后台补全全量）
+            // data_recent.json: 最近800交易日(~320KB)，覆盖750日移动平均窗口，秒开
+            // data.json: 全量(~1MB)，后台加载补全历史
+            function setStatus(text, color) {
+                const el = document.getElementById('uploadStatus');
+                if (el) { el.textContent = text; el.style.color = color; }
             }
 
-            let dataLoaded = false;
-            for (let attempt = 1; attempt <= 3; attempt++) {
-                dataLoaded = await tryLoadDataJson(attempt);
-                if (dataLoaded) break;
-                if (attempt < 3) {
-                    await new Promise(r => setTimeout(r, 800 * attempt));
+            async function fetchJson(url) {
+                const sep = url.indexOf('?') >= 0 ? '&' : '?';
+                const cacheBuster = sep + 'v=' + Date.now();
+                try {
+                    const resp = await fetch(url + cacheBuster, { cache: 'no-store' });
+                    if (!resp.ok) return null;
+                    const data = await resp.json();
+                    if (!data || !data.dates || data.dates.length === 0) return null;
+                    return data;
+                } catch (e) {
+                    return null;
                 }
             }
-            if (dataLoaded) return;
+
+            // 2a. 先拉近期小文件（快）
+            setStatus('正在加载最新数据...', '#f57c00');
+            const recentData = await fetchJson('data_recent.json');
+            if (recentData) {
+                loadFromRawData(recentData);
+                saveDataStore();
+                setStatus('近期数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')', '#2e7d32');
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                // 2b. 后台补全全量（不阻塞首屏）
+                (async () => {
+                    const fullData = await fetchJson('data.json');
+                    if (fullData && fullData.dates.length > dataStore.dates.length) {
+                        loadFromRawData(fullData);
+                        saveDataStore();
+                        setStatus('云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')', '#2e7d32');
+                        forecastRefDate = null;
+                        recalcForecastData();
+                        renderAll();
+                    }
+                })();
+                return;
+            }
+
+            // 2c. 近期文件失败，直接拉全量
+            const fullData = await fetchJson('data.json');
+            if (fullData) {
+                loadFromRawData(fullData);
+                saveDataStore();
+                setStatus('云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')', '#2e7d32');
+                forecastRefDate = null;
+                recalcForecastData();
+                renderAll();
+                return;
+            }
 
             // 第三步：尝试服务器 API
             const serverOk = await fetchFromServer(true);
