@@ -1589,8 +1589,9 @@
                 alert('当前基准日没有可导出的预测数据。');
                 return;
             }
+            const titleRow = ['季度末移动平均预测（MA' + forecastPeriod + '）'];
             const header = ['日期', '类型', ...keys];
-            const rows = [header];
+            const rows = [titleRow, header];
             for (const r of rowData) {
                 rows.push([r.date, r.isActual ? '实际(基准日)' : '预测', ...keys.map(k => {
                     const v = r.rates[k];
@@ -1599,9 +1600,9 @@
             }
             const ws = XLSX.utils.aoa_to_sheet(rows);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '季度末预测');
+            XLSX.utils.book_append_sheet(wb, ws, '季度末预测MA' + forecastPeriod);
             const bondLabel = bondNames[currentBondType] || '';
-            XLSX.writeFile(wb, bondLabel + '_季度末预测_基准日' + refDate + '.xlsx');
+            XLSX.writeFile(wb, bondLabel + '_季度末预测_MA' + forecastPeriod + '_基准日' + refDate + '.xlsx');
         }
 
         function renderHistoryTable() {
