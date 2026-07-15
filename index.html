@@ -63,7 +63,8 @@
         .bond-toggle button:hover:not(.active) { background: rgba(255,255,255,0.6); }
         .bond-toggle button:disabled { opacity: 0.5; cursor: wait; }
         /* 总览视图：铺满两排 2×2 */
-        .view-overview { min-height: calc(100vh - 170px); display: flex; flex-direction: column; max-width: 1360px; margin: 0 auto; width: 100%; }
+        .container.overview-mode { max-width: 1400px; margin: 0 auto; }
+        .view-overview { min-height: calc(100vh - 170px); display: flex; flex-direction: column; }
         .dashboard { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
         .dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: 16px; flex: 1; }
         .dash-card { border-radius: 16px; padding: 22px 26px; cursor: pointer; transition: all 0.2s; box-shadow: 0 3px 12px rgba(0,20,50,0.08); position: relative; overflow: hidden; display: flex; flex-direction: column; }
@@ -86,28 +87,33 @@
         .dash-card-name { font-size: 18px; font-weight: 700; color: #1a2b44; display: flex; align-items: center; gap: 8px; }
         .dash-card-date { font-size: 13px; color: #8898b0; font-weight: 500; }
         .dash-card-icon { font-size: 22px; }
-        .dash-card-subtitle { font-size: 13px; color: #7a8ba8; margin-bottom: auto; font-weight: 500; }
-        .dash-terms { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-content: center; flex: 1; min-width: 0; }
+        .dash-card-subtitle { font-size: 13px; color: #7a8ba8; margin-bottom: 10px; font-weight: 500; }
+        .dash-hero { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 16px; }
+        .hero-val { font-size: clamp(34px, 5vw, 46px); font-weight: 800; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; line-height: 1; }
+        .hero-val .pct { font-size: 0.5em; font-weight: 700; margin-left: 2px; color: #5a6e8a; }
+        .hero-chg { font-size: 13px; font-family: 'SF Mono', 'Consolas', monospace; font-weight: 600; white-space: nowrap; }
+        .dash-terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-content: center; flex: 1; min-width: 0; }
         .term-cell { text-align: center; padding: 14px 4px; border-radius: 12px; transition: background 0.2s; background: rgba(255,255,255,0.7); box-shadow: 0 1px 4px rgba(0,20,50,0.04); display: flex; flex-direction: column; justify-content: center; min-width: 0; }
         .term-cell.chg-up-bg { background: rgba(192, 57, 43, 0.10); }
         .term-cell.chg-dn-bg { background: rgba(39, 174, 96, 0.10); }
         .term-label { font-size: clamp(11px, 1.1vw, 13px); color: #6b7c96; margin-bottom: 6px; font-weight: 600; }
         .term-val { font-size: clamp(15px, 3.2vw, 26px); font-weight: 700; color: #1a2b44; font-family: 'SF Mono', 'Consolas', monospace; line-height: 1; white-space: nowrap; }
+        .term-val .pct { font-size: 0.55em; font-weight: 600; color: #5a6e8a; margin-left: 1px; }
         .term-chg { font-size: clamp(10px, 1.0vw, 13px); font-family: 'SF Mono', 'Consolas', monospace; margin-top: 6px; font-weight: 600; }
         .chg-up { color: #c0392b; }
         .chg-dn { color: #27ae60; }
         .chg-flat { color: #aaa; }
         .btn-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #1f4a7a; background: #eef3fa; border: none; border-radius: 20px; padding: 6px 18px; cursor: pointer; transition: 0.2s; margin-bottom: 16px; }
         .btn-back:hover { background: #dde8f5; }
-        @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } .dash-terms { grid-template-columns: repeat(5, 1fr); } }
-        @media (max-width: 768px) { .dash-terms { grid-template-columns: repeat(3, 1fr); } .term-cell { padding: 12px 4px; } .term-val { font-size: clamp(15px, 4vw, 20px); } }
-        @media (max-width: 560px) { .dash-terms { grid-template-columns: repeat(3, 1fr); gap: 8px; } .term-val { font-size: clamp(16px, 4.6vw, 20px); } .term-cell { padding: 10px 2px; } }
+        @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } .dash-terms { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 768px) { .dash-terms { grid-template-columns: repeat(4, 1fr); } .term-cell { padding: 12px 4px; } .term-val { font-size: clamp(15px, 4vw, 20px); } }
+        @media (max-width: 560px) { .dash-terms { grid-template-columns: repeat(2, 1fr); gap: 8px; } .term-val { font-size: clamp(16px, 4.6vw, 20px); } .term-cell { padding: 10px 2px; } }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
         .play-btn.paused { background: #27ae60; }
         .play-btn.paused:hover { background: #1e8449; }
         @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
-        @media (max-width: 640px) { body { padding: 12px; } .card { padding: 14px; } .chart-box { height: 220px; } .chart-box.tall { height: 260px; } .table-wrap { font-size: 12px; } .table-wrap th, .table-wrap td { padding: 5px 6px; } .upload-area { width: 100%; justify-content: flex-start; flex-wrap: wrap; } .date-selector select { max-width: 120px; } .metrics-row { gap: 8px 16px; padding: 8px 12px; } .metric-value { font-size: 16px; } .dash-terms { grid-template-columns: repeat(3, 1fr); gap: 6px; } .term-cell { padding: 10px 2px; } .term-val { font-size: clamp(14px, 3.6vw, 18px); } .term-label { font-size: 11px; margin-bottom: 4px; } .term-chg { font-size: clamp(9px, 2.6vw, 12px); margin-top: 4px; } }
+        @media (max-width: 640px) { body { padding: 12px; } .card { padding: 14px; } .chart-box { height: 220px; } .chart-box.tall { height: 260px; } .table-wrap { font-size: 12px; } .table-wrap th, .table-wrap td { padding: 5px 6px; } .upload-area { width: 100%; justify-content: flex-start; flex-wrap: wrap; } .date-selector select { max-width: 120px; } .metrics-row { gap: 8px 16px; padding: 8px 12px; } .metric-value { font-size: 16px; } .dash-terms { grid-template-columns: repeat(2, 1fr); gap: 6px; } .term-cell { padding: 10px 2px; } .term-val { font-size: clamp(14px, 3.6vw, 18px); } .term-label { font-size: 11px; margin-bottom: 4px; } .term-chg { font-size: clamp(9px, 2.6vw, 12px); margin-top: 4px; } }
         @media (max-width: 380px) { .dash-terms { grid-template-columns: repeat(2, 1fr); } .term-val { font-size: clamp(13px, 4.2vw, 17px); } }
         .table-wrap::-webkit-scrollbar { height: 6px; }
         .table-wrap::-webkit-scrollbar-track { background: #edf2f8; border-radius: 10px; }
@@ -173,9 +179,7 @@
             </div>
             <div class="subtitle">
                 <span>
-                    数据截至 <strong id="latestDateLabel">—</strong> ｜
-                    移动平均基于历史交易数据 ｜
-                    预测采用平推法，支持250/500/750/2500日周期
+                    数据截至 <strong id="latestDateLabel">—</strong>
                 </span>
                 <div class="upload-area">
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
@@ -2293,12 +2297,14 @@
         function showOverview() {
             document.getElementById('viewOverview').style.display = '';
             document.getElementById('viewDetail').style.display = 'none';
+            document.querySelector('.container').classList.add('overview-mode');
             if (location.hash) history.replaceState(null, '', location.pathname);
         }
 
         async function showDetail(type) {
             document.getElementById('viewOverview').style.display = 'none';
             document.getElementById('viewDetail').style.display = '';
+            document.querySelector('.container').classList.remove('overview-mode');
             // 触发图表 resize
             setTimeout(() => {
                 if (curveChart) curveChart.resize();
@@ -2524,12 +2530,11 @@
                     const isSpot = key.endsWith('_spot');
                     const iconHtml = isSpot ? '<span class="dash-card-icon">⚡</span>' : '<span class="dash-card-icon">📅</span>';
 
-                    let termsHtml = '';
-                    const terms = ['1Y', '5Y', '10Y', '20Y', '30Y'];
-                    for (const t of terms) {
-                        const td = c.terms[t];
-                        if (!td) { termsHtml += '<div class="term-cell"><div class="term-label">' + t + '</div><div class="term-val">—</div></div>'; continue; }
-                        const val = td.value != null ? td.value.toFixed(4) : '—';
+                    // 辅助小格（10Y 单独突出显示）
+                    const subTerms = ['1Y', '5Y', '20Y', '30Y'];
+                    function cellHtml(td, label) {
+                        if (!td) return '<div class="term-cell"><div class="term-label">' + label + '</div><div class="term-val">—</div></div>';
+                        const valHtml = td.value != null ? td.value.toFixed(4) + '<span class="pct">%</span>' : '—';
                         let chgHtml = '<span class="term-chg chg-flat">—</span>';
                         let bgClass = '';
                         if (td.change != null) {
@@ -2538,10 +2543,26 @@
                             else if (chgBp < 0) { chgHtml = '<span class="term-chg chg-dn">' + chgBp.toFixed(1) + 'bp</span>'; bgClass = 'chg-dn-bg'; }
                             else chgHtml = '<span class="term-chg chg-flat">0.0bp</span>';
                         }
-                        termsHtml += '<div class="term-cell ' + bgClass + '"><div class="term-label">' + t + '</div><div class="term-val">' + val + '%</div>' + chgHtml + '</div>';
+                        return '<div class="term-cell ' + bgClass + '"><div class="term-label">' + label + '</div><div class="term-val">' + valHtml + '</div>' + chgHtml + '</div>';
+                    }
+                    let subHtml = '';
+                    for (const t of subTerms) subHtml += cellHtml(c.terms[t], t);
+
+                    // 10Y 主力期限大数字
+                    const htd = c.terms['10Y'];
+                    const heroValHtml = htd && htd.value != null ? htd.value.toFixed(4) + '<span class="pct">%</span>' : '—';
+                    let heroChgHtml = '<span class="hero-chg chg-flat">—</span>';
+                    if (htd && htd.change != null) {
+                        const chgBp = htd.change * 100;
+                        if (chgBp > 0) heroChgHtml = '<span class="hero-chg chg-up">较上一日 +' + chgBp.toFixed(1) + 'bp</span>';
+                        else if (chgBp < 0) heroChgHtml = '<span class="hero-chg chg-dn">较上一日 ' + chgBp.toFixed(1) + 'bp</span>';
+                        else heroChgHtml = '<span class="hero-chg chg-flat">较上一日 0.0bp</span>';
                     }
 
-                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-card-subtitle">最新关键期限利率</div><div class="dash-terms">' + termsHtml + '</div>';
+                    card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div>' +
+                        '<div class="dash-card-subtitle">10Y 主力期限</div>' +
+                        '<div class="dash-hero"><span class="hero-val">' + heroValHtml + '</span>' + heroChgHtml + '</div>' +
+                        '<div class="dash-terms">' + subHtml + '</div>';
                     grid.appendChild(card);
                 }
 
