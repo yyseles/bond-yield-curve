@@ -63,10 +63,10 @@
         .bond-toggle button:hover:not(.active) { background: rgba(255,255,255,0.6); }
         .bond-toggle button:disabled { opacity: 0.5; cursor: wait; }
         /* 总览视图：铺满两排 2×2 */
-        .view-overview { min-height: calc(100vh - 170px); display: flex; flex-direction: column; }
+        .view-overview { min-height: calc(100vh - 170px); display: flex; flex-direction: column; max-width: 1360px; margin: 0 auto; width: 100%; }
         .dashboard { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
-        .dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: 18px; flex: 1; }
-        .dash-card { border-radius: 16px; padding: 28px 32px; cursor: pointer; transition: all 0.2s; box-shadow: 0 3px 12px rgba(0,20,50,0.08); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 1fr; gap: 16px; flex: 1; }
+        .dash-card { border-radius: 16px; padding: 22px 26px; cursor: pointer; transition: all 0.2s; box-shadow: 0 3px 12px rgba(0,20,50,0.08); position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .dash-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
         .dash-card:hover { box-shadow: 0 10px 30px rgba(0,20,50,0.16); transform: translateY(-3px); }
         .dash-card.active { box-shadow: 0 0 0 3px rgba(31,74,122,0.55), 0 10px 30px rgba(0,20,50,0.16); }
@@ -101,6 +101,7 @@
         .btn-back:hover { background: #dde8f5; }
         @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } .dash-terms { grid-template-columns: repeat(5, 1fr); } }
         @media (max-width: 768px) { .dash-terms { grid-template-columns: repeat(3, 1fr); } .term-cell { padding: 12px 4px; } .term-val { font-size: clamp(15px, 4vw, 20px); } }
+        @media (max-width: 560px) { .dash-terms { grid-template-columns: repeat(3, 1fr); gap: 8px; } .term-val { font-size: clamp(16px, 4.6vw, 20px); } .term-cell { padding: 10px 2px; } }
         .play-btn { padding: 4px 14px; border-radius: 18px; border: none; background: #1f4a7a; color: white; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; }
         .play-btn:hover { background: #12345a; }
         .play-btn.paused { background: #27ae60; }
@@ -2537,7 +2538,7 @@
                             else if (chgBp < 0) { chgHtml = '<span class="term-chg chg-dn">' + chgBp.toFixed(1) + 'bp</span>'; bgClass = 'chg-dn-bg'; }
                             else chgHtml = '<span class="term-chg chg-flat">0.0bp</span>';
                         }
-                        termsHtml += '<div class="term-cell ' + bgClass + '"><div class="term-label">' + t + '</div><div class="term-val">' + val + '</div>' + chgHtml + '</div>';
+                        termsHtml += '<div class="term-cell ' + bgClass + '"><div class="term-label">' + t + '</div><div class="term-val">' + val + '%</div>' + chgHtml + '</div>';
                     }
 
                     card.innerHTML = '<div class="dash-card-head"><span class="dash-card-name">' + iconHtml + c.name + '</span><span class="dash-card-date">' + c.date + '</span></div><div class="dash-card-subtitle">最新关键期限利率</div><div class="dash-terms">' + termsHtml + '</div>';
