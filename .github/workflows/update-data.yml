@@ -49,10 +49,13 @@ jobs:
 
       - name: 抓取最新利率数据（四曲线）
         # 仅定时/手动触发时抓数据回填；普通代码推送直接走部署，避免慢速回填拖住上线
+        # continue-on-error：抓取失败也不阻断后续 Pages 部署，保证站点始终能上线
         if: github.event_name != 'push'
+        continue-on-error: true
         run: python ci_update.py
 
       - name: 校验数据文件
+        continue-on-error: true
         run: |
           for f in data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json; do
             if [ -f "$f" ]; then
@@ -67,6 +70,7 @@ jobs:
 
       - name: 提交并推送更新（含 keepalive 保活）
         if: github.event_name != 'push'
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
