@@ -314,6 +314,11 @@
             <div class="card-title">
                 <span>📆 历史关键时点对比</span>
                 <span class="badge">年末 / 月末 · 按列独立着色</span>
+                <span id="historyViewToggle" class="ma-period-group" style="display:none;">
+                    <button class="ma-period-btn active" data-hmode="spot">即期</button>
+                    <button class="ma-period-btn" data-hmode="ma750">MA750</button>
+                </span>
+                <button class="btn-download" id="historyDownloadBtn" style="font-size:11px;padding:3px 12px;">📥 导出XLSX</button>
             </div>
             <div class="table-wrap" id="historyTableWrap">
                 <table>
@@ -528,6 +533,7 @@
         let forecastRefDate = null;       // 750MA预测 · 季度末预测 共用基准日
         let forecastPeriod = 750;        // 预测周期（250/500/750/2500）
         const FORECAST_PERIODS = [250, 500, 750, 2500];
+        let historyViewMode = 'spot';    // 历史关键时点对比视图：spot | ma750（仅国债即期）
         let curveChart = null,
             forecastChart = null;
         let isPlaying = false;
@@ -1605,13 +1611,9 @@
             XLSX.writeFile(wb, bondLabel + '_季度末预测_MA' + forecastPeriod + '_基准日' + refDate + '.xlsx');
         }
 
-        function renderHistoryTable() {
-            const thead = document.getElementById('historyHeader');
-            const tbody = document.getElementById('historyBody');
+        // 历史关键时点对比：提取时点（近3年年末 + 今年各月末 + 最新日）
+        function getHistorySelectedDates() {
             const dates = dataStore.dates;
-            const rates = dataStore.rates;
-            const allTermKeys = allTerms;
-
             const dateMap = {};
             for (let i = 0; i < dates.length; i++) {
                 const d = dates[i];
@@ -1621,10 +1623,9 @@
                     dateMap[key] = { date: d, index: i };
                 }
             }
-
-            const selected = [];
             const latestDt = dataStore.latestDate ? new Date(dataStore.latestDate + 'T00:00:00Z') : new Date();
             const currentYear = latestDt.getUTCFullYear();
+            const selected = [];
             for (let y = currentYear - 3; y <= currentYear; y++) {
                 const key = y + '-12';
                 if (dateMap[key]) selected.push(dateMap[key]);
@@ -1639,55 +1640,65 @@
                 if (idx !== -1) selected.push({ date: latest, index: idx });
             }
             selected.sort((a, b) => a.date.localeCompare(b.date));
+            return selected;
+        }
 
-            let headerHtml = '<th>日期</th>';
-            // 显示全部期限 + 4个组合平均列，与季度表对齐
+        // 取某时点在指定模式下的值（spot=即期；ma750=仅国债即期的750日移动平均）
+        function historyValueAt(item, t, mode) {
+            let obj;
+            if (mode === 'ma750' && currentBondType === 'gov_spot') {
+                const ma = calc750MAForDate(item.date, 750);
+                if (!ma) return null;
+                obj = ma;
+            } else {
+                obj = dataStore.rates[item.index];
+            }
+            if (t === '1-10Y') return avgRates(obj, '1', '10');
+            if (t === '1-15Y') return avgRates(obj, '1', '15');
+            if (t === '1-20Y') return avgRates(obj, '1', '20');
+            if (t === '21-40Y') return avgRates(obj, '21', '40');
+            return sanitizeRate(obj[t]);
+        }
+
+        function renderHistoryTable() {
+            const thead = document.getElementById('historyHeader');
+            const tbody = document.getElementById('historyBody');
+            const allTermKeys = allTerms;
+
+            const selected = getHistorySelectedDates();
             const displayTerms = allTermKeys.filter(t => {
                 const n = parseFloat(t);
                 return !isNaN(n);
             }).concat(['1-10Y', '1-15Y', '1-20Y', '21-40Y']);
 
-            // 组合列取值函数
-            function getHistVal(row, t) {
-                if (t === '1-10Y') return avgRates(row, '1', '10');
-                if (t === '1-15Y') return avgRates(row, '1', '15');
-                if (t === '1-20Y') return avgRates(row, '1', '20');
-                if (t === '21-40Y') return avgRates(row, '21', '40');
-                return sanitizeRate(row[t]);
-            }
+            let headerHtml = '<th>日期</th>';
             for (const t of displayTerms) {
                 headerHtml += '<th>' + t + '</th>';
             }
             thead.innerHTML = headerHtml;
 
             const colValues = {};
-            for (const t of displayTerms) {
-                colValues[t] = [];
-            }
+            for (const t of displayTerms) colValues[t] = [];
             for (const item of selected) {
-                const row = rates[item.index];
                 for (const t of displayTerms) {
-                    const v = getHistVal(row, t);
+                    const v = historyValueAt(item, t, historyViewMode);
                     if (v !== null) colValues[t].push(v);
                 }
             }
             const colMinMax = {};
             for (const t of displayTerms) {
                 const vals = colValues[t];
-                if (vals.length > 0) {
-                    colMinMax[t] = { min: Math.min(...vals), max: Math.max(...vals) };
-                } else {
-                    colMinMax[t] = { min: 0, max: 1 };
-                }
+                colMinMax[t] = vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : { min: 0, max: 1 };
             }
 
+            const isMA = (historyViewMode === 'ma750' && currentBondType === 'gov_spot');
+            const modeLabel = isMA ? '（MA750）' : '';
             let bodyHtml = '';
             for (const item of selected) {
-                const row = rates[item.index];
                 bodyHtml += '<tr>';
-                bodyHtml += '<td><strong>' + item.date + '</strong></td>';
+                bodyHtml += '<td><strong>' + item.date + modeLabel + '</strong></td>';
                 for (const t of displayTerms) {
-                    const val = getHistVal(row, t);
+                    const val = historyValueAt(item, t, historyViewMode);
                     if (val !== null) {
                         const { min, max } = colMinMax[t];
                         const range = max - min || 1;
@@ -1706,6 +1717,43 @@
                 bodyHtml += '</tr>';
             }
             tbody.innerHTML = bodyHtml;
+        }
+
+        // 历史关键时点对比导出：即期 + (国债即期时) MA750，并入一张表
+        function downloadHistoryExcel() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) {
+                alert('暂无数据可导出。');
+                return;
+            }
+            const selected = getHistorySelectedDates();
+            if (selected.length === 0) {
+                alert('没有可导出的时点。');
+                return;
+            }
+            const displayTerms = allTerms.filter(t => !isNaN(parseFloat(t))).concat(['1-10Y', '1-15Y', '1-20Y', '21-40Y']);
+            const bondLabel = bondNames[currentBondType] || '';
+            const allRows = [];
+            function pushSection(title, mode) {
+                allRows.push([title]);
+                allRows.push(['日期', ...displayTerms]);
+                for (const item of selected) {
+                    const row = [item.date];
+                    for (const t of displayTerms) {
+                        const v = historyValueAt(item, t, mode);
+                        row.push((v !== null && isFinite(v)) ? v.toFixed(4) : '');
+                    }
+                    allRows.push(row);
+                }
+            }
+            pushSection(bondLabel + ' 即期利率（历史关键时点）', 'spot');
+            if (currentBondType === 'gov_spot') {
+                pushSection(bondLabel + ' MA750（历史关键时点）', 'ma750');
+            }
+            const ws = XLSX.utils.aoa_to_sheet(allRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '历史关键时点');
+            const today = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, bondLabel + '_历史关键时点_MA750_' + today + '.xlsx');
         }
 
         // ================================================================
@@ -2165,6 +2213,7 @@
             initMAAnalysis();
             renderMATimeSeriesChart();
             renderMACurveChart();
+            updateHistoryViewToggle();
         }
 
         // 填充预测基准日选择器（750MA预测 + 季度末预测 共用）
@@ -2489,6 +2538,14 @@
             document.getElementById('downloadSampleBtn').addEventListener('click', downloadExcel);
             document.getElementById('maCurveDownloadBtn').addEventListener('click', downloadMACurveExcel);
             document.getElementById('quarterDownloadBtn').addEventListener('click', downloadQuarterExcel);
+            document.getElementById('historyDownloadBtn').addEventListener('click', downloadHistoryExcel);
+            document.querySelectorAll('#historyViewToggle .ma-period-btn').forEach(b => {
+                b.addEventListener('click', function() {
+                    historyViewMode = this.dataset.hmode;
+                    updateHistoryViewToggle();
+                    renderHistoryTable();
+                });
+            });
             // MA期限曲线导出范围切换
             const exportRangeSel = document.getElementById('maCurveExportRange');
             const rangePickers = document.getElementById('maCurveRangePickers');
@@ -2579,10 +2636,20 @@
             updateBondTypeUI();
         }
 
+        function updateHistoryViewToggle() {
+            const tog = document.getElementById('historyViewToggle');
+            if (!tog) return;
+            tog.style.display = (currentBondType === 'gov_spot') ? '' : 'none';
+            tog.querySelectorAll('.ma-period-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.hmode === historyViewMode);
+            });
+        }
+
         function updateBondTypeUI() {
             document.querySelectorAll('#bondToggle button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.bond === currentBondType);
             });
+            updateHistoryViewToggle();
             document.querySelectorAll('.dash-card').forEach(card => {
                 card.classList.toggle('active', card.dataset.bond === currentBondType);
             });
