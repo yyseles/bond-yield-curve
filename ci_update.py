@@ -88,6 +88,7 @@ MAX_RETRIES = 3
 RETRY_DELAY = 5
 
 # 每次运行回填精确 MA 的最近交易日数量（覆盖近期对比需求；更早的日期回退重算）
+# 每次运行取「仍为 null 的最近 N 个日期」回填，逐日向前推进，最终覆盖全部历史
 BACKFILL_WINDOW = 180
 
 
@@ -153,53 +154,53 @@ def _parse_bxj_xlsx(path: str, csz: str = "1") -> dict:
     return result
 
 
+def _try_fetch_bxj(query_date: str, csz: str, header_sets) -> dict:
+    """尝试用多组请求头抓取一次；成功返回 dict，失败返回 None（并打印诊断）。"""
+    params = {"gzr": query_date, "csz": csz, "locale": "zh_CN"}
+    for hdr in header_sets:
+        try:
+            sess = _get_chinabond_session()
+            r = sess.post(
+                CHINABOND_DOWNLOAD_URL, params=params, headers=hdr, timeout=30
+            )
+            r.raise_for_status()
+            ct = r.headers.get("Content-Type", "")
+            if len(r.content) < 200:
+                print(f"  {query_date} [csz={csz}]: 响应过短({len(r.content)}B, ct={ct})")
+                continue
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                tmp.write(r.content)
+                tmp_path = tmp.name
+            try:
+                result = _parse_bxj_xlsx(tmp_path, csz)
+            finally:
+                os.unlink(tmp_path)
+            if not result:
+                print(f"  {query_date} [csz={csz}]: 解析为空(ct={ct}, 前80B={r.content[:80]!r})")
+                continue
+            return result
+        except Exception as e:
+            print(f"  {query_date} [csz={csz}]: 异常 {type(e).__name__}: {e}")
+            continue
+    return None
+
+
 def fetch_spot_rates_chinabond(query_date: str, csz: str = "1") -> dict:
     """
     抓取中债网「保险合同准备金计量基准」Excel 数据。
     csz=1 为国债即期；csz=750/60 为网站下发的 750/60 个工作日移动平均曲线。
     与即期接口同一 endpoint，仅参数值不同。
+    即期(csz=1)遇网络异常会重试；平均曲线(csz=750/60)空响应/解析失败直接返回空（不重试，避免长耗时）。
     """
-    params = {"gzr": query_date, "csz": csz, "locale": "zh_CN"}
-
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            sess = _get_chinabond_session()
-            r = sess.post(
-                CHINABOND_DOWNLOAD_URL, params=params, headers=FULL_HEADERS, timeout=30
-            )
-            r.raise_for_status()
-
-            if len(r.content) < 200:
-                if attempt < MAX_RETRIES:
-                    print(f"  {query_date}: 响应过短({len(r.content)}B)，第{attempt}次重试...")
-                    time.sleep(RETRY_DELAY)
-                    continue
-                print(f"  {query_date}: 无数据 (非交易日或未发布)")
-                return {}
-
-            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-                tmp.write(r.content)
-                tmp_path = tmp.name
-
-            try:
-                result = _parse_bxj_xlsx(tmp_path, csz)
-            finally:
-                os.unlink(tmp_path)
-
-            if not result:
-                print(f"  {query_date}: 解析为空 (列布局不匹配或非交易日)")
-                return {}
-
-            return result
-
-        except Exception as e:
-            if attempt < MAX_RETRIES:
-                print(f"  {query_date}: 请求失败({e})，第{attempt}次重试...")
-                time.sleep(RETRY_DELAY)
-            else:
-                print(f"  {query_date}: 请求失败 - {e}")
-                return {}
-
+    header_sets = [FULL_HEADERS, HEADERS]
+    attempts = MAX_RETRIES if csz == "1" else 1
+    for attempt in range(1, attempts + 1):
+        got = _try_fetch_bxj(query_date, csz, header_sets)
+        if got is not None:
+            return got
+        if attempt < attempts:
+            print(f"  {query_date} [csz={csz}]: 第{attempt}次重试...")
+            time.sleep(RETRY_DELAY)
     return {}
 
 
