@@ -26,7 +26,7 @@
         .btn-download:hover { background: #12345a; }
         .btn-reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 20px; padding: 2px 14px; cursor: pointer; transition: 0.2s; }
         .btn-reset:hover { background: #f0f0f0; color: #555; }
-        .grid-2 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; margin-bottom: 20px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
         .grid-2 > * { min-width: 0; }
         .card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 18px 20px 20px; border: 1px solid #e6edf5; }
         .card-title { font-size: 16px; font-weight: 600; color: #1a2b44; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -3062,6 +3062,7 @@
                     lineStyle:{ width:1.8, type: g.dash?'dashed':'solid', color:g.color },
                     itemStyle:{ color:g.color }, emphasis:{ focus:'series' }
                 }));
+                console.log('[discountCompare] cmpDate=', cmpDate, 'mode=', mode, 'seriesCount=', cmpSeries.length, 'firstSeriesSample=', cmpSeries[0] && cmpSeries[0].data.slice(0,5));
                 discountCompareChart.setOption({
                     title:{ text:'曲线对比 · 当前 '+d.latestDate+' vs '+cmpDate, left:'center', textStyle:{fontSize:14} },
                     tooltip:{ trigger:'axis' },
@@ -3071,6 +3072,12 @@
                     yAxis:{ type:'value', name:'%', axisLabel:{ formatter: v=>v.toFixed(2) } },
                     series: cmpSeries
                 }, true);
+                // 确保图表在 grid/flex 布局完成后再计算尺寸
+                if (discountCompareChart) {
+                    discountCompareChart.resize();
+                    setTimeout(() => discountCompareChart.resize(), 0);
+                    setTimeout(() => discountCompareChart.resize(), 100);
+                }
             }
             const thead = document.getElementById('discountSummaryHead');
             const tbody = document.getElementById('discountSummaryBody');
