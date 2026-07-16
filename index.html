@@ -168,12 +168,61 @@
         .ma-chip .remove { cursor: pointer; font-weight: bold; opacity: 0.6; }
         .ma-chip .remove:hover { opacity: 1; }
         .ma-legend-dot { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; }
+        /* 主导航 */
+        .main-nav { display: flex; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap; }
+        .main-nav button { padding: 7px 18px; border-radius: 9px; border: 1px solid #cbd5e1; background: #f3f6fa; color: #3e5a7a; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+        .main-nav button:hover { background: #e8eef5; }
+        .main-nav button.active { background: #1f4a7a; color: #fff; border-color: #1f4a7a; box-shadow: 0 2px 6px rgba(31,74,122,.25); }
+        /* 折现率曲线视图 */
+        .view-discount { padding-top: 4px; }
+        .discount-controls { justify-content: space-between; align-items: center; }
+        .discount-controls > div { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .discount-controls button:disabled { opacity: .45; cursor: not-allowed; }
+        .discount-controls .sub-view-toggle button,
+        .discount-controls .spot-fwd-toggle button { padding: 4px 14px; border-radius: 7px; border: 1px solid #cbd5e1; background: white; color: #3e5a7a; font-size: 13px; cursor: pointer; }
+        .discount-controls .sub-view-toggle button.active,
+        .discount-controls .spot-fwd-toggle button.active { background: #1f4a7a; color: #fff; border-color: #1f4a7a; }
+        .discount-controls .rule-toggle button:not([disabled]) { padding: 4px 12px; border-radius: 7px; border: 1px solid #cbd5e1; background: white; color: #3e5a7a; font-size: 13px; cursor: pointer; }
+        .discount-controls .rule-toggle button.active { background: #1f4a7a; color: #fff; border-color: #1f4a7a; }
+        .discount-date-row { display: flex; gap: 6px; align-items: center; }
+        .discount-date-row select { padding: 4px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; min-width: 150px; }
+        .discount-date-row .badge { background: #eef2f7; color: #5b6b80; border: 1px solid #d7dee8; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+        .discount-date-row .badge.forecast { background: #fff4e5; color: #b9770e; border-color: #f0d3a0; }
+        .discount-date-row .fc-ref-wrap { display: inline-flex; gap: 6px; align-items: center; padding-left: 10px; margin-left: 6px; border-left: 1px dashed #e1e7ef; }
+        .discount-date-row .fc-ref-wrap select { padding: 4px 8px; border-radius: 7px; border: 1px solid #f0d3a0; background: #fffaf0; color: #b9770e; font-size: 13px; min-width: 150px; }
+        .discount-rules { margin: 12px 0 6px; border: 1px solid #dce3ec; border-radius: 12px; background: linear-gradient(180deg,#fbfdff,#f3f8fd); padding: 6px 16px 12px; box-shadow: 0 1px 3px rgba(31,74,122,.05); }
+        .discount-rules summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: #1f4a7a; user-select: none; padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+        .discount-rules summary .rules-chevron { transition: transform .2s; color: #5b87c4; font-size: 12px; }
+        .discount-rules[open] summary .rules-chevron { transform: rotate(90deg); }
+        .discount-rules .rules-body { margin-top: 8px; font-size: 12.5px; line-height: 1.75; color: #3a4a5e; }
+        .discount-rules .rules-section { margin: 11px 0; padding-left: 11px; border-left: 3px solid #cfe0f2; }
+        .discount-rules .rules-section h4 { margin: 2px 0 6px; font-size: 13px; font-weight: 700; color: #1f4a7a; letter-spacing: .2px; }
+        .discount-rules .rules-body p { margin: 6px 0; }
+        .discount-rules .rules-body sub { font-size: 10px; }
+        .discount-rules .rules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+        .discount-rules .rules-cell { background: #fff; border: 1px solid #e3ebf4; border-radius: 8px; padding: 7px 9px; display: flex; flex-direction: column; gap: 3px; }
+        .discount-rules .rules-cell .rk { font-size: 12px; font-weight: 700; color: #b9770e; }
+        .discount-rules .rules-cell .rv { font-size: 11.5px; color: #4a5a70; }
+        .discount-rules .formula { background: #eef3f9; border: 1px solid #dbe5f0; border-left: 3px solid #1f4a7a; border-radius: 6px; padding: 9px 12px; margin: 8px 0; font-family: "Cambria Math","Georgia",serif; font-size: 13px; color: #243; text-align: center; letter-spacing: .3px; }
+        .discount-rules .rules-src { color: #8a97a8; font-size: 11.5px; border-top: 1px dashed #e1e7ef; padding-top: 8px; margin-top: 10px; font-style: italic; }
+        .discount-rules .rules-table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11.5px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(31,74,122,.06); }
+        .discount-rules .rules-table caption { font-size: 11px; color: #8a97a8; text-align: left; padding: 3px 2px 5px; }
+        .discount-rules .rules-table th, .discount-rules .rules-table td { border: 1px solid #e3ebf4; padding: 3px 7px; text-align: center; }
+        .discount-rules .rules-table th { background: #eef3f9; color: #1f4a7a; font-weight: 700; }
+        .discount-rules .rules-table td:first-child { color: #5b6b80; font-weight: 600; background: #fafcff; }
+        .discount-rules .rules-table .up { color: #c0392b; font-weight: 600; }
+        .discount-rules .rules-table .down { color: #16a085; font-weight: 600; }
+        @media (max-width: 720px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-card">
             <h1 id="mainTitle">📈 利率曲线监测及分析报告</h1>
+            <div class="main-nav" id="mainNav">
+                <button class="active" data-view="monitor">📊 利率曲线监测</button>
+                <button data-view="discount">💱 折现率曲线</button>
+            </div>
             <div class="bond-toggle" id="bondToggle">
                 <button class="active" data-bond="gov_spot">国债即期</button>
                 <button data-bond="gov_ytm">国债到期</button>
@@ -382,6 +431,138 @@
             </div>
         </div>
         </div><!-- /view-detail -->
+        <!-- 折现率曲线视图 -->
+        <div class="view-discount" id="viewDiscount" style="display:none;">
+            <div class="ma-controls discount-controls">
+                <div class="rule-toggle" id="ruleToggle">
+                    <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
+                    <button class="active" data-rule="c2_2">偿二代二期</button>
+                    <button data-rule="c2_new" disabled title="敬请期待">偿付能力新规</button>
+                    <button data-rule="old_gaap" disabled title="敬请期待">旧会计准则</button>
+                    <button data-rule="new_gaap" disabled title="敬请期待">新会计准则</button>
+                </div>
+                <div class="discount-date-row">
+                    <label for="discountDateSelect" style="font-size:13px;font-weight:600;color:#3e5a7a;">基准日：</label>
+                    <select id="discountDateSelect"></select>
+                    <span class="badge" id="discountDateBadge"></span>
+                    <span class="fc-ref-wrap" id="discountForecastRefWrap" style="display:none;">
+                        <label for="discountForecastRefSelect" style="font-size:13px;font-weight:600;color:#b9770e;">平推基准：</label>
+                        <select id="discountForecastRefSelect"></select>
+                    </span>
+                </div>
+                <div class="sub-view-toggle" id="discountSubToggle">
+                    <button class="active" data-sub="summary">汇总</button>
+                    <button data-sub="output">输出</button>
+                </div>
+                <div class="spot-fwd-toggle" id="discountSFBtnGroup">
+                    <button class="active" data-sf="fwd">远期</button>
+                    <button data-sf="spot">即期</button>
+                </div>
+                <div class="discount-downloads">
+                    <button class="btn-download" id="discountSummaryBtn">📥 汇总</button>
+                    <button class="btn-download" id="discountOutputBtn">📥 输出</button>
+                    <button class="btn-download" id="discountWorkingBtn">📥 底稿</button>
+                </div>
+            </div>
+            <details class="discount-rules" id="discountRules">
+                <summary><span class="rules-chevron">▸</span> 折现率规则说明（偿二代二期）</summary>
+                <div class="rules-body">
+                    <div class="rules-section">
+                        <h4>① 基础利率曲线（负债，即期）</h4>
+                        <p>按期限 t（年）分三段拼接：</p>
+                        <div class="rules-grid">
+                            <div class="rules-cell"><span class="rk">0 &lt; t ≤ 20</span><span class="rv">750 日移动平均国债收益率曲线</span></div>
+                            <div class="rules-cell"><span class="rk">20 &lt; t ≤ 40</span><span class="rv">终极利率过渡曲线（二次插值平滑过渡）</span></div>
+                            <div class="rules-cell"><span class="rk">t &gt; 40</span><span class="rv">终极利率（UFR）4.5%</span></div>
+                        </div>
+                    </div>
+                    <div class="rules-section">
+                        <h4>② 终极利率过渡曲线（二次插值，完整）</h4>
+                        <p>先对 20 &lt; t ≤ 40 段，将市场曲线第 20 年值 r*<sub>20</sub> 线性外推至终极利率 UFR，得：</p>
+                        <div class="formula">r<sub>t</sub> = r*<sub>20</sub> + (UFR − r*<sub>20</sub>) · (t − 20) / (40 − 20)</div>
+                        <p>再与市场曲线 r*<sub>t</sub> 按年期权重混合，得到基础利率 R<sub>t</sub>（因含 (t−20)² 项，故称二次插值）：</p>
+                        <div class="formula">R<sub>t</sub> = r*<sub>t</sub> · (40 − t) / (40 − 20) + r<sub>t</sub> · (t − 20) / (40 − 20)</div>
+                    </div>
+                    <div class="rules-section">
+                        <h4>③ 综合溢价（负债，前 20 年分档）</h4>
+                        <div class="rules-grid">
+                            <div class="rules-cell"><span class="rk">高利率保单</span><span class="rv">1999 年及以前签发 · 75BP</span></div>
+                            <div class="rules-cell"><span class="rk">万能/投连/中短存续</span><span class="rv">30BP</span></div>
+                            <div class="rules-cell"><span class="rk">其他产品</span><span class="rv">45BP</span></div>
+                        </div>
+                        <p>20 &lt; t ≤ 40 线性衰减至 0；t &gt; 40 为 0。</p>
+                    </div>
+                    <div class="rules-section">
+                        <h4>④ 利率风险情景曲线（基础情景 / 不利情景）</h4>
+                        <p><strong>基础情景</strong>基础利率曲线为即期，同样分三段：0 &lt; t ≤ 20 为 <strong>60 日移动平均国债收益率曲线</strong>；20 &lt; t ≤ 40 为终极利率过渡曲线（二次插值，同②）；t &gt; 40 为 UFR 4.5%。</p>
+                        <p><strong>不利情景</strong>（上升 / 下降）基础利率曲线：</p>
+                        <div class="formula">0 &lt; t ≤ 20： r<sub>s,t</sub> = r<sub>t</sub> · (1 + Stress<sub>t</sub>) &nbsp;&nbsp;|&nbsp;&nbsp; t &gt; 40： r<sub>s,t</sub> = UFR · (1 + Stress<sub>40</sub>)</div>
+                        <p>其中 r<sub>t</sub> 为基础情景即期利率；20 &lt; t ≤ 40 段采用二次插值（同②，基于受压曲线）。UFR = 4.5%，Stress<sub>40</sub> 上升 = 17%、下降 = −11%。</p>
+                        <p><strong>不利情景压力参数 Stress<sub>t</sub>：</strong>前 20 年与 40 年后的参数见下表；20 &lt; t ≤ 40 按线性插值：</p>
+                        <div class="formula">Stress<sub>t</sub> = Stress<sub>20</sub> · (40 − t) / (40 − 20) + Stress<sub>40</sub> · (t − 20) / (40 − 20)</div>
+                        <table class="rules-table">
+                            <caption>利率向上 / 向下压力参数（年，%）</caption>
+                            <thead><tr><th>年 t</th><th class="up">上升</th><th class="down">下降</th><th>年 t</th><th class="up">上升</th><th class="down">下降</th></tr></thead>
+                            <tbody>
+                                <tr><td>1</td><td class="up">97</td><td class="down">−71</td><td>11</td><td class="up">49</td><td class="down">−32</td></tr>
+                                <tr><td>2</td><td class="up">76</td><td class="down">−66</td><td>12</td><td class="up">47</td><td class="down">−30</td></tr>
+                                <tr><td>3</td><td class="up">68</td><td class="down">−61</td><td>13</td><td class="up">45</td><td class="down">−28</td></tr>
+                                <tr><td>4</td><td class="up">65</td><td class="down">−54</td><td>14</td><td class="up">42</td><td class="down">−27</td></tr>
+                                <tr><td>5</td><td class="up">66</td><td class="down">−48</td><td>15</td><td class="up">41</td><td class="down">−25</td></tr>
+                                <tr><td>6</td><td class="up">61</td><td class="down">−45</td><td>16</td><td class="up">39</td><td class="down">−24</td></tr>
+                                <tr><td>7</td><td class="up">55</td><td class="down">−42</td><td>17</td><td class="up">38</td><td class="down">−23</td></tr>
+                                <tr><td>8</td><td class="up">53</td><td class="down">−39</td><td>18</td><td class="up">38</td><td class="down">−23</td></tr>
+                                <tr><td>9</td><td class="up">52</td><td class="down">−36</td><td>19</td><td class="up">38</td><td class="down">−23</td></tr>
+                                <tr><td>10</td><td class="up">50</td><td class="down">−34</td><td>20</td><td class="up">37</td><td class="down">−23</td></tr>
+                                <tr><td colspan="3"></td><td>40 / 40+</td><td class="up">17</td><td class="down">−11</td></tr>
+                            </tbody>
+                        </table>
+                        <p><strong>综合溢价（利率）</strong>：前 20 年 45BP；20 &lt; t ≤ 40 线性插值 Spread<sub>t</sub> = Spread<sub>20</sub> · (40 − t) / (40 − 20)；t &gt; 40 为 0。</p>
+                    </div>
+                    <div class="rules-section">
+                        <h4>⑤ 折现率换算</h4>
+                        <p>即期折现率 = 基础利率曲线 + 综合溢价；<strong>远期折现率</strong>由即期折现率曲线换算得到。负债曲线采用 MA750；利率风险情景（基础 / 上升 / 下降）以 MA60 施加监管压力后外推得到。</p>
+                    </div>
+                    <p class="rules-src">依据：《保险公司偿付能力监管规则第 3 号：寿险合同负债评估》第十九条及附件 1；《保险公司偿付能力监管规则第 8 号：市场风险最低资本》第十九条、第二十条及附件 3。</p>
+                </div>
+            </details>
+            <div id="discountSummaryView">
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">
+                            <span id="discountSummaryTitle">负债折现率曲线（汇总）</span>
+                            <span class="badge" id="discountSummaryBadge"></span>
+                        </div>
+                        <div class="chart-box tall" id="discountSummaryChart"></div>
+                        <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span>汇总数据表</span></div>
+                        <div class="table-wrap" id="discountSummaryTableWrap" style="overflow:auto;max-height:560px;">
+                            <table>
+                                <thead id="discountSummaryHead"></thead>
+                                <tbody id="discountSummaryBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="discountOutputView" style="display:none;">
+                <div class="card">
+                    <div class="card-title">
+                        <span id="discountOutputTitle">假设表（DISC_PC）</span>
+                        <span class="badge">产品序号 × 情景曲线 · 年1-50 · 远期折现率</span>
+                    </div>
+                    <div class="table-wrap" id="discountOutputTableWrap" style="overflow:auto;max-height:640px;">
+                        <table>
+                            <thead id="discountOutputHead"></thead>
+                            <tbody id="discountOutputBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="footnote">假设折现率（与 Excel 监管底稿一致）；切「即期」可看即期口径。DISC_PC_CR 取负债远期中/低档，DISC_PC_UP/DW 取利率远期上/下。</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2418,6 +2599,8 @@
         // 视图切换：总览 ↔ 详情
         // ================================================================
         function showOverview() {
+            currentMonitorSubview = 'overview';
+            if (currentMainView === 'discount') { document.getElementById('viewOverview').style.display = 'none'; return; }
             document.getElementById('viewOverview').style.display = '';
             document.getElementById('viewDetail').style.display = 'none';
             document.querySelector('.container').classList.add('overview-mode');
@@ -2425,6 +2608,8 @@
         }
 
         async function showDetail(type) {
+            currentMonitorSubview = 'detail';
+            if (currentMainView === 'discount') return;
             document.getElementById('viewOverview').style.display = 'none';
             document.getElementById('viewDetail').style.display = '';
             document.querySelector('.container').classList.remove('overview-mode');
@@ -2441,6 +2626,457 @@
             }
             // 更新 URL hash
             history.replaceState(null, '', '#' + type);
+        }
+
+        // ================================================================
+        // 折现率曲线板块（偿二代二期规则）
+        // ================================================================
+        let discountChart = null;
+        let currentMainView = 'monitor';
+        let currentMonitorSubview = 'overview';
+        let discountRule = 'c2_2';
+        let discountSub = 'summary';
+        let discountSF = 'fwd';
+        let discountDate = null;          // 基准日（实际或预测日期）
+        let discountDatePopulated = false;
+        let discountForecastRefDate = null; // 预测日平推基准（实际日期），null=用最新实际日
+        let discountDataCache = null;
+
+        // 利率风险压力参数表：年期1-20 直接值；21-39 线性插值；40-50 固定
+        const DISCOUNT_STRESS = {
+            1:[0.97,-0.71], 2:[0.76,-0.66], 3:[0.68,-0.61], 4:[0.65,-0.54], 5:[0.66,-0.48],
+            6:[0.61,-0.45], 7:[0.55,-0.42], 8:[0.53,-0.39], 9:[0.52,-0.36], 10:[0.50,-0.34],
+            11:[0.49,-0.32], 12:[0.47,-0.30], 13:[0.45,-0.28], 14:[0.42,-0.27], 15:[0.41,-0.25],
+            16:[0.39,-0.24], 17:[0.38,-0.23], 18:[0.38,-0.23], 19:[0.38,-0.23], 20:[0.37,-0.23]
+        };
+        function stressUp(t) {
+            if (t <= 20) return DISCOUNT_STRESS[t][0];
+            if (t >= 40) return 0.17;
+            return 0.37 * (40 - t) / 20 + 0.17 * (t - 20) / 20;
+        }
+        function stressDown(t) {
+            if (t <= 20) return DISCOUNT_STRESS[t][1];
+            if (t >= 40) return -0.11;
+            return -0.23 * (40 - t) / 20 + (-0.11) * (t - 20) / 20;
+        }
+
+        // 从数据仓独立计算某期限的 MA（不受当前债券类型影响，始终用国债即期）
+        function computeMAFromStore(store, period) {
+            const dates = store.dates, rates = store.rates;
+            const latestIdx = dates.length - 1;
+            const startIdx = Math.max(0, latestIdx - period + 1);
+            const latestRow = rates[latestIdx];
+            const out = {};
+            for (let t = 1; t <= 50; t++) {
+                const srcKey = t + 'Y';
+                if (latestRow[srcKey] == null) continue;
+                let sum = 0, cnt = 0;
+                for (let i = startIdx; i <= latestIdx; i++) {
+                    const v = rates[i][srcKey];
+                    if (v != null && isFinite(v)) { sum += v; cnt++; }
+                }
+                out[String(t)] = cnt > 0 ? sum / cnt : null;
+            }
+            return out;
+        }
+
+        const DISC_PARAMS = { startYear:20, endYear:40, ufr:0.045, ufrUp:0.05265, ufrDown:0.04005,
+            spreadHigh:0.0075, spreadMid:0.0045, spreadLow:0.0030, spreadInt:0.0045 };
+
+        function r8(x) { return (x == null || !isFinite(x)) ? null : Math.round(x * 1e8) / 1e8; }
+        function extrap(arr, t, ufr) {
+            if (t <= DISC_PARAMS.startYear) return arr[t];
+            if (t >= DISC_PARAMS.endYear) return ufr;
+            return arr[DISC_PARAMS.startYear] + (ufr - arr[DISC_PARAMS.startYear]) * (t - DISC_PARAMS.startYear) / (DISC_PARAMS.endYear - DISC_PARAMS.startYear);
+        }
+        function mix(arr, extr, t) {
+            if (t <= DISC_PARAMS.startYear || t >= DISC_PARAMS.endYear) return extr[t];
+            return arr[t] * (DISC_PARAMS.endYear - t) / (DISC_PARAMS.endYear - DISC_PARAMS.startYear) + extr[t] * (t - DISC_PARAMS.startYear) / (DISC_PARAMS.endYear - DISC_PARAMS.startYear);
+        }
+        function spreadFn(t, s) {
+            if (t <= DISC_PARAMS.startYear) return s;
+            if (t >= DISC_PARAMS.endYear) return 0;
+            return s * (DISC_PARAMS.endYear - t) / (DISC_PARAMS.endYear - DISC_PARAMS.startYear);
+        }
+        function fwdVal(spot, t) {
+            if (spot[t] == null) return null;
+            if (t === 1) return spot[t];
+            if (spot[t - 1] == null) return null;
+            return Math.pow(1 + spot[t], t) / Math.pow(1 + spot[t - 1], t - 1) - 1;
+        }
+
+        // 精确复现 Excel「偿二代二期」算法
+        function computeDiscountCurves(ma750, ma60, latestDate) {
+            const SY = DISC_PARAMS.startYear, EY = DISC_PARAMS.endYear;
+            const years = [];
+            for (let t = 1; t <= 50; t++) years.push(t);
+            const emkt = {}, e60 = {}, fup = {}, gdn = {};
+            for (const t of years) {
+                emkt[t] = ma750[String(t)] != null ? ma750[String(t)] / 100 : null;
+                e60[t]  = ma60[String(t)]  != null ? ma60[String(t)] / 100 : null;
+                // 利率曲线基础为 MA60（注意：受压上行/下行必须基于 e60，而非负债的 emkt）
+                fup[t]  = e60[t]  != null ? e60[t]  * (1 + stressUp(t)) : null;
+                gdn[t]  = e60[t]  != null ? e60[t]  * (1 + stressDown(t)) : null;
+            }
+            // 负债曲线：基础 G = 混合(E, 外推F)，溢价 H/I/J，即期 = G+溢价，远期
+            const F = {}, G = {}, H = {}, Ih = {}, J = {}, Kraw = {}, Lraw = {}, Mraw = {}, K = {}, L = {}, M = {}, N = {}, O = {}, P = {};
+            for (const t of years) {
+                F[t] = extrap(emkt, t, DISC_PARAMS.ufr);
+                G[t] = mix(emkt, F, t);
+                H[t] = spreadFn(t, DISC_PARAMS.spreadHigh);
+                Ih[t] = spreadFn(t, DISC_PARAMS.spreadMid);
+                J[t] = spreadFn(t, DISC_PARAMS.spreadLow);
+                Kraw[t] = G[t] + H[t]; Lraw[t] = G[t] + Ih[t]; Mraw[t] = G[t] + J[t];
+                K[t] = r8(Kraw[t]); L[t] = r8(Lraw[t]); M[t] = r8(Mraw[t]);
+                N[t] = r8(fwdVal(Kraw, t)); O[t] = r8(fwdVal(Lraw, t)); P[t] = r8(fwdVal(Mraw, t));
+            }
+            // 利率曲线：E60 施加压力→外推(UFR_UP/DOWN)→混合→+溢价45bps→即期/远期
+            const extE = {}, extF = {}, extG = {}, Kr = {}, Lr = {}, Mr = {}, Nr = {}, Or = {}, Pr = {}, Qr = {}, R = {}, S = {}, T = {};
+            for (const t of years) {
+                extE[t] = extrap(e60, t, DISC_PARAMS.ufr);
+                extF[t] = extrap(fup, t, DISC_PARAMS.ufrUp);
+                extG[t] = extrap(gdn, t, DISC_PARAMS.ufrDown);
+                Kr[t] = r8(mix(e60, extE, t)); Lr[t] = r8(mix(fup, extF, t)); Mr[t] = r8(mix(gdn, extG, t));
+                Nr[t] = spreadFn(t, DISC_PARAMS.spreadInt);
+                Or[t] = r8(Kr[t] + Nr[t]); Pr[t] = r8(Lr[t] + Nr[t]); Qr[t] = r8(Mr[t] + Nr[t]);
+                R[t] = r8(fwdVal(Or, t)); S[t] = r8(fwdVal(Pr, t)); T[t] = r8(fwdVal(Qr, t));
+            }
+            return {
+                years, latestDate,
+                liab: {
+                    spot:{high:K, mid:L, low:M}, fwd:{high:N, mid:O, low:P},
+                    _mkt:emkt, _base:G, _extr:F, _spreadHigh:H, _spreadMid:Ih, _spreadLow:J
+                },
+                rate: {
+                    spot:{base:Or, up:Pr, down:Qr}, fwd:{base:R, up:S, down:T},
+                    _mkt:e60, _fup:fup, _gdn:gdn,
+                    _extr:{base:extE, up:extF, down:extG},
+                    _base:{base:Kr, up:Lr, down:Mr}, _spread:Nr
+                }
+            };
+        }
+
+        // 取 endDate 之前（含）连续的 period 个交易日的日期列表，用于对任意基准日求移动平均
+        function collectBusinessDaysBackward(endDateStr, period) {
+            const out = [];
+            let cur = new Date(endDateStr + 'T00:00:00Z');
+            let safety = 0;
+            while (out.length < period && safety < 8000) {
+                const dStr = cur.toISOString().slice(0, 10);
+                if (isTradingDay(dStr)) out.push(dStr);
+                cur.setUTCDate(cur.getUTCDate() - 1);
+                safety++;
+            }
+            return out.reverse();
+        }
+
+        // 求某基准日（实际日期或预测日期）的 period 日移动平均即期曲线
+        // 实际日期：直接取截至该日的最后 period 个实际交易日（与 Excel 750 日移动平均一致，避免节假日被填入最新日利率而偏低）
+        // 预测日期：窗口共 period 个交易日、结束于 F；未来交易日不可得，按平推法取 refOverride（默认最新实际日）即期，历史部分取实际行
+        function maAsOfDate(gov, period, endDateStr, refOverride) {
+            const actualDates = gov.dates;
+            const dateSet = new Set(actualDates);
+            const refDate = (refOverride && dateSet.has(refOverride)) ? refOverride : actualDates[actualDates.length - 1];
+            const refRates = gov.rates[actualDates.indexOf(refDate)];
+            const endIdx = actualDates.indexOf(endDateStr);
+            let rows;
+            if (endIdx >= 0) {
+                // 实际日期：截至该日的最后 period 个实际交易日
+                const startIdx = Math.max(0, endIdx - period + 1);
+                rows = gov.rates.slice(startIdx, endIdx + 1);
+            } else {
+                // 预测日期：统计 (最新实际日, F] 内的交易日数 k，历史取最近 (period-k) 个实际行，尾部补 k 份平推基准即期
+                const lastActual = actualDates[actualDates.length - 1];
+                const k = collectBusinessDaysBackward(endDateStr, period).filter(d => d > lastActual).length;
+                const histCount = Math.max(0, period - k);
+                const startIdx = Math.max(0, actualDates.length - histCount);
+                rows = gov.rates.slice(startIdx).concat(new Array(k).fill(refRates));
+            }
+            const synth = { dates: rows.map((_, i) => 'r' + i), rates: rows, latestDate: endDateStr };
+            return computeMAFromStore(synth, period);
+        }
+
+        function isForecastDate(gov, d) {
+            return gov && gov.dates && d && !gov.dates.includes(d) && d > gov.latestDate;
+        }
+
+        function ensureDiscountData() {
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            if (!gov || !gov.dates || gov.dates.length === 0) return null;
+            const endDate = discountDate || gov.latestDate;
+            const fc = isForecastDate(gov, endDate);
+            const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
+            const cacheKey = endDate + '|' + (ref || '');
+            if (!discountDataCache || discountDataCache._key !== cacheKey) {
+                const ma750 = maAsOfDate(gov, 750, endDate, ref);
+                const ma60 = maAsOfDate(gov, 60, endDate, ref);
+                discountDataCache = computeDiscountCurves(ma750, ma60, endDate);
+                discountDataCache._key = cacheKey;
+                discountDataCache._date = endDate;
+                discountDataCache._ref = ref;
+            }
+            return discountDataCache;
+        }
+
+        function populateDiscountDateSelect() {
+            const sel = document.getElementById('discountDateSelect');
+            if (!sel) return;
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            if (!gov || !gov.dates || gov.dates.length === 0) return;
+            const actualDates = gov.dates;
+            const recent = actualDates.slice(-500);
+            const fDates = generateForecastDates(gov.latestDate, 750);
+            const fMonthEnds = getMonthEndDates(fDates);
+            const html = recent.map(d => `<option value="${d}" ${d === discountDate ? 'selected' : ''}>${d}</option>`).join('')
+                + (fMonthEnds.length > 0
+                    ? `<optgroup label="预测日期（平推法）">` + fMonthEnds.map(d => `<option value="${d}" ${d === discountDate ? 'selected' : ''}>${d} (预测)</option>`).join('') + `</optgroup>`
+                    : '');
+            sel.innerHTML = html;
+            discountDatePopulated = true;
+        }
+
+        function renderDiscount() {
+            const d = ensureDiscountData();
+            if (!d) { alert('国债即期数据尚未加载，无法生成折现率曲线'); return; }
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            const isForecast = isForecastDate(gov, d.latestDate);
+            const dateBadge = document.getElementById('discountDateBadge');
+            if (dateBadge) {
+                dateBadge.textContent = (isForecast ? '预测 · ' : '实际 · ') + d.latestDate;
+                dateBadge.classList.toggle('forecast', !!isForecast);
+            }
+            const refTxt = (isForecast && d._ref) ? ' ｜ 平推基准 ' + d._ref : '';
+            document.getElementById('discountSummaryBadge').textContent =
+                '基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt + ' ｜ 负债=MA750 · 利率=MA60';
+            // 切换汇总/输出标题的基准日标注
+            const outTitleEl = document.getElementById('discountOutputTitle');
+            if (outTitleEl) outTitleEl.textContent = '假设表（DISC_PC）· 基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt;
+            if (discountSub === 'summary') renderDiscountSummary(discountSF);
+            else renderDiscountOutput(discountSF);
+        }
+
+        function populateDiscountForecastRefSelect(gov) {
+            const wrap = document.getElementById('discountForecastRefWrap');
+            const sel = document.getElementById('discountForecastRefSelect');
+            if (!wrap || !sel) return;
+            const actualDates = gov.dates;
+            // 提供最近 120 个实际交易日供选择，默认最新实际日
+            const recent = actualDates.slice(-120);
+            sel.innerHTML = recent.map(d => `<option value="${d}" ${d === (discountForecastRefDate || gov.latestDate) ? 'selected' : ''}>${d}</option>`).join('');
+            wrap.style.display = '';
+        }
+
+        function syncDiscountForecastRefUI() {
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            if (!gov) return;
+            const wrap = document.getElementById('discountForecastRefWrap');
+            if (!wrap) return;
+            if (isForecastDate(gov, discountDate)) {
+                if (!discountForecastRefDate) discountForecastRefDate = gov.latestDate;
+                populateDiscountForecastRefSelect(gov);
+            } else {
+                wrap.style.display = 'none';
+                discountForecastRefDate = null;
+            }
+        }
+
+        function renderDiscountSummary(mode) {
+            const d = discountDataCache;
+            const years = d.years;
+            const liabSpot = d.liab.spot, liabFwd = d.liab.fwd;
+            const rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
+            const groupsAll = [
+                { name:'负债即期-高', kind:'spot', data: liabSpot.high, color:'#c0392b', dash:false },
+                { name:'负债即期-中', kind:'spot', data: liabSpot.mid, color:'#e67e22', dash:false },
+                { name:'负债即期-低', kind:'spot', data: liabSpot.low, color:'#d4ac0d', dash:false },
+                { name:'负债远期-高', kind:'fwd', data: liabFwd.high, color:'#c0392b', dash:true },
+                { name:'负债远期-中', kind:'fwd', data: liabFwd.mid, color:'#e67e22', dash:true },
+                { name:'负债远期-低', kind:'fwd', data: liabFwd.low, color:'#d4ac0d', dash:true },
+                { name:'利率即期-基础', kind:'spot', data: rateSpot.base, color:'#2980b9', dash:false },
+                { name:'利率即期-上升', kind:'spot', data: rateSpot.up, color:'#8e44ad', dash:false },
+                { name:'利率即期-下降', kind:'spot', data: rateSpot.down, color:'#16a085', dash:false },
+                { name:'利率远期-基础', kind:'fwd', data: rateFwd.base, color:'#2980b9', dash:true },
+                { name:'利率远期-上升', kind:'fwd', data: rateFwd.up, color:'#8e44ad', dash:true },
+                { name:'利率远期-下降', kind:'fwd', data: rateFwd.down, color:'#16a085', dash:true }
+            ];
+            const groups = groupsAll.filter(g => (mode === 'fwd' ? g.kind === 'fwd' : g.kind === 'spot'));
+            const series = groups.map(g => ({
+                name: g.name, type: 'line', showSymbol: false,
+                data: years.map(t => g.data[t] == null ? null : +(g.data[t] * 100).toFixed(4)),
+                lineStyle: { width: 1.6, type: g.dash ? 'dashed' : 'solid', color: g.color },
+                itemStyle: { color: g.color }, emphasis: { focus: 'series' }
+            }));
+            const chartDom = document.getElementById('discountSummaryChart');
+            if (!discountChart) discountChart = echarts.init(chartDom);
+            discountChart.setOption({
+                title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· 偿二代二期', left:'center', textStyle:{fontSize:14} },
+                tooltip: { trigger:'axis' },
+                legend: { type:'scroll', bottom: 0, textStyle:{fontSize:11} },
+                grid: { left: 52, right: 22, top: 42, bottom: 62 },
+                xAxis: { type:'category', data: years, name:'年', nameLocation:'middle', nameGap: 28 },
+                yAxis: { type:'value', name:'%', axisLabel:{ formatter: v => v.toFixed(2) } },
+                series: series
+            }, true);
+            const thead = document.getElementById('discountSummaryHead');
+            const tbody = document.getElementById('discountSummaryBody');
+            let h = '<tr><th>年</th>';
+            groups.forEach(g => h += '<th>' + g.name + '</th>');
+            h += '</tr>';
+            thead.innerHTML = h;
+            let b = '';
+            for (const t of years) {
+                b += '<tr><td><strong>' + t + '</strong></td>';
+                groups.forEach(g => { const v = g.data[t]; b += '<td>' + (v == null ? '—' : (v * 100).toFixed(4)) + '</td>'; });
+                b += '</tr>';
+            }
+            tbody.innerHTML = b;
+            document.getElementById('discountSummaryTitle').textContent = '负债折现率曲线（汇总 · ' + (mode === 'fwd' ? '远期' : '即期') + '）';
+        }
+
+        const DISCOUNT_PRODUCTS = [
+            { seq:1, cat:'C', cr:'mid', up:'mid', dw:'mid' },
+            { seq:2, cat:'C', cr:'mid', up:'mid', dw:'mid' },
+            { seq:3, cat:'U万能/投连', cr:'low', up:'low', dw:'low' },
+            { seq:4, cat:'U万能/投连', cr:'low', up:'low', dw:'low' },
+            { seq:5, cat:'U万能/投连', cr:'low', up:'low', dw:'low' },
+            { seq:6, cat:'C高现价/中短存', cr:'low', up:'low', dw:'low' },
+            { seq:7, cat:'U万能/投连', cr:'low', up:'low', dw:'low' },
+            { seq:9, cat:'C', cr:'mid', up:'mid', dw:'mid' },
+            { seq:10, cat:'U万能/投连', cr:'low', up:'low', dw:'low' },
+            { seq:11, cat:'C', cr:'mid', up:'mid', dw:'mid' }
+        ];
+
+        function renderDiscountOutput(mode) {
+            const d = discountDataCache;
+            const years = d.years;
+            const liabSpot = d.liab.spot, liabFwd = d.liab.fwd;
+            const rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
+            const rows = [];
+            for (const p of DISCOUNT_PRODUCTS) {
+                const crArr = (mode === 'fwd' ? liabFwd : liabSpot)[p.cr];
+                rows.push({ curve:'DISC_PC_CR', cat:p.cat, seq:p.seq, level: p.cr === 'mid' ? 'middle' : 'low', arr: crArr });
+                const upArr = (mode === 'fwd' ? rateFwd.up : rateSpot.up);
+                rows.push({ curve:'DISC_PC_UP', cat:p.cat, seq:p.seq, level: p.up === 'mid' ? 'middle+' : 'low+', arr: upArr });
+                const dwArr = (mode === 'fwd' ? rateFwd.down : rateSpot.down);
+                rows.push({ curve:'DISC_PC_DW', cat:p.cat, seq:p.seq, level: p.dw === 'mid' ? 'middle-' : 'low-', arr: dwArr });
+            }
+            const thead = document.getElementById('discountOutputHead');
+            const tbody = document.getElementById('discountOutputBody');
+            let h = '<tr><th>曲线类型</th><th>产品类别</th><th>产品序号</th><th>情景档</th>';
+            years.forEach(t => h += '<th>' + t + '</th>');
+            h += '</tr>';
+            thead.innerHTML = h;
+            let b = '';
+            for (const r of rows) {
+                b += '<tr><td>' + r.curve + '</td><td>' + r.cat + '</td><td>' + r.seq + '</td><td>' + r.level + '</td>';
+                years.forEach(t => { const v = r.arr[t]; b += '<td>' + (v == null ? '—' : (v * 100).toFixed(4)) + '</td>'; });
+                b += '</tr>';
+            }
+            tbody.innerHTML = b;
+        }
+
+        function pct(x) { return x == null ? null : +(x * 100).toFixed(4); }
+        function discountXLSXName(suffix) {
+            const d = discountDataCache;
+            return '折现率曲线_偿二代二期_' + suffix + '_基准日' + (d ? d.latestDate : '') + '.xlsx';
+        }
+        function downloadDiscountSummaryXLSX() {
+            const d = ensureDiscountData(); if (!d) return;
+            const years = d.years;
+            const groups = [
+                ['负债即期-高', d.liab.spot.high], ['负债即期-中', d.liab.spot.mid], ['负债即期-低', d.liab.spot.low],
+                ['负债远期-高', d.liab.fwd.high], ['负债远期-中', d.liab.fwd.mid], ['负债远期-低', d.liab.fwd.low],
+                ['利率即期-基础', d.rate.spot.base], ['利率即期-上升', d.rate.spot.up], ['利率即期-下降', d.rate.spot.down],
+                ['利率远期-基础', d.rate.fwd.base], ['利率远期-上升', d.rate.fwd.up], ['利率远期-下降', d.rate.fwd.down]
+            ];
+            const aoa = [['年'].concat(groups.map(g => g[0]))];
+            for (const t of years) {
+                const row = [t];
+                groups.forEach(g => row.push(g[1][t] == null ? null : +(g[1][t] * 100).toFixed(4)));
+                aoa.push(row);
+            }
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '汇总');
+            XLSX.writeFile(wb, discountXLSXName('汇总'));
+        }
+        function downloadDiscountOutputXLSX() {
+            const d = ensureDiscountData(); if (!d) return;
+            const years = d.years;
+            const liabSpot = d.liab.spot, liabFwd = d.liab.fwd, rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
+            const aoa = [['曲线类型', '产品类别', '产品序号', '情景档'].concat(years.map(String))];
+            for (const p of DISCOUNT_PRODUCTS) {
+                const cr = (discountSF === 'fwd' ? liabFwd : liabSpot)[p.cr];
+                aoa.push(['DISC_PC_CR', p.cat, p.seq, p.cr === 'mid' ? 'middle' : 'low'].concat(years.map(t => cr[t] == null ? null : +(cr[t] * 100).toFixed(4))));
+                const up = (discountSF === 'fwd' ? rateFwd.up : rateSpot.up);
+                aoa.push(['DISC_PC_UP', p.cat, p.seq, p.up === 'mid' ? 'middle+' : 'low+'].concat(years.map(t => up[t] == null ? null : +(up[t] * 100).toFixed(4))));
+                const dw = (discountSF === 'fwd' ? rateFwd.down : rateSpot.down);
+                aoa.push(['DISC_PC_DW', p.cat, p.seq, p.dw === 'mid' ? 'middle-' : 'low-'].concat(years.map(t => dw[t] == null ? null : +(dw[t] * 100).toFixed(4))));
+            }
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '输出');
+            XLSX.writeFile(wb, discountXLSXName('输出'));
+        }
+        function downloadDiscountWorkingXLSX() {
+            const d = ensureDiscountData(); if (!d) return;
+            const years = d.years;
+            const wb = XLSX.utils.book_new();
+            // 负债曲线过程
+            const la = [['年', '市场750(%)', '基础G(%)', '外推F(%)', '溢价高H(%)', '溢价中I(%)', '溢价低J(%)', '即期高K(%)', '即期中L(%)', '即期低M(%)', '远期中N(%)', '远期中O(%)', '远期低P(%)']];
+            years.forEach(t => la.push([
+                t, pct(d.liab._mkt[t]), pct(d.liab._base[t]), pct(d.liab._extr[t]),
+                pct(d.liab._spreadHigh[t]), pct(d.liab._spreadMid[t]), pct(d.liab._spreadLow[t]),
+                pct(d.liab.spot.high[t]), pct(d.liab.spot.mid[t]), pct(d.liab.spot.low[t]),
+                pct(d.liab.fwd.high[t]), pct(d.liab.fwd.mid[t]), pct(d.liab.fwd.low[t])
+            ]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(la), '负债曲线过程');
+            // 利率曲线过程
+            const ra = [['年', '市场60E60(%)', '上升Fup(%)', '下降Gdn(%)', '基础外推H(%)', '上升外推I(%)', '下降外推J(%)', '混合基础K(%)', '混合上升L(%)', '混合下降M(%)', '溢价N(%)', '即期基础O(%)', '即期上升P(%)', '即期下降Q(%)', '远期基础R(%)', '远期上升S(%)', '远期下降T(%)']];
+            years.forEach(t => ra.push([
+                t, pct(d.rate._mkt[t]), pct(d.rate._fup[t]), pct(d.rate._gdn[t]),
+                pct(d.rate._extr.base[t]), pct(d.rate._extr.up[t]), pct(d.rate._extr.down[t]),
+                pct(d.rate._base.base[t]), pct(d.rate._base.up[t]), pct(d.rate._base.down[t]),
+                pct(d.rate._spread[t]),
+                pct(d.rate.spot.base[t]), pct(d.rate.spot.up[t]), pct(d.rate.spot.down[t]),
+                pct(d.rate.fwd.base[t]), pct(d.rate.fwd.up[t]), pct(d.rate.fwd.down[t])
+            ]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ra), '利率曲线过程');
+            // 汇总
+            const groups = [
+                ['负债即期-高', d.liab.spot.high], ['负债即期-中', d.liab.spot.mid], ['负债即期-低', d.liab.spot.low],
+                ['负债远期-高', d.liab.fwd.high], ['负债远期-中', d.liab.fwd.mid], ['负债远期-低', d.liab.fwd.low],
+                ['利率即期-基础', d.rate.spot.base], ['利率即期-上升', d.rate.spot.up], ['利率即期-下降', d.rate.spot.down],
+                ['利率远期-基础', d.rate.fwd.base], ['利率远期-上升', d.rate.fwd.up], ['利率远期-下降', d.rate.fwd.down]
+            ];
+            const sa = [['年'].concat(groups.map(g => g[0]))];
+            years.forEach(t => { const row = [t]; groups.forEach(g => row.push(g[1][t] == null ? null : +(g[1][t] * 100).toFixed(4))); sa.push(row); });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sa), '汇总');
+            XLSX.writeFile(wb, discountXLSXName('底稿'));
+        }
+
+        function showMainView(v) {
+            currentMainView = v;
+            document.querySelectorAll('#mainNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+            const bt = document.getElementById('bondToggle');
+            if (v === 'discount') {
+                document.getElementById('viewOverview').style.display = 'none';
+                document.getElementById('viewDetail').style.display = 'none';
+                document.getElementById('viewDiscount').style.display = '';
+                bt.style.display = 'none';
+                if (!discountDate) discountDate = dataStore.latestDate;
+                if (!discountDatePopulated) populateDiscountDateSelect();
+                else {
+                    const sel = document.getElementById('discountDateSelect');
+                    if (sel && discountDate) sel.value = discountDate;
+                }
+                syncDiscountForecastRefUI();
+                renderDiscount();
+                setTimeout(() => { if (discountChart) discountChart.resize(); }, 60);
+            } else {
+                document.getElementById('viewDiscount').style.display = 'none';
+                bt.style.display = '';
+                if (currentMonitorSubview === 'detail') showDetail(currentBondType);
+                else showOverview();
+            }
         }
 
         function handleHashChange() {
@@ -2592,6 +3228,51 @@
                     if (this.classList.contains('active')) return;
                     showDetail(this.dataset.bond);
                 });
+            });
+            // 折现率曲线板块事件
+            document.querySelectorAll('#mainNav button').forEach(btn => {
+                btn.addEventListener('click', () => showMainView(btn.dataset.view));
+            });
+            document.querySelectorAll('#ruleToggle button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    discountRule = this.dataset.rule;
+                    document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b === this));
+                    discountDataCache = null;
+                    renderDiscount();
+                });
+            });
+            document.querySelectorAll('#discountSubToggle button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    discountSub = this.dataset.sub;
+                    document.querySelectorAll('#discountSubToggle button').forEach(b => b.classList.toggle('active', b === this));
+                    document.getElementById('discountSummaryView').style.display = (discountSub === 'summary') ? '' : 'none';
+                    document.getElementById('discountOutputView').style.display = (discountSub === 'output') ? '' : 'none';
+                    renderDiscount();
+                });
+            });
+            document.querySelectorAll('#discountSFBtnGroup button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    discountSF = this.dataset.sf;
+                    document.querySelectorAll('#discountSFBtnGroup button').forEach(b => b.classList.toggle('active', b === this));
+                    renderDiscount();
+                });
+            });
+            document.getElementById('discountSummaryBtn').addEventListener('click', downloadDiscountSummaryXLSX);
+            document.getElementById('discountOutputBtn').addEventListener('click', downloadDiscountOutputXLSX);
+            document.getElementById('discountWorkingBtn').addEventListener('click', downloadDiscountWorkingXLSX);
+            const discountDateSel = document.getElementById('discountDateSelect');
+            if (discountDateSel) discountDateSel.addEventListener('change', function() {
+                discountDate = this.value;
+                discountDataCache = null;
+                syncDiscountForecastRefUI();
+                renderDiscount();
+            });
+            const discountRefSel = document.getElementById('discountForecastRefSelect');
+            if (discountRefSel) discountRefSel.addEventListener('change', function() {
+                discountForecastRefDate = this.value;
+                discountDataCache = null;
+                renderDiscount();
             });
         }
 
