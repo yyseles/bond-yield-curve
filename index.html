@@ -449,6 +449,10 @@
                         <label for="discountForecastRefSelect" style="font-size:13px;font-weight:600;color:#b9770e;">平推基准：</label>
                         <select id="discountForecastRefSelect"></select>
                     </span>
+                    <span class="cmp-wrap" id="discountCompareWrap">
+                        <label for="discountCompareDateSelect" style="font-size:13px;font-weight:600;color:#6c3483;">对比日：</label>
+                        <select id="discountCompareDateSelect"></select>
+                    </span>
                 </div>
                 <div class="sub-view-toggle" id="discountSubToggle">
                     <button class="active" data-sub="summary">汇总</button>
@@ -537,13 +541,21 @@
                         <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
                     </div>
                     <div class="card">
-                        <div class="card-title"><span>汇总数据表</span></div>
-                        <div class="table-wrap" id="discountSummaryTableWrap" style="overflow:auto;max-height:560px;">
-                            <table>
-                                <thead id="discountSummaryHead"></thead>
-                                <tbody id="discountSummaryBody"></tbody>
-                            </table>
+                        <div class="card-title">
+                            <span id="discountCompareTitle">对比日曲线（负债中档 · 利率基础）</span>
+                            <span class="badge" id="discountCompareBadge"></span>
                         </div>
+                        <div class="chart-box tall" id="discountCompareChart"></div>
+                        <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>汇总数据表</span></div>
+                    <div class="table-wrap" id="discountSummaryTableWrap" style="overflow:auto;max-height:560px;">
+                        <table>
+                            <thead id="discountSummaryHead"></thead>
+                            <tbody id="discountSummaryBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -642,6 +654,26 @@
                     }
                     if (hasAny) ratesArr.push(rowObj);
                 }
+                const ma750Arr = [];
+                for (const row of (json.websiteMA750 || [])) {
+                    if (!row) { ma750Arr.push(null); continue; }
+                    const rowObj = {}; let hasAny = false;
+                    for (let i = 0; i < terms.length; i++) {
+                        const cleaned = sanitizeRate(row[i]);
+                        if (cleaned !== null) { rowObj[terms[i]] = cleaned; hasAny = true; }
+                    }
+                    ma750Arr.push(hasAny ? rowObj : null);
+                }
+                const ma60Arr = [];
+                for (const row of (json.websiteMA60 || [])) {
+                    if (!row) { ma60Arr.push(null); continue; }
+                    const rowObj = {}; let hasAny = false;
+                    for (let i = 0; i < terms.length; i++) {
+                        const cleaned = sanitizeRate(row[i]);
+                        if (cleaned !== null) { rowObj[terms[i]] = cleaned; hasAny = true; }
+                    }
+                    ma60Arr.push(hasAny ? rowObj : null);
+                }
 
                 const latestDate = dates[dates.length - 1];
                 const latestRates = ratesArr[ratesArr.length - 1];
@@ -650,6 +682,8 @@
                 dataStore = {
                     dates: dates,
                     rates: ratesArr,
+                    ma750: ma750Arr,
+                    ma60: ma60Arr,
                     latestDate: latestDate,
                     latestRates: latestRates,
                     allTerms: allTermsLocal
@@ -680,9 +714,23 @@
                 ed.terms.forEach(function(t, i) { if (row[i] !== null) obj[t] = row[i]; });
                 return obj;
             });
+            const ma750Arr = (ed.websiteMA750 || []).map(function(row) {
+                if (!row) return null;
+                const obj = {};
+                ed.terms.forEach(function(t, i) { if (row[i] !== null && row[i] !== undefined) obj[t] = row[i]; });
+                return obj;
+            });
+            const ma60Arr = (ed.websiteMA60 || []).map(function(row) {
+                if (!row) return null;
+                const obj = {};
+                ed.terms.forEach(function(t, i) { if (row[i] !== null && row[i] !== undefined) obj[t] = row[i]; });
+                return obj;
+            });
             dataStore = {
                 dates: ed.dates,
                 rates: ratesArr,
+                ma750: ma750Arr,
+                ma60: ma60Arr,
                 latestDate: ed.dates[ed.dates.length - 1],
                 latestRates: ratesArr[ratesArr.length - 1],
                 allTerms: ed.terms
@@ -2632,6 +2680,7 @@
         // 折现率曲线板块（偿二代二期规则）
         // ================================================================
         let discountChart = null;
+        let discountCompareChart = null;
         let currentMainView = 'monitor';
         let currentMonitorSubview = 'overview';
         let discountRule = 'c2_2';
@@ -2641,6 +2690,7 @@
         let discountDatePopulated = false;
         let discountForecastRefDate = null; // 预测日平推基准（实际日期），null=用最新实际日
         let discountDataCache = null;
+        let discountCompareDate = null;   // 对比基准日（可选）
 
         // 利率风险压力参数表：年期1-20 直接值；21-39 线性插值；40-50 固定
         const DISCOUNT_STRESS = {
@@ -2779,6 +2829,23 @@
             const refDate = (refOverride && dateSet.has(refOverride)) ? refOverride : actualDates[actualDates.length - 1];
             const refRates = gov.rates[actualDates.indexOf(refDate)];
             const endIdx = actualDates.indexOf(endDateStr);
+
+            // 优先使用网站直接下发的精确 MA（实际日期且数据存在）
+            const exactKey = period === 750 ? 'ma750' : (period === 60 ? 'ma60' : null);
+            if (exactKey && endIdx >= 0) {
+                const exactRow = gov[exactKey] && gov[exactKey][endIdx];
+                if (exactRow && typeof exactRow === 'object') {
+                    const out = {};
+                    let hasAny = false;
+                    for (let t = 1; t <= 50; t++) {
+                        const v = exactRow[t + 'Y'];
+                        out[String(t)] = (v != null && isFinite(v)) ? v : null;
+                        if (out[String(t)] != null) hasAny = true;
+                    }
+                    if (hasAny) return out;
+                }
+            }
+
             let rows;
             if (endIdx >= 0) {
                 // 实际日期：截至该日的最后 period 个实际交易日
@@ -2800,6 +2867,20 @@
             return gov && gov.dates && d && !gov.dates.includes(d) && d > gov.latestDate;
         }
 
+        // 给定基准日（实际/预测）计算折现率曲线，供当前日与对比日共用
+        function computeForDate(endDateStr) {
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            if (!gov || !gov.dates || gov.dates.length === 0) return null;
+            const fc = isForecastDate(gov, endDateStr);
+            const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
+            const ma750 = maAsOfDate(gov, 750, endDateStr, ref);
+            const ma60 = maAsOfDate(gov, 60, endDateStr, ref);
+            const d = computeDiscountCurves(ma750, ma60, endDateStr);
+            d._date = endDateStr;
+            d._ref = ref;
+            return d;
+        }
+
         function ensureDiscountData() {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
             if (!gov || !gov.dates || gov.dates.length === 0) return null;
@@ -2808,12 +2889,8 @@
             const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
             const cacheKey = endDate + '|' + (ref || '');
             if (!discountDataCache || discountDataCache._key !== cacheKey) {
-                const ma750 = maAsOfDate(gov, 750, endDate, ref);
-                const ma60 = maAsOfDate(gov, 60, endDate, ref);
-                discountDataCache = computeDiscountCurves(ma750, ma60, endDate);
+                discountDataCache = computeForDate(endDate);
                 discountDataCache._key = cacheKey;
-                discountDataCache._date = endDate;
-                discountDataCache._ref = ref;
             }
             return discountDataCache;
         }
@@ -2833,6 +2910,11 @@
                     : '');
             sel.innerHTML = html;
             discountDatePopulated = true;
+            // 对比日下拉（复用相同选项，默认空=不对比）
+            const csel = document.getElementById('discountCompareDateSelect');
+            if (csel) {
+                csel.innerHTML = '<option value="">（不选对比）</option>' + html.replace(/selected/g, '');
+            }
         }
 
         function renderDiscount() {
@@ -2848,6 +2930,17 @@
             const refTxt = (isForecast && d._ref) ? ' ｜ 平推基准 ' + d._ref : '';
             document.getElementById('discountSummaryBadge').textContent =
                 '基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt + ' ｜ 负债=MA750 · 利率=MA60';
+            const cmpBadge = document.getElementById('discountCompareBadge');
+            if (cmpBadge) {
+                if (discountCompareDate) {
+                    const cfc = isForecastDate(gov, discountCompareDate);
+                    cmpBadge.textContent = '对比日 ' + discountCompareDate + (cfc ? '（预测）' : '') + ' ｜ 负债中档 · 利率基础';
+                    cmpBadge.classList.toggle('forecast', !!cfc);
+                } else {
+                    cmpBadge.textContent = '未选择对比日';
+                    cmpBadge.classList.remove('forecast');
+                }
+            }
             // 切换汇总/输出标题的基准日标注
             const outTitleEl = document.getElementById('discountOutputTitle');
             if (outTitleEl) outTitleEl.textContent = '假设表（DISC_PC）· 基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt;
@@ -2917,6 +3010,38 @@
                 yAxis: { type:'value', name:'%', axisLabel:{ formatter: v => v.toFixed(2) } },
                 series: series
             }, true);
+            // 右图：对比日（仅负债中档 + 利率基础）
+            const cmpDom = document.getElementById('discountCompareChart');
+            if (discountCompareDate && cmpDom) {
+                const cd = computeForDate(discountCompareDate);
+                if (!discountCompareChart) discountCompareChart = echarts.init(cmpDom);
+                const cMidSpot = cd.liab.spot.mid, cMidFwd = cd.liab.fwd.mid;
+                const cBaseSpot = cd.rate.spot.base, cBaseFwd = cd.rate.fwd.base;
+                const cmpAll = [
+                    { name:'负债即期-中', kind:'spot', data: cMidSpot, color:'#e67e22', dash:false },
+                    { name:'负债远期-中', kind:'fwd', data: cMidFwd, color:'#e67e22', dash:true },
+                    { name:'利率即期-基础', kind:'spot', data: cBaseSpot, color:'#2980b9', dash:false },
+                    { name:'利率远期-基础', kind:'fwd', data: cBaseFwd, color:'#2980b9', dash:true }
+                ];
+                const cmpGroups = cmpAll.filter(g => (mode === 'fwd' ? g.kind === 'fwd' : g.kind === 'spot'));
+                const cmpSeries = cmpGroups.map(g => ({
+                    name: g.name, type:'line', showSymbol:false,
+                    data: years.map(t => g.data[t] == null ? null : +(g.data[t]*100).toFixed(4)),
+                    lineStyle:{ width:1.6, type: g.dash?'dashed':'solid', color:g.color },
+                    itemStyle:{ color:g.color }, emphasis:{ focus:'series' }
+                }));
+                discountCompareChart.setOption({
+                    title:{ text:'对比日（'+discountCompareDate+'）· '+(mode==='fwd'?'远期':'即期'), left:'center', textStyle:{fontSize:14} },
+                    tooltip:{ trigger:'axis' },
+                    legend:{ type:'scroll', bottom:0, textStyle:{fontSize:11} },
+                    grid:{ left:52, right:22, top:42, bottom:62 },
+                    xAxis:{ type:'category', data:years, name:'年', nameLocation:'middle', nameGap:28 },
+                    yAxis:{ type:'value', name:'%', axisLabel:{ formatter: v=>v.toFixed(2) } },
+                    series: cmpSeries
+                }, true);
+            } else if (discountCompareChart) {
+                discountCompareChart.clear();
+            }
             const thead = document.getElementById('discountSummaryHead');
             const tbody = document.getElementById('discountSummaryBody');
             let h = '<tr><th>年</th>';
@@ -3070,7 +3195,7 @@
                 }
                 syncDiscountForecastRefUI();
                 renderDiscount();
-                setTimeout(() => { if (discountChart) discountChart.resize(); }, 60);
+                setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); }, 60);
             } else {
                 document.getElementById('viewDiscount').style.display = 'none';
                 bt.style.display = '';
@@ -3211,12 +3336,14 @@
                 if (forecastChart) forecastChart.resize();
                 if (maTimeSeriesChart) maTimeSeriesChart.resize();
                 if (maCurveChartEcharts) maCurveChartEcharts.resize();
+                if (discountCompareChart) discountCompareChart.resize();
             });
 
             // 显示隐藏的card触发图表resize（强制重绘）
             const observer = new MutationObserver(function() {
                 if (curveChart) curveChart.resize();
                 if (forecastChart) forecastChart.resize();
+                if (discountCompareChart) discountCompareChart.resize();
             });
             document.querySelectorAll('.card').forEach(card => {
                 observer.observe(card, { attributes: true, attributeFilter: ['style', 'class'] });
@@ -3272,6 +3399,11 @@
             if (discountRefSel) discountRefSel.addEventListener('change', function() {
                 discountForecastRefDate = this.value;
                 discountDataCache = null;
+                renderDiscount();
+            });
+            const discountCmpSel = document.getElementById('discountCompareDateSelect');
+            if (discountCmpSel) discountCmpSel.addEventListener('change', function() {
+                discountCompareDate = this.value || null;
                 renderDiscount();
             });
         }

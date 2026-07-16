@@ -5,11 +5,16 @@ GitHub Actions CI 数据更新脚本
 每天自动从中债网抓取最新利率曲线数据，更新 4 个数据文件 + 1 个摘要文件
 
 四条曲线：
-  data.json        - 国债即期 (bxjDownload, csz=1)
+  data.json        - 国债即期 (bxjDownload, csz=1) + 精确 MA750/MA60 (csz=750/60)
   data_cdb.json    - 国开债即期 (searchYc, qxll=1)
   data_gov_ytm.json - 国债到期 (searchYc, qxll=0)
   data_cdb_ytm.json - 国开债到期 (searchYc, qxll=0)
 summary.json      - 四条曲线最新关键期限摘要（供仪表盘秒开）
+
+说明：
+- 国债即期数据文件额外包含 websiteMA750 / websiteMA60 字段，用于折现率曲线计算。
+- MA750/MA60 直接从中债网「保险合同准备金计量基准」页面下载（参数设定(工作日)=750/60）。
+- 若某日精确 MA 缺失，前端会自动回退到用历史即期数据重算。
 
 四条曲线独立抓取，互不影响：
 - 任一条失败不影响其他
@@ -64,8 +69,13 @@ def now_beijing() -> date:
 # 国债即期利率 (bxjDownload, XLSX)
 # ================================================================
 
-def fetch_spot_rates_chinabond(query_date: str) -> dict:
-    params = {"gzr": query_date, "csz": "1", "locale": "zh_CN"}
+def fetch_spot_rates_chinabond(query_date: str, csz: str = "1") -> dict:
+    """
+    抓取中债网「保险合同准备金计量基准」Excel 数据。
+    csz=1 为国债即期；csz=750/60 为网站下发的 750/60 个工作日移动平均曲线。
+    与即期接口同一 endpoint，仅参数值不同。
+    """
+    params = {"gzr": query_date, "csz": csz, "locale": "zh_CN"}
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -184,11 +194,18 @@ def fetch_searchyc_rates(curve_id: str, qxll: str, query_date: str, label: str =
 
 def load_existing(filepath: str) -> dict:
     if not os.path.exists(filepath):
-        return {"dates": [], "terms": ALL_TERMS, "rows": []}
+        return {"dates": [], "terms": ALL_TERMS, "rows": [], "websiteMA750": [], "websiteMA60": []}
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
     if len(data.get("terms", [])) < 50:
         data["terms"] = ALL_TERMS
+    n = len(data["dates"])
+    for key in ("websiteMA750", "websiteMA60"):
+        if key not in data:
+            data[key] = []
+        # 保证与 dates/rows 长度一致，缺失补 null
+        if len(data[key]) < n:
+            data[key] = data[key] + [None] * (n - len(data[key]))
     return data
 
 
@@ -222,6 +239,8 @@ def update_gov_bond(today_str: str):
     print(f"  抓取范围: {fetch_start} → {today_str}")
 
     all_new = {}
+    all_new_ma750 = {}
+    all_new_ma60 = {}
     current = datetime.strptime(fetch_start, "%Y-%m-%d")
     end = datetime.strptime(today_str, "%Y-%m-%d")
     fetched = 0
@@ -230,9 +249,20 @@ def update_gov_bond(today_str: str):
     while current <= end:
         ds = current.strftime("%Y-%m-%d")
         if current.weekday() < 5:
-            rates = fetch_spot_rates_chinabond(ds)
+            rates = fetch_spot_rates_chinabond(ds, csz="1")
             if rates:
                 all_new[ds] = rates
+                # 同时抓取网站下发的精确 MA750 / MA60
+                ma750 = fetch_spot_rates_chinabond(ds, csz="750")
+                ma60 = fetch_spot_rates_chinabond(ds, csz="60")
+                if ma750:
+                    all_new_ma750[ds] = ma750
+                else:
+                    print(f"  ⚠ {ds}: MA750 精确数据缺失")
+                if ma60:
+                    all_new_ma60[ds] = ma60
+                else:
+                    print(f"  ⚠ {ds}: MA60 精确数据缺失")
                 fetched += 1
                 print(f"  ✓ {ds}: {len(rates)} 个期限")
             else:
@@ -246,28 +276,43 @@ def update_gov_bond(today_str: str):
         return False
 
     date_to_row = {}
+    date_to_ma750 = {}
+    date_to_ma60 = {}
     for i, d in enumerate(existing["dates"]):
         date_to_row[d] = existing["rows"][i]
+        date_to_ma750[d] = existing["websiteMA750"][i]
+        date_to_ma60[d] = existing["websiteMA60"][i]
 
     new_count = 0
     update_count = 0
     for d in sorted(all_new.keys()):
         row = [all_new[d].get(t) for t in ALL_TERMS]
+        ma750_row = [all_new_ma750.get(d, {}).get(t) for t in ALL_TERMS]
+        ma60_row = [all_new_ma60.get(d, {}).get(t) for t in ALL_TERMS]
         if d in date_to_row:
-            date_to_row[d] = row
             update_count += 1
         else:
-            date_to_row[d] = row
             new_count += 1
+        date_to_row[d] = row
+        date_to_ma750[d] = ma750_row
+        date_to_ma60[d] = ma60_row
 
     sorted_dates = sorted(date_to_row.keys())
     sorted_rows = [date_to_row[d] for d in sorted_dates]
+    sorted_ma750 = [date_to_ma750[d] for d in sorted_dates]
+    sorted_ma60 = [date_to_ma60[d] for d in sorted_dates]
 
     if len(sorted_dates) < len(existing["dates"]):
         print(f"  ⚠ [国债即期] 数据条数减少，放弃更新")
         return False
 
-    output = {"dates": sorted_dates, "terms": ALL_TERMS, "rows": sorted_rows}
+    output = {
+        "dates": sorted_dates,
+        "terms": ALL_TERMS,
+        "rows": sorted_rows,
+        "websiteMA750": sorted_ma750,
+        "websiteMA60": sorted_ma60,
+    }
     save_json(DATA_FILE, output)
 
     print(f"  ✅ [国债即期] 新增 {new_count} 条, 修正 {update_count} 条, 总计 {len(sorted_dates)} 条")
