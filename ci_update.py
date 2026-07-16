@@ -44,8 +44,18 @@ GOV_CURVE_ID = "2c9081e50a2f9606010a3068cae70001"
 CDB_CURVE_ID = "8a8b2ca037a7ca910137bfaa94fa5057"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
     "Referer": "https://yield.chinabond.com.cn/cbweb-mn/yc/bxjInit?locale=zh_CN",
+}
+# 与浏览器 F12 抓到的 bxjDownload 请求尽量一致（含 Content-Type / Origin:null）
+FULL_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+    "Cache-Control": "max-age=0",
+    "Connection": "keep-alive",
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Origin": "null",
 }
 SEARCHYC_HEADERS = {
     "User-Agent": "Mozilla/5.0",
@@ -53,12 +63,32 @@ SEARCHYC_HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded",
 }
 
+# 复刻浏览器会话：先访问 bxjInit 取得 JSESSIONID，再用于 bxjDownload
+_SESSION = None
+
+
+def _get_chinabond_session():
+    global _SESSION
+    if _SESSION is None:
+        _SESSION = requests.Session()
+        try:
+            _SESSION.get(
+                "https://yield.chinabond.com.cn/cbweb-mn/yc/bxjInit?locale=zh_CN",
+                headers=FULL_HEADERS, timeout=30,
+            )
+        except Exception as e:
+            print(f"  (bxjInit 预取会话失败，忽略: {e})")
+    return _SESSION
+
 ALL_TERMS = [f"{i}Y" for i in range(1, 51)]
 SUMMARY_TERMS = ["1Y", "5Y", "10Y", "20Y", "30Y"]
 
 BJ_TZ = timezone(timedelta(hours=8))
 MAX_RETRIES = 3
 RETRY_DELAY = 5
+
+# 每次运行回填精确 MA 的最近交易日数量（覆盖近期对比需求；更早的日期回退重算）
+BACKFILL_WINDOW = 180
 
 
 def now_beijing() -> date:
@@ -68,6 +98,60 @@ def now_beijing() -> date:
 # ================================================================
 # 国债即期利率 (bxjDownload, XLSX)
 # ================================================================
+
+def _parse_bxj_xlsx(path: str, csz: str = "1") -> dict:
+    """
+    解析 bxjDownload 返回的 Excel。
+    不同 csz（即期 / 750天平均 / 60天平均）返回的列布局可能不同，
+    这里先「自动扫描」找出年限列与利率列，找不到再回退到固定列布局
+    （期限=第2列B、利率=第3列C，即即期下载的布局）。
+    """
+    wb = load_workbook(path)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    # 方法1：自动扫描 (term, rate) 配对
+    result = {}
+    for row in rows:
+        if not row:
+            continue
+        numeric = [(i, v) for i, v in enumerate(row)
+                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        years = [v for i, v in numeric
+                 if abs(v - round(v)) < 1e-6 and 1 <= round(v) <= 50]
+        if len(years) != 1:
+            continue
+        y = int(round(years[0]))
+        rcands = [v for i, v in numeric
+                  if not (abs(v - round(v)) < 1e-6 and 1 <= round(v) <= 50)
+                  and 0 < v < 100]
+        if not rcands:
+            continue
+        # 单利率列直接取；若同时含750/60两列，750取第1个、60取第2个
+        idx = 0 if len(rcands) == 1 else (0 if csz == "750" else 1)
+        result[f"{y}Y"] = round(rcands[idx], 8)
+
+    if result:
+        return result
+
+    # 方法2：回退到即期布局（期限=列B、利率=列C，从第2行起）
+    result = {}
+    for row in rows[1:]:
+        if len(row) < 3:
+            continue
+        term_val, rate_val = row[1], row[2]
+        if term_val is None or rate_val is None:
+            continue
+        try:
+            t = float(term_val)
+            r = float(rate_val)
+        except (TypeError, ValueError):
+            continue
+        if abs(t - round(t)) < 1e-6 and 1 <= round(t) <= 50:
+            result[f"{int(round(t))}Y"] = round(r, 8)
+    return result
+
 
 def fetch_spot_rates_chinabond(query_date: str, csz: str = "1") -> dict:
     """
@@ -79,8 +163,9 @@ def fetch_spot_rates_chinabond(query_date: str, csz: str = "1") -> dict:
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            r = requests.post(
-                CHINABOND_DOWNLOAD_URL, params=params, headers=HEADERS, timeout=30
+            sess = _get_chinabond_session()
+            r = sess.post(
+                CHINABOND_DOWNLOAD_URL, params=params, headers=FULL_HEADERS, timeout=30
             )
             r.raise_for_status()
 
@@ -97,26 +182,12 @@ def fetch_spot_rates_chinabond(query_date: str, csz: str = "1") -> dict:
                 tmp_path = tmp.name
 
             try:
-                wb = load_workbook(tmp_path)
-                ws = wb.active
-                data = {}
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    term_val = row[1]
-                    rate_val = row[2]
-                    if term_val is not None and rate_val is not None:
-                        data[float(term_val)] = float(rate_val)
-                wb.close()
+                result = _parse_bxj_xlsx(tmp_path, csz)
             finally:
                 os.unlink(tmp_path)
 
-            result = {}
-            for y in range(1, 51):
-                val = data.get(float(y))
-                if val is not None:
-                    result[f"{y}Y"] = round(val, 8)
-
             if not result:
-                print(f"  {query_date}: 无数据 (非交易日或未发布)")
+                print(f"  {query_date}: 解析为空 (列布局不匹配或非交易日)")
                 return {}
 
             return result
@@ -271,10 +342,6 @@ def update_gov_bond(today_str: str):
 
     print(f"  获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
 
-    if not all_new:
-        print("  ⚠ [国债即期] 没有获取到新数据")
-        return False
-
     date_to_row = {}
     date_to_ma750 = {}
     date_to_ma60 = {}
@@ -297,6 +364,43 @@ def update_gov_bond(today_str: str):
         date_to_ma750[d] = ma750_row
         date_to_ma60[d] = ma60_row
 
+    # ---- 回填最近 BACKFILL_WINDOW 个交易日的精确 MA（此前因 bug 为 null）----
+    backfill_dates = [d for d in existing["dates"] if date_to_ma750.get(d) is None][-BACKFILL_WINDOW:]
+    ma_filled = 0
+    for d in backfill_dates:
+        ma750_d = fetch_spot_rates_chinabond(d, csz="750")
+        ma60_d = fetch_spot_rates_chinabond(d, csz="60")
+        if ma750_d:
+            date_to_ma750[d] = [ma750_d.get(t) for t in ALL_TERMS]
+            ma_filled += 1
+        else:
+            print(f"  ⚠ 回填 {d}: MA750 精确数据缺失")
+        if ma60_d:
+            date_to_ma60[d] = [ma60_d.get(t) for t in ALL_TERMS]
+            ma_filled += 1
+        else:
+            print(f"  ⚠ 回填 {d}: MA60 精确数据缺失")
+        time.sleep(0.3)
+
+    # ---- 强制刷新「当日」精确 MA（覆盖历史 bug / 瞬时失败）----
+    today_ma750 = fetch_spot_rates_chinabond(today_str, csz="750")
+    today_ma60 = fetch_spot_rates_chinabond(today_str, csz="60")
+    if today_ma750:
+        date_to_ma750[today_str] = [today_ma750.get(t) for t in ALL_TERMS]
+        ma_filled += 1
+    else:
+        print(f"  ⚠ 当日 {today_str}: MA750 精确数据缺失")
+    if today_ma60:
+        date_to_ma60[today_str] = [today_ma60.get(t) for t in ALL_TERMS]
+        ma_filled += 1
+    else:
+        print(f"  ⚠ 当日 {today_str}: MA60 精确数据缺失")
+
+    changed = (new_count > 0) or (ma_filled > 0)
+    if not changed:
+        print("  ⚠ [国债即期] 无新数据且精确 MA 已齐全，跳过写入")
+        return False
+
     sorted_dates = sorted(date_to_row.keys())
     sorted_rows = [date_to_row[d] for d in sorted_dates]
     sorted_ma750 = [date_to_ma750[d] for d in sorted_dates]
@@ -315,7 +419,7 @@ def update_gov_bond(today_str: str):
     }
     save_json(DATA_FILE, output)
 
-    print(f"  ✅ [国债即期] 新增 {new_count} 条, 修正 {update_count} 条, 总计 {len(sorted_dates)} 条")
+    print(f"  ✅ [国债即期] 新增 {new_count} 条, 修正 {update_count} 条, 精确MA回填 {ma_filled} 条, 总计 {len(sorted_dates)} 条")
     return True
 
 
