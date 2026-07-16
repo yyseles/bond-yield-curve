@@ -48,6 +48,8 @@ jobs:
         run: pip install requests openpyxl
 
       - name: 抓取最新利率数据（四曲线）
+        # 仅定时/手动触发时抓数据回填；普通代码推送直接走部署，避免慢速回填拖住上线
+        if: github.event_name != 'push'
         run: python ci_update.py
 
       - name: 校验数据文件
@@ -64,6 +66,7 @@ jobs:
           done
 
       - name: 提交并推送更新（含 keepalive 保活）
+        if: github.event_name != 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
