@@ -3000,6 +3000,7 @@
 
         function renderDiscountSummary(mode) {
             const d = discountDataCache;
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
             const years = d.years;
             const liabSpot = d.liab.spot, liabFwd = d.liab.fwd;
             const rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
