@@ -42,6 +42,7 @@
         .table-wrap td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #e9eef4; font-size: 13px; white-space: nowrap; }
         .table-wrap tr:hover td { background: #f6faff; }
         .footnote { font-size: 12px; color: #6f85a5; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #dce4ed; }
+        .sw-computed { font-size: 12.5px; font-weight: 700; color: #1f4a7a; margin: 8px 0 2px; }
         .metrics-row { display: flex; flex-wrap: wrap; gap: 12px 30px; background: #f6faff; padding: 10px 16px; border-radius: 10px; margin-bottom: 16px; border: 1px solid #e0e9f2; }
         .metric-item { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
         .metric-label { font-size: 13px; color: #5a6e8a; font-weight: 500; }
@@ -542,12 +543,12 @@
                     </div>
                     <div class="rules-section">
                         <h4>② 综合溢价（负债 / 利率）</h4>
-                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调；利率曲线基础=负债中档（溢价一致），上升 / 下降=利率风险不利参数情景 + 中档溢价。</p>
+                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调；利率曲线（基础 / 上升 / 下降）采用「终极利率溢价 P10」做远期平移（默认30BP）。UFR 上升 / 下降由基础 UFR ×(1+40年不利幅度) 自动计算。</p>
                         <div class="rules-grid">
                             <div class="rules-cell"><span class="rk">负债高</span><span class="rv" id="swPremHighLbl">85BP</span></div>
                             <div class="rules-cell"><span class="rk">负债中</span><span class="rv" id="swPremMidLbl">45BP</span></div>
                             <div class="rules-cell"><span class="rk">负债低</span><span class="rv" id="swPremLowLbl">30BP</span></div>
-                            <div class="rules-cell"><span class="rk">利率（基础/上/下）</span><span class="rv">45BP</span></div>
+                            <div class="rules-cell"><span class="rk">利率（终极溢价P10）</span><span class="rv">30BP</span></div>
                         </div>
                     </div>
                     <div class="rules-section">
@@ -560,24 +561,25 @@
                     </div>
                 </div>
             </details>
-            <details class="discount-rules" id="swParamsPanel" style="display:none;">
-                <summary><span class="rules-chevron">▸</span> Smith-Wilson 参数输入（可调整）</summary>
+            <div class="discount-rules sw-params-panel" id="swParamsPanel" style="display:none;">
                 <div class="rules-body">
                     <div class="sw-params-grid">
                         <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
-                        <label>UFR 上升<input type="number" id="swUfrUp" step="0.001" value="0.04914"></label>
-                        <label>UFR 下降<input type="number" id="swUfrDown" step="0.001" value="0.03738"></label>
+                        <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
+                        <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
                         <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
                         <label>LLP 最后流动点<input type="number" id="swLlp" step="1" value="20"></label>
                         <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
+                        <label>收敛容差(bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
+                        <label>终极利率溢价P10(BP)<input type="number" id="swUltPrem" step="1" value="30"></label>
                         <label>负债溢价高(BP)<input type="number" id="swPremHigh" step="1" value="85"></label>
                         <label>负债溢价中(BP)<input type="number" id="swPremMid" step="1" value="45"></label>
                         <label>负债溢价低(BP)<input type="number" id="swPremLow" step="1" value="30"></label>
-                        <label>利率溢价(BP)<input type="number" id="swPremInt" step="1" value="45"></label>
                     </div>
-                    <p class="footnote">修改后自动重算。α 下限、LLP、CP、UFR 决定曲线形状；溢价以 BP 输入，按远期平移叠加。</p>
+                    <div class="sw-computed" id="swUfrComputed"></div>
+                    <p class="footnote">UFR上升=基础×(1+上升幅度)、UFR下降=基础×(1+下降幅度)，自动计算。修改后自动重算。</p>
                 </div>
-            </details>
+            </div>
             <div id="discountSummaryView">
                 <div class="grid-2">
                     <div class="card">
@@ -2866,9 +2868,10 @@
         // 已与模板 base 表校准（基准曲线最大偏差 7e-4）。
         // ================================================================
         const SW_PARAMS = {
-            ufrBase: 0.042, ufrUp: 0.04914, ufrDown: 0.03738,
-            alphaMin: 0.05, llp: 20, cp: 40,
-            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030, premInt: 0.0045
+            ufrBase: 0.042, upMag40: 0.17, downMag40: -0.11,
+            alphaMin: 0.05, llp: 20, cp: 40, bandwidth: 0.00001,
+            ultPrem: 0.0030,
+            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030
         };
         function r8arr(arr, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (arr[t] == null ? null : r8(arr[t])); return o; }
         function constArr(v, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (v == null ? null : r8(v)); return o; }
@@ -2936,7 +2939,7 @@
                 prevDf = dfk;
             }
             if (u.length === 0) return { _alpha: alphaMin, _u: [], _zeta: [] };
-            const a = swAlphaOpt(u, fwdLiq, ufr, alphaMin, cp);
+            const a = swAlphaOpt(u, fwdLiq, ufr, alphaMin, cp, params.bandwidth);
             const z = swSolve(swBuildA(u, a), fwdLiq.map(v => v - ufr));
             const out = [];
             for (let t = 1; t <= 120; t++) out[t] = swFwdOf(t, u, z, ufr, a);
@@ -2960,9 +2963,12 @@
         }
         function computeDiscountCurvesNew(spot, latestDate, params) {
             const years = []; for (let t = 1; t <= 120; t++) years.push(t);
+            const ufrUp = params.ufrBase * (1 + params.upMag40);
+            const ufrDown = params.ufrBase * (1 + params.downMag40);
+            params.ufrUp = ufrUp; params.ufrDown = ufrDown;
             const baseFwd = swForwardCurve(spot, params.ufrBase, params);
-            const upFwd = swForwardCurve(swStressedSpot(spot, +1), params.ufrUp, params);
-            const downFwd = swForwardCurve(swStressedSpot(spot, -1), params.ufrDown, params);
+            const upFwd = swForwardCurve(swStressedSpot(spot, +1), ufrUp, params);
+            const downFwd = swForwardCurve(swStressedSpot(spot, -1), ufrDown, params);
             function buildScenario(fwd, prem) {
                 const fwdP = []; const spotP = [];
                 for (let t = 1; t <= 120; t++) { fwdP[t] = fwd[t] + prem; spotP[t] = swSpotFromFwd(fwdP, t); }
@@ -2971,9 +2977,9 @@
             const liabHigh = buildScenario(baseFwd, params.premHigh);
             const liabMid = buildScenario(baseFwd, params.premMid);
             const liabLow = buildScenario(baseFwd, params.premLow);
-            const rateBase = buildScenario(baseFwd, params.premInt);
-            const rateUp = buildScenario(upFwd, params.premInt);
-            const rateDown = buildScenario(downFwd, params.premInt);
+            const rateBase = buildScenario(baseFwd, params.ultPrem);
+            const rateUp = buildScenario(upFwd, params.ultPrem);
+            const rateDown = buildScenario(downFwd, params.ultPrem);
             const aB = baseFwd._alpha, aU = upFwd._alpha, aD = downFwd._alpha;
             return {
                 years, latestDate, rule: 'c2_new',
@@ -2989,7 +2995,7 @@
                     fwd: { base: rateBase.fwd, up: rateUp.fwd, down: rateDown.fwd },
                     _mkt: r8arr(spot, 120), _fup: r8arr(swStressedSpot(spot, +1), 120), _gdn: r8arr(swStressedSpot(spot, -1), 120),
                     _extr: { base: constArr(aB, 120), up: constArr(aU, 120), down: constArr(aD, 120) },
-                    _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(params.premInt, 120)
+                    _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(params.ultPrem, 120)
                 }
             };
         }
@@ -3015,21 +3021,26 @@
         function syncSWParamsFromInputs() {
             const gnum = id => { const v = parseFloat(document.getElementById(id).value); return isFinite(v) ? v : null; };
             const gint = id => { const v = parseInt(document.getElementById(id).value, 10); return isFinite(v) ? v : null; };
-            const ub = gnum('swUfrBase'), uu = gnum('swUfrUp'), ud = gnum('swUfrDown');
+            const ub = gnum('swUfrBase'), uu = gnum('swUpMag40'), ud = gnum('swDownMag40');
             const am = gnum('swAlphaMin'), llp = gint('swLlp'), cp = gint('swCp');
-            const ph = gnum('swPremHigh'), pm = gnum('swPremMid'), pl = gnum('swPremLow'), pi = gnum('swPremInt');
+            const bw = gnum('swBandwidth'), up = gnum('swUltPrem');
+            const ph = gnum('swPremHigh'), pm = gnum('swPremMid'), pl = gnum('swPremLow');
             if (ub != null) SW_PARAMS.ufrBase = ub;
-            if (uu != null) SW_PARAMS.ufrUp = uu;
-            if (ud != null) SW_PARAMS.ufrDown = ud;
+            if (uu != null) SW_PARAMS.upMag40 = uu;
+            if (ud != null) SW_PARAMS.downMag40 = ud;
             if (am != null) SW_PARAMS.alphaMin = am;
             if (llp != null) SW_PARAMS.llp = llp;
             if (cp != null) SW_PARAMS.cp = cp;
+            if (bw != null) SW_PARAMS.bandwidth = bw / 10000;
+            if (up != null) SW_PARAMS.ultPrem = up / 10000;
             if (ph != null) SW_PARAMS.premHigh = ph / 10000;
             if (pm != null) SW_PARAMS.premMid = pm / 10000;
             if (pl != null) SW_PARAMS.premLow = pl / 10000;
-            if (pi != null) SW_PARAMS.premInt = pi / 10000;
-            const setLbl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = (v != null ? Math.round(v) : '?') + 'BP'; };
-            setLbl('swPremHighLbl', ph); setLbl('swPremMidLbl', pm); setLbl('swPremLowLbl', pl);
+            // 自动计算 UFR 上升/下降
+            SW_PARAMS.ufrUp = SW_PARAMS.ufrBase * (1 + SW_PARAMS.upMag40);
+            SW_PARAMS.ufrDown = SW_PARAMS.ufrBase * (1 + SW_PARAMS.downMag40);
+            const ce = document.getElementById('swUfrComputed');
+            if (ce) ce.textContent = '→ UFR上升 = ' + SW_PARAMS.ufrUp.toFixed(5) + ' ｜ UFR下降 = ' + SW_PARAMS.ufrDown.toFixed(5);
         }
 
         // 取 endDate 之前（含）连续的 period 个交易日的日期列表，用于对任意基准日求移动平均
@@ -3181,6 +3192,7 @@
 
         function ruleLabel() { return discountRule === 'c2_new' ? '偿付能力新规' : '偿二代二期'; }
         function renderDiscount() {
+            if (discountRule === 'c2_new') syncSWParamsFromInputs();
             const d = ensureDiscountData();
             if (!d) { alert('国债即期数据尚未加载，无法生成折现率曲线'); return; }
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
@@ -3200,7 +3212,7 @@
             if (cmpBadge) {
                 const cmpDate = getEffectiveCompareDate(gov, d.latestDate);
                 const cfc = isForecastDate(gov, cmpDate);
-                cmpBadge.textContent = '对比日 ' + cmpDate + (discountCompareDate ? '' : '（上一交易日）') + (cfc ? '（预测）' : '') + ' ｜ 负债中档 · 利率基础';
+                cmpBadge.textContent = '对比日 ' + cmpDate + (discountCompareDate ? '' : '（上一交易日）') + (cfc ? '（预测）' : '') + ' ｜ 负债中档 · 利率上升/下降';
                 cmpBadge.classList.toggle('forecast', !!cfc);
             }
             // 切换汇总/输出标题的基准日标注
@@ -3279,19 +3291,23 @@
                 const cmpDate = getEffectiveCompareDate(gov, d.latestDate);
                 const cd = computeForDate(cmpDate);
                 if (!discountCompareChart) discountCompareChart = echarts.init(cmpDom);
-                const curMidSpot = d.liab.spot.mid, curBaseSpot = d.rate.spot.base;
-                const curMidFwd = d.liab.fwd.mid, curBaseFwd = d.rate.fwd.base;
-                const cmpMidSpot = cd.liab.spot.mid, cmpBaseSpot = cd.rate.spot.base;
-                const cmpMidFwd = cd.liab.fwd.mid, cmpBaseFwd = cd.rate.fwd.base;
+                const curMid = d.liab.spot.mid, curUp = d.rate.spot.up, curDown = d.rate.spot.down;
+                const curMidF = d.liab.fwd.mid, curUpF = d.rate.fwd.up, curDownF = d.rate.fwd.down;
+                const cmpMid = cd.liab.spot.mid, cmpUp = cd.rate.spot.up, cmpDown = cd.rate.spot.down;
+                const cmpMidF = cd.liab.fwd.mid, cmpUpF = cd.rate.fwd.up, cmpDownF = cd.rate.fwd.down;
                 const cmpAll = [
-                    { name:'当前·负债中档', kind:'spot', data: curMidSpot, color:'#e67e22', dash:false },
-                    { name:'对比·负债中档', kind:'spot', data: cmpMidSpot, color:'#e67e22', dash:true },
-                    { name:'当前·利率基础', kind:'spot', data: curBaseSpot, color:'#2980b9', dash:false },
-                    { name:'对比·利率基础', kind:'spot', data: cmpBaseSpot, color:'#2980b9', dash:true },
-                    { name:'当前·负债中档', kind:'fwd', data: curMidFwd, color:'#e67e22', dash:false },
-                    { name:'对比·负债中档', kind:'fwd', data: cmpMidFwd, color:'#e67e22', dash:true },
-                    { name:'当前·利率基础', kind:'fwd', data: curBaseFwd, color:'#2980b9', dash:false },
-                    { name:'对比·利率基础', kind:'fwd', data: cmpBaseFwd, color:'#2980b9', dash:true }
+                    { name:'当前·负债中档', kind:'spot', data: curMid, color:'#e67e22', dash:false },
+                    { name:'对比·负债中档', kind:'spot', data: cmpMid, color:'#e67e22', dash:true },
+                    { name:'当前·利率上升', kind:'spot', data: curUp, color:'#8e44ad', dash:false },
+                    { name:'对比·利率上升', kind:'spot', data: cmpUp, color:'#8e44ad', dash:true },
+                    { name:'当前·利率下降', kind:'spot', data: curDown, color:'#16a085', dash:false },
+                    { name:'对比·利率下降', kind:'spot', data: cmpDown, color:'#16a085', dash:true },
+                    { name:'当前·负债中档', kind:'fwd', data: curMidF, color:'#e67e22', dash:false },
+                    { name:'对比·负债中档', kind:'fwd', data: cmpMidF, color:'#e67e22', dash:true },
+                    { name:'当前·利率上升', kind:'fwd', data: curUpF, color:'#8e44ad', dash:false },
+                    { name:'对比·利率上升', kind:'fwd', data: cmpUpF, color:'#8e44ad', dash:true },
+                    { name:'当前·利率下降', kind:'fwd', data: curDownF, color:'#16a085', dash:false },
+                    { name:'对比·利率下降', kind:'fwd', data: curDownF, color:'#16a085', dash:true }
                 ];
                 const cmpGroups = cmpAll.filter(g => (mode === 'fwd' ? g.kind === 'fwd' : g.kind === 'spot'));
                 const cmpSeries = cmpGroups.map(g => ({
@@ -3648,7 +3664,7 @@
                 });
             });
             // 偿付能力新规参数输入 → 实时重算
-            const swInputs = ['swUfrBase','swUfrUp','swUfrDown','swAlphaMin','swLlp','swCp','swPremHigh','swPremMid','swPremLow','swPremInt'];
+            const swInputs = ['swUfrBase','swUpMag40','swDownMag40','swAlphaMin','swLlp','swCp','swBandwidth','swUltPrem','swPremHigh','swPremMid','swPremLow'];
             swInputs.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('input', function() {
