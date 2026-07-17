@@ -131,7 +131,7 @@ def _parse_bxj_xlsx(path: str, csz: str = "1") -> dict:
             continue
         # 单利率列直接取；若同时含750/60两列，750取第1个、60取第2个
         idx = 0 if len(rcands) == 1 else (0 if csz == "750" else 1)
-        result[f"{y}Y"] = round(rcands[idx], 8)
+        result[f"{y}Y"] = round(rcands[idx], 10)
 
     if result:
         return result
@@ -150,7 +150,7 @@ def _parse_bxj_xlsx(path: str, csz: str = "1") -> dict:
         except (TypeError, ValueError):
             continue
         if abs(t - round(t)) < 1e-6 and 1 <= round(t) <= 50:
-            result[f"{int(round(t))}Y"] = round(r, 8)
+            result[f"{int(round(t))}Y"] = round(r, 10)
     return result
 
 
@@ -293,31 +293,13 @@ def save_json(filepath: str, data: dict):
 # ================================================================
 
 def apply_gov_spot_override(date_to_row: dict):
-    """用高精度国债即期覆盖层（gov_spot_override.json）覆盖指定日期的行，
-    使其在每日 CI 重抓后仍能保持高精度（公开源 ChinaBond 仅提供 4 位小数百分比）。
-    override 格式: { "YYYY-MM-DD": {"1Y": 1.337233, ..., "50Y": ...} }（百分比，与 data.json 一致）。"""
-    ov_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gov_spot_override.json")
-    if not os.path.exists(ov_file):
-        return 0
-    try:
-        with open(ov_file, "r", encoding="utf-8") as f:
-            override = json.load(f)
-    except Exception as e:
-        print(f"  ⚠ [国债即期] 覆盖层读取失败: {e}")
-        return 0
-    n = 0
-    for d, terms in override.items():
-        if d not in date_to_row:
-            continue
-        row = date_to_row[d]
-        for i, term in enumerate(ALL_TERMS):
-            if term in terms and terms[term] is not None:
-                row[i] = terms[term]
-        date_to_row[d] = row
-        n += 1
-    if n:
-        print(f"  ✓ [国债即期] 应用高精度覆盖层: {n} 个日期")
-    return n
+    """高精度国债即期覆盖层（已弃用）。
+
+    2026-07-18 修正：经实测，中债网 bxjDownload 接口（csz=1/750/60）返回的国债即期与
+    移动平均曲线本身即带 8 位小数百分比精度（如 1.337233、1.87227387），之前 data.json
+    仅 4 位是历史陈旧数据。因此直接由解析器保留源精度即可，无需 Excel 覆盖层。
+    保留此空函数仅为兼容，不再有任何覆盖文件。"""
+    return 0
 
 
 def update_gov_bond(today_str: str):
@@ -392,9 +374,6 @@ def update_gov_bond(today_str: str):
         date_to_row[d] = row
         date_to_ma750[d] = ma750_row
         date_to_ma60[d] = ma60_row
-
-    # 应用高精度覆盖层（公开源仅 4 位小数，覆盖层保持 Excel 对齐所需的精度）
-    apply_gov_spot_override(date_to_row)
 
     # ---- 回填最近 BACKFILL_WINDOW 个交易日的精确 MA（此前因 bug 为 null）----
     backfill_dates = [d for d in existing["dates"] if date_to_ma750.get(d) is None][-BACKFILL_WINDOW:]

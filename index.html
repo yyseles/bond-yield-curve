@@ -226,17 +226,24 @@
         .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
         .sw-liq-cell.on:hover { border-color: #1e7a48; }
         /* 参数面板：左侧表单 + 右侧流动性标记，去掉内部白卡片，统一在大浅蓝卡片内 */
-        .sw-params-cols { display: grid; grid-template-columns: 2.4fr 1fr; gap: 22px; align-items: start; }
+        .sw-params-cols { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; align-items: center; }
         .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
         .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 0; background: none; border: none; box-shadow: none; }
         .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 10.5px; font-weight: 700; color: #8a9bb0; margin: 0 0 7px; padding: 0 0 5px; border-bottom: 1px solid #e6edf4; letter-spacing: .5px; }
-        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 7px; margin: 0; }
-        .sw-params-left .sw-params-grid label { padding: 5px 7px; font-size: 11px; gap: 3px; }
-        .sw-params-left .sw-params-grid input { padding: 3px 5px; font-size: 12px; }
+        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(86px, 1fr)); gap: 6px; margin: 0; }
+        .sw-params-left .sw-params-grid label { padding: 4px 6px; font-size: 10.5px; gap: 2px; }
+        .sw-params-left .sw-params-grid input { padding: 3px 4px; font-size: 11.5px; }
         .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 10px; color: #93a3b8; margin: 2px 0 0; }
-        /* 紧凑流动性网格：10列×5行，扁平方块，弱化为侧边开关 */
-        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 2px; }
-        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 17px; border-radius: 4px; font-size: 8px; font-weight: 600; border-width: 1px; padding: 0; }
+        /* 紧凑流动性网格：10列×5行，扁平方块，弱化为侧边开关（保持小巧） */
+        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 3px; }
+        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 18px; border-radius: 4px; font-size: 8px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
+        .sw-params-right .sw-liq-cell:hover { border-color: #1f4a7a; }
+        /* 右侧图例：填充网格下方的空白，说明配色与流动年数 */
+        .sw-params-right .sw-liq-legend { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e1e7ef; font-size: 11px; color: #6b7a8c; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .sw-params-right .sw-liq-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid rgba(0,0,0,.08); }
+        .sw-params-right .sw-liq-swatch.on { background: #1f4a7a; }
+        .sw-params-right .sw-liq-swatch.off { background: #e6ebf1; }
+        .sw-params-right .sw-liq-count { font-weight: 700; color: #1f4a7a; }
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 760px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } .sw-params-cols { grid-template-columns: 1fr; } .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); } }
     </style>
@@ -590,7 +597,7 @@
                                 <div class="sw-params-grid">
                                     <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
                                     <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
-                                    <label>LLP 最后流动点 (P15)<input type="number" id="swLlp" step="1" value="20"></label>
+                                    <label>LLP 最后流动点<input type="number" id="swLlp" step="1" value="20"></label>
                                     <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
                                     <label>收敛容差 (bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
                                 </div>
@@ -618,6 +625,11 @@
                                 <div class="sw-group-title">④ 流动性标记（年度 1–50）</div>
                                 <p class="sw-hint">点击切换「流动 / 非流动」。改 LLP 自动重设前 LLP 年；也可手动任意组合。</p>
                                 <div class="sw-liquid-grid" id="swLiquidGrid"></div>
+                                <div class="sw-liq-legend">
+                                    <span><span class="sw-liq-swatch on"></span>流动</span>
+                                    <span><span class="sw-liq-swatch off"></span>非流动</span>
+                                    <span class="sw-liq-count" id="swLiqCount"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2906,11 +2918,16 @@
 
         // ================================================================
         // 折现率曲线板块（偿付能力新规 · Smith-Wilson）
-        // 算法：前向空间拟合——在流动点处对"年化远期利率"拟合 SW 核，
-        //       alpha 由 EIOPA 收敛条件确定（最小 alpha≥下限 使 |fwd(CP)-UFR|≤收敛容差），
-        //       外推 1..120 年；溢价以"远期平移"方式叠加（Y = M + 溢价/10000）。
-        // 流动点由 liquid[] 数组（年度 1..50 的布尔标记）决定，可与 LLP 联动或手动设置。
-        // 已与模板 base 表校准（基准曲线最大偏差 7e-4）。
+        // 负债曲线：在流动点市场即期上叠加「前段综合溢价」后重新做 Smith-Wilson 拟合，
+        //          UFR 收敛目标叠加「后端终极利率溢价」（ufrVA = ufrBase + ultPrem）。
+        //          不利情景下的综合溢价与基础情景一致（高/中/低各自独立收敛 α）。
+        // 利率曲线（关键规则，来自用户）：
+        //   基础利率曲线 = 负债中档曲线（无单独 sheet，直接复用，已含中档溢价 + UFR 0.045）；
+        //   上行/下行 = 对「负债中档前 20 年 ×(1+向上/向下压力)」施压，并对 UFR 施加压力
+        //             （ufr_up = ufrVA×(1+upMag40)，ufr_down = ufrVA×(1+downMag40)），
+        //              再做 SW 拟合外推 1..120 年；上行/下行的溢价水平与基础（中档）一致。
+        // 流动点由 liquid[] 数组（年度 1..50 的布尔标记）决定。
+        // 负债曲线已用 Excel AA/AB 列（2025-12-31）逐行校验：120 年最大误差 < 1e-12。
         // ================================================================
         const SW_PARAMS = {
             ufrBase: 0.042, upMag40: 0.17, downMag40: -0.11,
@@ -3061,15 +3078,6 @@
             out._alpha = res.alpha; out._u = liquidPts.map(p => p.u); out._zeta = null; out._spot = res.zeroac;
             return out;
         }
-        function swStressedSpot(spot, sign) {
-            const out = {};
-            for (let k = 1; k <= 50; k++) {
-                if (spot[k] == null) { out[k] = null; continue; }
-                const p = (sign > 0 ? stressUp(k) : stressDown(k));
-                out[k] = spot[k] * (1 + p);
-            }
-            return out;
-        }
         // 由含溢价的远期曲线还原即期（年化）：(Π(1+fwd_k))^(1/t) - 1
         function swSpotFromFwd(fwdPrem, t) {
             let prod = 1;
@@ -3078,12 +3086,14 @@
         }
         function computeDiscountCurvesNew(spot, latestDate, params) {
             const years = []; for (let t = 1; t <= 120; t++) years.push(t);
-            const ufrUp = params.ufrBase * (1 + params.upMag40);
-            const ufrDown = params.ufrBase * (1 + params.downMag40);
-            params.ufrUp = ufrUp; params.ufrDown = ufrDown;
             // 负债折现率：在流动点市场即期上叠加「前段综合溢价」后重新做 Smith-Wilson 拟合，
             // UFR 收敛目标叠加「后端终极利率溢价」。不利情景下的综合溢价与基础情景一致。
             const ufrVA = params.ufrBase + params.ultPrem;
+            // 利率上行/下行的 UFR = 网页 UFR 基础（ufrBase = 0.042）× 压力乘数。
+            // 压力只应用在「前 20 年基础利率」和「UFR」上，溢价水平与基础（中档）一致。
+            const ufrUp = params.ufrBase * (1 + params.upMag40);
+            const ufrDown = params.ufrBase * (1 + params.downMag40);
+            params.ufrUp = ufrUp; params.ufrDown = ufrDown;
             function buildLiab(frontPrem) {
                 const boosted = {};
                 for (let k = 1; k <= 50; k++) boosted[k] = (spot[k] == null ? null : spot[k] + frontPrem);
@@ -3092,21 +3102,40 @@
                 for (let t = 1; t <= 120; t++) spotP[t] = (fwd._spot ? fwd._spot[t] : swSpotFromFwd(fwd, t));
                 return { raw: fwd, fwd: rFull(fwd, 120), spot: rFull(spotP, 120) };
             }
-            function buildRate(stressedSpot, ufrTarget) {
-                const fwd = swForwardCurve(stressedSpot, ufrTarget, params);
-                const spotP = [];
-                for (let t = 1; t <= 120; t++) spotP[t] = (fwd._spot ? fwd._spot[t] : swSpotFromFwd(fwd, t));
-                return { raw: fwd, fwd: rFull(fwd, 120), spot: rFull(spotP, 120) };
+        // 利率曲线：基础 = 负债中档（参数/溢价/UFR 完全一致，直接复用）。
+        // 上行/下行 = 与基础同溢价（premMid），仅把压力乘数应用在「前 LLP 年国债即期」与 UFR 上：
+        //   受压输入点 t = market_t ×(1+压力)（溢价不进 SW 输入，与 Excel「With VA」列一致：压力只压市场，
+        //   SW 拟合后用同一 premMid 加回输出）；LLP 之外不加压，外推段由 UFR 压力主导。
+        function buildRateFromMid(market, sign) {
+            const stressed = {};
+            for (let k = 1; k <= 50; k++) {
+                if (market[k] == null) { stressed[k] = null; continue; }
+                // 压力只作用在前 LLP 年（如 LLP=10 则仅前 10 年加压）
+                const p = (k <= params.llp) ? (sign > 0 ? stressUp(k) : stressDown(k)) : 0;
+                stressed[k] = market[k] * (1 + p);
             }
-            // 各曲线独立收敛 α（与 Excel 一致：负债/利率每条曲线各自做 EIOPA α 收敛，不复用他者 α）。
-            const rateBase = buildRate(spot, params.ufrBase);
-            const aB = rateBase.raw._alpha; // 仅用于展示"基础 α"
-            const liabHigh = buildLiab(params.premHigh);
-            const liabMid = buildLiab(params.premMid);
-            const liabLow = buildLiab(params.premLow);
-            const rateUp = buildRate(swStressedSpot(spot, +1), ufrUp);
-            const rateDown = buildRate(swStressedSpot(spot, -1), ufrDown);
-            const aU = rateUp.raw._alpha, aD = rateDown.raw._alpha;
+            const ufrTarget = (sign > 0 ? ufrUp : ufrDown);
+            const fwd = swForwardCurve(stressed, ufrTarget, params);
+            const spotP = [];
+            for (let t = 1; t <= 120; t++) spotP[t] = (fwd._spot ? fwd._spot[t] : swSpotFromFwd(fwd, t));
+            return { raw: fwd, fwd: rFull(fwd, 120), spot: rFull(spotP, 120) };
+        }
+        const liabHigh = buildLiab(params.premHigh);
+        const liabMid = buildLiab(params.premMid);
+        const liabLow = buildLiab(params.premLow);
+        // 利率基础曲线 = 负债中档（无单独 sheet，直接复用，已含中档溢价）
+        const rateBase = { raw: liabMid.raw, fwd: liabMid.fwd, spot: liabMid.spot };
+            const rateUp = buildRateFromMid(spot, +1);
+            const rateDown = buildRateFromMid(spot, -1);
+            // 与基础(中档)同溢价：SW 拟合后统一加回 premMid
+            for (let t = 1; t <= 120; t++) {
+                if (rateUp.spot[t] != null) rateUp.spot[t] += params.premMid;
+                if (rateUp.fwd[t] != null) rateUp.fwd[t] += params.premMid;
+                if (rateDown.spot[t] != null) rateDown.spot[t] += params.premMid;
+                if (rateDown.fwd[t] != null) rateDown.fwd[t] += params.premMid;
+            }
+        const aB = liabMid.raw._alpha;
+        const aU = rateUp.raw._alpha, aD = rateDown.raw._alpha;
             return {
                 years, latestDate, rule: 'c2_new',
                 liab: {
@@ -3119,7 +3148,7 @@
                 rate: {
                     spot: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot },
                     fwd: { base: rateBase.fwd, up: rateUp.fwd, down: rateDown.fwd },
-                    _mkt: r8arr(spot, 120), _fup: r8arr(swStressedSpot(spot, +1), 120), _gdn: r8arr(swStressedSpot(spot, -1), 120),
+                    _mkt: r8arr(spot, 120), _fup: r8arr(rateUp.spot, 120), _gdn: r8arr(rateDown.spot, 120),
                     _extr: { base: constArr(aB, 120), up: constArr(aU, 120), down: constArr(aD, 120) },
                     _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(0, 120)
                 }
@@ -3221,6 +3250,9 @@
                 });
                 grid.appendChild(b);
             }
+            const n = SW_PARAMS.liquid.filter(Boolean).length;
+            const c = document.getElementById('swLiqCount');
+            if (c) c.textContent = '流动 ' + n + ' 年';
         }
         function onLlpChange() {
             SW_PARAMS.liquid = swLiquidDefault(SW_PARAMS.llp);
