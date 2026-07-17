@@ -225,8 +225,23 @@
         .sw-liq-cell.on { background: linear-gradient(180deg, #e8f6ee, #d3efdf); border-color: #7fc99b; color: #1e7a48; }
         .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
         .sw-liq-cell.on:hover { border-color: #1e7a48; }
+        /* 参数面板：左侧紧凑参数 + 右侧并列流动性标记 */
+        .sw-params-cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: start; }
+        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .sw-params-left .sw-group { margin: 0; padding: 8px 10px; }
+        .sw-params-left .sw-group-title { font-size: 11.5px; margin-bottom: 5px; padding-bottom: 4px; }
+        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; margin: 6px 0; }
+        .sw-params-left .sw-params-grid label { padding: 4px 6px; font-size: 11px; gap: 2px; }
+        .sw-params-left .sw-params-grid input { padding: 3px 5px; font-size: 12px; }
+        .sw-params-left .sw-hint { margin: 1px 0 6px; }
+        .sw-params-right .sw-group { margin: 0; padding: 8px 10px; }
+        .sw-params-right .sw-group-title { font-size: 11.5px; margin-bottom: 5px; padding-bottom: 4px; }
+        .sw-params-right .sw-hint { font-size: 10.5px; margin: 1px 0 7px; }
+        /* 紧凑流动性网格：小字、小间距、扁平方格 */
+        .sw-params-right .sw-liquid-grid { gap: 3px; }
+        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 19px; border-radius: 5px; font-size: 9px; border-width: 1px; }
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 720px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 760px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } .sw-params-cols { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -571,37 +586,43 @@
             </details>
             <div class="discount-rules sw-params-panel" id="swParamsPanel" style="display:none;">
                 <div class="rules-body">
-                    <div class="sw-group">
-                        <div class="sw-group-title">① 基础参数</div>
-                        <div class="sw-params-grid">
-                            <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
-                            <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
-                            <label>LLP 最后流动点 (P15)<input type="number" id="swLlp" step="1" value="20"></label>
-                            <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
-                            <label>收敛容差 (bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
+                    <div class="sw-params-cols">
+                        <div class="sw-params-left">
+                            <div class="sw-group">
+                                <div class="sw-group-title">① 基础参数</div>
+                                <div class="sw-params-grid">
+                                    <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
+                                    <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
+                                    <label>LLP 最后流动点 (P15)<input type="number" id="swLlp" step="1" value="20"></label>
+                                    <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
+                                    <label>收敛容差 (bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
+                                </div>
+                            </div>
+                            <div class="sw-group">
+                                <div class="sw-group-title">② UFR 不利情景（上升 / 下降自动计算）</div>
+                                <div class="sw-params-grid">
+                                    <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
+                                    <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
+                                </div>
+                                <div class="sw-computed" id="swUfrComputed"></div>
+                            </div>
+                            <div class="sw-group">
+                                <div class="sw-group-title">③ 综合溢价 (BP)</div>
+                                <div class="sw-params-grid">
+                                    <label>负债溢价高<input type="number" id="swPremHigh" step="1" value="115"></label>
+                                    <label>负债溢价中<input type="number" id="swPremMid" step="1" value="85"></label>
+                                    <label>负债溢价低<input type="number" id="swPremLow" step="1" value="70"></label>
+                                    <label>终极利率溢价 P10<input type="number" id="swUltPrem" step="1" value="30"></label>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="sw-group">
-                        <div class="sw-group-title">② UFR 不利情景（上升 / 下降自动计算）</div>
-                        <div class="sw-params-grid">
-                            <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
-                            <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
+                        <div class="sw-params-right">
+                            <div class="sw-group">
+                                <div class="sw-group-title">④ 流动性标记（年度 1–50）</div>
+                                <p class="sw-hint">点击切换「流动 / 非流动」。改 LLP 自动重设前 LLP 年；也可手动任意组合。</p>
+                                <div class="sw-liquid-grid" id="swLiquidGrid"></div>
+                            </div>
                         </div>
-                        <div class="sw-computed" id="swUfrComputed"></div>
-                    </div>
-                    <div class="sw-group">
-                        <div class="sw-group-title">③ 综合溢价 (BP)</div>
-                        <div class="sw-params-grid">
-                            <label>负债溢价高<input type="number" id="swPremHigh" step="1" value="115"></label>
-                            <label>负债溢价中<input type="number" id="swPremMid" step="1" value="85"></label>
-                            <label>负债溢价低<input type="number" id="swPremLow" step="1" value="70"></label>
-                            <label>终极利率溢价 P10<input type="number" id="swUltPrem" step="1" value="30"></label>
-                        </div>
-                    </div>
-                    <div class="sw-group">
-                        <div class="sw-group-title">④ 流动性标记（C 列 · 年度 1–50）</div>
-                        <p class="sw-hint">点击年份切换「流动 / 非流动」。修改 LLP 会自动重设为「前 LLP 年」；也可手动任意组合（如 1–10、15、20 年）。</p>
-                        <div class="sw-liquid-grid" id="swLiquidGrid"></div>
                     </div>
                     <p class="footnote">修改任意参数后自动重算。UFR上升 = 基础×(1+上升幅度)、UFR下降 = 基础×(1+下降幅度)。</p>
                 </div>
