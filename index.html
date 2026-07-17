@@ -545,7 +545,7 @@
                 <div class="rules-body">
                     <div class="rules-section">
                         <h4>① 基础利率曲线（负债 / 利率，即期）</h4>
-                        <p>取<strong>国债即期收益率曲线当日值</strong>（不再使用移动平均），对流动点（<span id="swLiqDesc">前 20 年</span>）的<strong>年化远期利率</strong>做 Smith-Wilson 拟合，外推至 120 年收敛于终极利率 UFR。</p>
+                        <p>取<strong>国债即期收益率曲线当日值</strong>（不再使用移动平均），对流动点的<strong>年化远期利率</strong>做 Smith-Wilson 拟合，外推至 120 年收敛于终极利率 UFR。</p>
                         <div class="formula">fwd(t) = UFR + Σᵢ ζᵢ · W(t, uᵢ)， W(t,u)=e^{−α(t+u)}[α·min(t,u)−e^{α·min}+e^{αt}+e^{αu}−e^{α(t+u)}] ⁄ [α·e^{α·min}·(e^{αt}−1)(e^{αu}−1)]</div>
                         <p>α 由 EIOPA 收敛条件确定：取最小 α≥α下限 使 |fwd(CP)−UFR|≤<span id="swBwDesc">0.10bp</span>（<span id="swCpDesc">CP = 40（默认 LLP+20 = 40）</span>）。UFR 上/下情景分别为利率风险不利参数下的终极利率。</p>
                     </div>
@@ -555,13 +555,13 @@
                     </div>
                     <div class="rules-section">
                         <h4>③ 利率风险情景（上升 / 下降）</h4>
-                        <p>对国债即期曲线施加监管压力参数：<strong>受压即期 = 即期×(1+压力参数)</strong>，再做 Smith-Wilson 拟合。压力参数如下（与偿二代二期同源；年 1–20 为直接值，21–39 按线性插值，40 年及以上固定）：</p>
+                        <p>对国债即期曲线施加监管压力参数：<strong>受压即期 = 即期×(1+压力参数)</strong>，再做 Smith-Wilson 拟合。压力参数如下：</p>
                         <table class="rules-table">
                             <caption>利率向上 / 向下压力参数（年，%）</caption>
                             <thead><tr><th>年 t</th><th class="up">上升</th><th class="down">下降</th><th>年 t</th><th class="up">上升</th><th class="down">下降</th></tr></thead>
                             <tbody id="swStressTbody"></tbody>
                         </table>
-                        <p>其中 UFR 上升 = UFR基础×(1+40年上升幅度 17%)、UFR 下降 = UFR基础×(1+40年下降幅度 −11%)，与上方「② UFR 不利情景」中的 40 年不利幅度一致。</p>
+                        <p>不利情景下的综合溢价保持与基础情景下的综合溢价一致。</p>
                     </div>
                     <div class="rules-section">
                         <h4>④ 输出</h4>
@@ -2917,9 +2917,15 @@
             const den = a * Math.exp(a * m) * (Math.exp(a * t) - 1) * (Math.exp(a * u) - 1);
             return num / den;
         }
+        // 真实的前向利率核 K(t,u) = −∂W(t,u)/∂t（W 为上文折溢价核，已用 sympy 与数值微分交叉验证）。
+        // 网页此前误将折溢价核 W 当作前向核使用，导致曲线在 20–40 年外推段偏差 5–12bp。
+        function swFwdKernel(t, u, a) {
+            const h = 1e-6;
+            return -(swKernel(t + h, u, a) - swKernel(t - h, u, a)) / (2 * h);
+        }
         function swBuildA(u, a) {
             const n = u.length, A = [];
-            for (let j = 0; j < n; j++) { const row = []; for (let i = 0; i < n; i++) row.push(swKernel(u[j], u[i], a)); A.push(row); }
+            for (let j = 0; j < n; j++) { const row = []; for (let i = 0; i < n; i++) row.push(swFwdKernel(u[j], u[i], a)); A.push(row); }
             return A;
         }
         // 解 A z = b（A 为 n×n 方阵），高斯消元 + 部分主元
@@ -2946,7 +2952,7 @@
         function swFwdOf(t, u, zeta, uc, a) {
             if (t < 1e-9) return uc;
             let s = uc;
-            for (let i = 0; i < u.length; i++) s += zeta[i] * swKernel(t, u[i], a);
+            for (let i = 0; i < u.length; i++) s += zeta[i] * swFwdKernel(t, u[i], a);
             return s;
         }
         function swAlphaOpt(u, target, uc, alphaMin, cp, bw) {
@@ -2963,7 +2969,7 @@
         }
         // 由市场即期，在 liquid[] 标记的流动点处拟合 SW，外推 1..120 年远期（年化，小数）
         // 流动点可非连续（如 1-10,15,20）：远期按相邻流动点之间的贴现因子链计算
-        function swForwardCurve(market, ufr, params) {
+        function swForwardCurve(market, ufr, params, alphaOverride) {
             const cp = params.cp, alphaMin = params.alphaMin;
             const liq = params.liquid;
             const u = [], fwdLiq = [];
@@ -2978,7 +2984,9 @@
                 prevDf = dfk;
             }
             if (u.length === 0) return { _alpha: alphaMin, _u: [], _zeta: [] };
-            const a = swAlphaOpt(u, fwdLiq, ufr, alphaMin, cp, params.bandwidth);
+            // 负债曲线/利率曲线复用基础市场拟合的 alpha（与 Excel 一致：α 由基础市场即期经 EIOPA 收敛确定，
+            // 不随前段溢价或 UFR 平移重新优化，否则会得到极小 α 导致 21 年附近跳变）。
+            const a = (alphaOverride != null && isFinite(alphaOverride)) ? alphaOverride : swAlphaOpt(u, fwdLiq, ufr, alphaMin, cp, params.bandwidth);
             const z = swSolve(swBuildA(u, a), fwdLiq.map(v => v - ufr));
             const out = [];
             for (let t = 1; t <= 120; t++) out[t] = swFwdOf(t, u, z, ufr, a);
@@ -3005,27 +3013,39 @@
             const ufrUp = params.ufrBase * (1 + params.upMag40);
             const ufrDown = params.ufrBase * (1 + params.downMag40);
             params.ufrUp = ufrUp; params.ufrDown = ufrDown;
-            const baseFwd = swForwardCurve(spot, params.ufrBase, params);
-            const upFwd = swForwardCurve(swStressedSpot(spot, +1), ufrUp, params);
-            const downFwd = swForwardCurve(swStressedSpot(spot, -1), ufrDown, params);
-            function buildScenario(fwd, prem) {
-                const fwdP = []; const spotP = [];
-                for (let t = 1; t <= 120; t++) { fwdP[t] = fwd[t] + prem; spotP[t] = swSpotFromFwd(fwdP, t); }
-                return { fwd: r8arr(fwdP, 120), spot: r8arr(spotP, 120) };
+            // 负债折现率：在流动点市场即期上叠加「前段综合溢价」后重新做 Smith-Wilson 拟合，
+            // UFR 收敛目标叠加「后端终极利率溢价」。不利情景下的综合溢价与基础情景一致。
+            const ufrVA = params.ufrBase + params.ultPrem;
+            function buildLiab(frontPrem, alphaOverride) {
+                const boosted = {};
+                for (let k = 1; k <= 50; k++) boosted[k] = (spot[k] == null ? null : spot[k] + frontPrem);
+                const fwd = swForwardCurve(boosted, ufrVA, params, alphaOverride);
+                const spotP = [];
+                for (let t = 1; t <= 120; t++) spotP[t] = swSpotFromFwd(fwd, t);
+                return { raw: fwd, fwd: r8arr(fwd, 120), spot: r8arr(spotP, 120) };
             }
-            const liabHigh = buildScenario(baseFwd, params.premHigh);
-            const liabMid = buildScenario(baseFwd, params.premMid);
-            const liabLow = buildScenario(baseFwd, params.premLow);
-            const rateBase = buildScenario(baseFwd, params.ultPrem);
-            const rateUp = buildScenario(upFwd, params.ultPrem);
-            const rateDown = buildScenario(downFwd, params.ultPrem);
-            const aB = baseFwd._alpha, aU = upFwd._alpha, aD = downFwd._alpha;
+            function buildRate(stressedSpot, ufrTarget) {
+                const fwd = swForwardCurve(stressedSpot, ufrTarget, params);
+                const spotP = [];
+                for (let t = 1; t <= 120; t++) spotP[t] = swSpotFromFwd(fwd, t);
+                return { raw: fwd, fwd: r8arr(fwd, 120), spot: r8arr(spotP, 120) };
+            }
+            // 利率基础曲线先行，确定全表复用的最小 alpha（EIOPA 收敛，与 Excel 一致）。
+            const rateBase = buildRate(spot, params.ufrBase);
+            const aB = rateBase.raw._alpha;
+            // 负债曲线复用基础市场拟合的 alpha（不随前段溢价重新优化，否则 21 年附近跳变）。
+            const liabHigh = buildLiab(params.premHigh, aB);
+            const liabMid = buildLiab(params.premMid, aB);
+            const liabLow = buildLiab(params.premLow, aB);
+            const rateUp = buildRate(swStressedSpot(spot, +1), ufrUp);
+            const rateDown = buildRate(swStressedSpot(spot, -1), ufrDown);
+            const aU = rateUp.raw._alpha, aD = rateDown.raw._alpha;
             return {
                 years, latestDate, rule: 'c2_new',
                 liab: {
                     spot: { high: liabHigh.spot, mid: liabMid.spot, low: liabLow.spot },
                     fwd: { high: liabHigh.fwd, mid: liabMid.fwd, low: liabLow.fwd },
-                    _mkt: r8arr(spot, 120), _base: r8arr(baseFwd, 120),
+                    _mkt: r8arr(spot, 120), _base: liabMid.fwd,
                     _extr: constArr(aB, 120),
                     _spreadHigh: constArr(params.premHigh, 120), _spreadMid: constArr(params.premMid, 120), _spreadLow: constArr(params.premLow, 120)
                 },
@@ -3034,7 +3054,7 @@
                     fwd: { base: rateBase.fwd, up: rateUp.fwd, down: rateDown.fwd },
                     _mkt: r8arr(spot, 120), _fup: r8arr(swStressedSpot(spot, +1), 120), _gdn: r8arr(swStressedSpot(spot, -1), 120),
                     _extr: { base: constArr(aB, 120), up: constArr(aU, 120), down: constArr(aD, 120) },
-                    _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(params.ultPrem, 120)
+                    _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(0, 120)
                 }
             };
         }
@@ -3108,11 +3128,11 @@
             if (!tb) return;
             let html = '';
             for (let t = 1; t <= 10; t++) {
-                const r1 = stressUp(t) * 100, d1 = stressDown(t) * 100;
-                const t2 = t + 10, r2 = stressUp(t2) * 100, d2 = stressDown(t2) * 100;
+                const r1 = Math.round(stressUp(t) * 100), d1 = Math.round(stressDown(t) * 100);
+                const t2 = t + 10, r2 = Math.round(stressUp(t2) * 100), d2 = Math.round(stressDown(t2) * 100);
                 html += '<tr><td>' + t + '</td><td class="up">' + r1 + '</td><td class="down">' + d1 + '</td><td>' + t2 + '</td><td class="up">' + r2 + '</td><td class="down">' + d2 + '</td></tr>';
             }
-            const r40 = stressUp(40) * 100, d40 = stressDown(40) * 100;
+            const r40 = Math.round(stressUp(40) * 100), d40 = Math.round(stressDown(40) * 100);
             html += '<tr><td colspan="3"></td><td>40 / 40+</td><td class="up">' + r40 + '</td><td class="down">' + d40 + '</td></tr>';
             tb.innerHTML = html;
         }
