@@ -213,10 +213,18 @@
         .discount-rules .rules-table td:first-child { color: #5b6b80; font-weight: 600; background: #fafcff; }
         .discount-rules .rules-table .up { color: #c0392b; font-weight: 600; }
         .discount-rules .rules-table .down { color: #16a085; font-weight: 600; }
-        .sw-params-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 10px 0; }
+        .sw-params-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; margin: 10px 0; }
         .sw-params-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #3e5a7a; background: #fff; border: 1px solid #e3ebf4; border-radius: 8px; padding: 7px 9px; }
         .sw-params-grid input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 7px; font-size: 13px; color: #243; width: 100%; box-sizing: border-box; }
         .sw-params-grid input:focus { outline: none; border-color: #1f4a7a; box-shadow: 0 0 0 2px rgba(31,74,122,.12); }
+        .sw-group { margin: 12px 0; padding: 11px 13px; background: #fff; border: 1px solid #e3ebf4; border-radius: 11px; box-shadow: 0 1px 2px rgba(31,74,122,.04); }
+        .sw-group-title { font-size: 12.5px; font-weight: 700; color: #1f4a7a; margin-bottom: 9px; padding-bottom: 6px; border-bottom: 1px dashed #dce4ed; letter-spacing: .3px; }
+        .sw-hint { font-size: 11.5px; color: #6f85a5; margin: 2px 0 9px; }
+        .sw-liquid-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+        .sw-liq-cell { aspect-ratio: 1 / 1; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; background: #f4f7fb; color: #90a0b4; transition: all .12s; padding: 0; font-family: inherit; }
+        .sw-liq-cell.on { background: linear-gradient(180deg, #e8f6ee, #d3efdf); border-color: #7fc99b; color: #1e7a48; }
+        .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
+        .sw-liq-cell.on:hover { border-color: #1e7a48; }
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 720px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
@@ -537,19 +545,13 @@
                 <div class="rules-body">
                     <div class="rules-section">
                         <h4>① 基础利率曲线（负债 / 利率，即期）</h4>
-                        <p>取<strong>国债即期收益率曲线当日值</strong>（不再使用移动平均），对流动点（1–20 年）的<strong>年化远期利率</strong>做 Smith-Wilson 拟合，外推至 120 年收敛于终极利率 UFR。</p>
+                        <p>取<strong>国债即期收益率曲线当日值</strong>（不再使用移动平均），对流动点（<span id="swLiqDesc">前 20 年</span>）的<strong>年化远期利率</strong>做 Smith-Wilson 拟合，外推至 120 年收敛于终极利率 UFR。</p>
                         <div class="formula">fwd(t) = UFR + Σᵢ ζᵢ · W(t, uᵢ)， W(t,u)=e^{−α(t+u)}[α·min(t,u)−e^{α·min}+e^{αt}+e^{αu}−e^{α(t+u)}] ⁄ [α·e^{α·min}·(e^{αt}−1)(e^{αu}−1)]</div>
-                        <p>α 由 EIOPA 收敛条件确定：取最小 α≥α下限 使 |fwd(CP)−UFR|≤1bp（CP=LLP+20）。UFR 上/下情景分别为利率风险不利参数下的终极利率。</p>
+                        <p>α 由 EIOPA 收敛条件确定：取最小 α≥α下限 使 |fwd(CP)−UFR|≤<span id="swBwDesc">0.10bp</span>（<span id="swCpDesc">CP = 40（默认 LLP+20 = 40）</span>）。UFR 上/下情景分别为利率风险不利参数下的终极利率。</p>
                     </div>
                     <div class="rules-section">
                         <h4>② 综合溢价（负债 / 利率）</h4>
-                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调；利率曲线（基础 / 上升 / 下降）采用「终极利率溢价 P10」做远期平移（默认30BP）。UFR 上升 / 下降由基础 UFR ×(1+40年不利幅度) 自动计算。</p>
-                        <div class="rules-grid">
-                            <div class="rules-cell"><span class="rk">负债高</span><span class="rv" id="swPremHighLbl">85BP</span></div>
-                            <div class="rules-cell"><span class="rk">负债中</span><span class="rv" id="swPremMidLbl">45BP</span></div>
-                            <div class="rules-cell"><span class="rk">负债低</span><span class="rv" id="swPremLowLbl">30BP</span></div>
-                            <div class="rules-cell"><span class="rk">利率（终极溢价P10）</span><span class="rv">30BP</span></div>
-                        </div>
+                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调（具体数值见下方参数面板）；利率曲线（基础 / 上升 / 下降）采用「终极利率溢价 P10」做远期平移。UFR 上升 / 下降由基础 UFR ×(1+40年不利幅度) 自动计算。</p>
                     </div>
                     <div class="rules-section">
                         <h4>③ 利率风险情景（上升 / 下降）</h4>
@@ -563,21 +565,39 @@
             </details>
             <div class="discount-rules sw-params-panel" id="swParamsPanel" style="display:none;">
                 <div class="rules-body">
-                    <div class="sw-params-grid">
-                        <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
-                        <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
-                        <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
-                        <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
-                        <label>LLP 最后流动点<input type="number" id="swLlp" step="1" value="20"></label>
-                        <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
-                        <label>收敛容差(bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
-                        <label>终极利率溢价P10(BP)<input type="number" id="swUltPrem" step="1" value="30"></label>
-                        <label>负债溢价高(BP)<input type="number" id="swPremHigh" step="1" value="85"></label>
-                        <label>负债溢价中(BP)<input type="number" id="swPremMid" step="1" value="45"></label>
-                        <label>负债溢价低(BP)<input type="number" id="swPremLow" step="1" value="30"></label>
+                    <div class="sw-group">
+                        <div class="sw-group-title">① 基础参数</div>
+                        <div class="sw-params-grid">
+                            <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
+                            <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
+                            <label>LLP 最后流动点 (P15)<input type="number" id="swLlp" step="1" value="20"></label>
+                            <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
+                            <label>收敛容差 (bp)<input type="number" id="swBandwidth" step="0.01" value="0.1"></label>
+                        </div>
                     </div>
-                    <div class="sw-computed" id="swUfrComputed"></div>
-                    <p class="footnote">UFR上升=基础×(1+上升幅度)、UFR下降=基础×(1+下降幅度)，自动计算。修改后自动重算。</p>
+                    <div class="sw-group">
+                        <div class="sw-group-title">② UFR 不利情景（上升 / 下降自动计算）</div>
+                        <div class="sw-params-grid">
+                            <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
+                            <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
+                        </div>
+                        <div class="sw-computed" id="swUfrComputed"></div>
+                    </div>
+                    <div class="sw-group">
+                        <div class="sw-group-title">③ 综合溢价 (BP)</div>
+                        <div class="sw-params-grid">
+                            <label>负债溢价高<input type="number" id="swPremHigh" step="1" value="85"></label>
+                            <label>负债溢价中<input type="number" id="swPremMid" step="1" value="45"></label>
+                            <label>负债溢价低<input type="number" id="swPremLow" step="1" value="30"></label>
+                            <label>终极利率溢价 P10<input type="number" id="swUltPrem" step="1" value="30"></label>
+                        </div>
+                    </div>
+                    <div class="sw-group">
+                        <div class="sw-group-title">④ 流动性标记（C 列 · 年度 1–50）</div>
+                        <p class="sw-hint">点击年份切换「流动 / 非流动」。修改 LLP 会自动重设为「前 LLP 年」；也可手动任意组合（如 1–10、15、20 年）。</p>
+                        <div class="sw-liquid-grid" id="swLiquidGrid"></div>
+                    </div>
+                    <p class="footnote">修改任意参数后自动重算。UFR上升 = 基础×(1+上升幅度)、UFR下降 = 基础×(1+下降幅度)。</p>
                 </div>
             </div>
             <div id="discountSummaryView">
@@ -2863,16 +2883,26 @@
         // ================================================================
         // 折现率曲线板块（偿付能力新规 · Smith-Wilson）
         // 算法：前向空间拟合——在流动点处对"年化远期利率"拟合 SW 核，
-        //       alpha 由 EIOPA 收敛条件确定（最小 alpha≥下限 使 |fwd(CP)-UFR|≤1bp），
+        //       alpha 由 EIOPA 收敛条件确定（最小 alpha≥下限 使 |fwd(CP)-UFR|≤收敛容差），
         //       外推 1..120 年；溢价以"远期平移"方式叠加（Y = M + 溢价/10000）。
+        // 流动点由 liquid[] 数组（年度 1..50 的布尔标记）决定，可与 LLP 联动或手动设置。
         // 已与模板 base 表校准（基准曲线最大偏差 7e-4）。
         // ================================================================
         const SW_PARAMS = {
             ufrBase: 0.042, upMag40: 0.17, downMag40: -0.11,
             alphaMin: 0.05, llp: 20, cp: 40, bandwidth: 0.00001,
             ultPrem: 0.0030,
-            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030
+            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030,
+            liquid: null
         };
+        // 默认流动性：前 llp 年=流动(1)，其余=非流动(0)
+        function swLiquidDefault(llp) {
+            const n = Math.max(0, Math.min(50, llp | 0));
+            const a = new Array(50).fill(false);
+            for (let k = 1; k <= n; k++) a[k - 1] = true;
+            return a;
+        }
+        SW_PARAMS.liquid = swLiquidDefault(SW_PARAMS.llp);
         function r8arr(arr, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (arr[t] == null ? null : r8(arr[t])); return o; }
         function constArr(v, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (v == null ? null : r8(v)); return o; }
         function swKernel(t, u, a) {
@@ -2925,14 +2955,17 @@
             }
             return a;
         }
-        // 由市场即期（流动点 1..llp）拟合 SW，外推 1..120 年远期（年化，小数）
+        // 由市场即期，在 liquid[] 标记的流动点处拟合 SW，外推 1..120 年远期（年化，小数）
+        // 流动点可非连续（如 1-10,15,20）：远期按相邻流动点之间的贴现因子链计算
         function swForwardCurve(market, ufr, params) {
-            const llp = params.llp, cp = params.cp, alphaMin = params.alphaMin;
+            const cp = params.cp, alphaMin = params.alphaMin;
+            const liq = params.liquid;
             const u = [], fwdLiq = [];
             let prevDf = 1;
-            for (let k = 1; k <= llp; k++) {
+            for (let k = 1; k <= 50; k++) {
+                if (!liq || !liq[k - 1]) continue;
                 const yk = market[k];
-                if (yk == null || !isFinite(yk)) break;
+                if (yk == null || !isFinite(yk)) continue;
                 const dfk = Math.pow(1 + yk, -k);
                 fwdLiq.push(prevDf / dfk - 1);
                 u.push(k);
@@ -3029,7 +3062,7 @@
             if (uu != null) SW_PARAMS.upMag40 = uu;
             if (ud != null) SW_PARAMS.downMag40 = ud;
             if (am != null) SW_PARAMS.alphaMin = am;
-            if (llp != null) SW_PARAMS.llp = llp;
+            if (llp != null) SW_PARAMS.llp = Math.max(1, Math.min(50, llp));
             if (cp != null) SW_PARAMS.cp = cp;
             if (bw != null) SW_PARAMS.bandwidth = bw / 10000;
             if (up != null) SW_PARAMS.ultPrem = up / 10000;
@@ -3041,6 +3074,49 @@
             SW_PARAMS.ufrDown = SW_PARAMS.ufrBase * (1 + SW_PARAMS.downMag40);
             const ce = document.getElementById('swUfrComputed');
             if (ce) ce.textContent = '→ UFR上升 = ' + SW_PARAMS.ufrUp.toFixed(5) + ' ｜ UFR下降 = ' + SW_PARAMS.ufrDown.toFixed(5);
+            updateSwExplanation();
+        }
+        // 规则说明动态文本（不写死流动点与收敛容差）
+        function swLiqDescText() {
+            const liq = SW_PARAMS.liquid;
+            const yrs = [];
+            for (let k = 1; k <= 50; k++) if (liq && liq[k - 1]) yrs.push(k);
+            if (yrs.length === 0) return '无';
+            const ranges = []; let s = yrs[0], p = yrs[0];
+            for (let i = 1; i < yrs.length; i++) {
+                if (yrs[i] === p + 1) { p = yrs[i]; }
+                else { ranges.push(s === p ? '' + s : s + '–' + p); s = p = yrs[i]; }
+            }
+            ranges.push(s === p ? '' + s : s + '–' + p);
+            return ranges.join('、') + ' 年';
+        }
+        function updateSwExplanation() {
+            const e1 = document.getElementById('swLiqDesc'); if (e1) e1.textContent = swLiqDescText();
+            const e2 = document.getElementById('swBwDesc'); if (e2) e2.textContent = (SW_PARAMS.bandwidth * 10000).toFixed(2) + 'bp';
+            const e3 = document.getElementById('swCpDesc'); if (e3) e3.textContent = 'CP = ' + SW_PARAMS.cp + '（默认 LLP+20 = ' + (SW_PARAMS.llp + 20) + '）';
+        }
+        // 流动性标记网格（C 列）：点击切换；修改 LLP 时自动重设前 LLP 年
+        function renderSwLiquidGrid() {
+            const grid = document.getElementById('swLiquidGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for (let k = 1; k <= 50; k++) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'sw-liq-cell' + (SW_PARAMS.liquid[k - 1] ? ' on' : '');
+                b.textContent = k;
+                b.title = '年 ' + k + (SW_PARAMS.liquid[k - 1] ? '（流动）' : '（非流动）');
+                b.addEventListener('click', function () {
+                    SW_PARAMS.liquid[k - 1] = !SW_PARAMS.liquid[k - 1];
+                    renderSwLiquidGrid();
+                    if (discountRule === 'c2_new') { discountDataCache = null; renderDiscount(); }
+                });
+                grid.appendChild(b);
+            }
+        }
+        function onLlpChange() {
+            SW_PARAMS.liquid = swLiquidDefault(SW_PARAMS.llp);
+            renderSwLiquidGrid();
         }
 
         // 取 endDate 之前（含）连续的 period 个交易日的日期列表，用于对任意基准日求移动平均
@@ -3659,6 +3735,7 @@
                     document.getElementById('discountRules').style.display = (discountRule === 'c2_2') ? '' : 'none';
                     document.getElementById('discountRulesNew').style.display = (discountRule === 'c2_new') ? '' : 'none';
                     document.getElementById('swParamsPanel').style.display = (discountRule === 'c2_new') ? '' : 'none';
+                    if (discountRule === 'c2_new') { syncSWParamsFromInputs(); renderSwLiquidGrid(); }
                     discountDataCache = null;
                     renderDiscount();
                 });
@@ -3670,6 +3747,7 @@
                 if (el) el.addEventListener('input', function() {
                     if (discountRule !== 'c2_new') return;
                     syncSWParamsFromInputs();
+                    if (id === 'swLlp') { onLlpChange(); updateSwExplanation(); }
                     discountDataCache = null;
                     renderDiscount();
                 });
