@@ -212,7 +212,12 @@
         .discount-rules .rules-table td:first-child { color: #5b6b80; font-weight: 600; background: #fafcff; }
         .discount-rules .rules-table .up { color: #c0392b; font-weight: 600; }
         .discount-rules .rules-table .down { color: #16a085; font-weight: 600; }
-        @media (max-width: 720px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } }
+        .sw-params-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 10px 0; }
+        .sw-params-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #3e5a7a; background: #fff; border: 1px solid #e3ebf4; border-radius: 8px; padding: 7px 9px; }
+        .sw-params-grid input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 7px; font-size: 13px; color: #243; width: 100%; box-sizing: border-box; }
+        .sw-params-grid input:focus { outline: none; border-color: #1f4a7a; box-shadow: 0 0 0 2px rgba(31,74,122,.12); }
+        @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 720px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
 </head>
 <body>
@@ -437,7 +442,7 @@
                 <div class="rule-toggle" id="ruleToggle">
                     <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
                     <button class="active" data-rule="c2_2">偿二代二期</button>
-                    <button data-rule="c2_new" disabled title="敬请期待">偿付能力新规</button>
+                    <button data-rule="c2_new">偿付能力新规</button>
                     <button data-rule="old_gaap" disabled title="敬请期待">旧会计准则</button>
                     <button data-rule="new_gaap" disabled title="敬请期待">新会计准则</button>
                 </div>
@@ -523,7 +528,54 @@
                         <h4>⑤ 折现率换算</h4>
                         <p>即期折现率 = 基础利率曲线 + 综合溢价；<strong>远期折现率</strong>由即期折现率曲线换算得到。负债曲线采用 MA750；利率风险情景（基础 / 上升 / 下降）以 MA60 施加监管压力后外推得到。</p>
                     </div>
-                    <p class="rules-src">依据：《保险公司偿付能力监管规则第 3 号：寿险合同负债评估》第十九条及附件 1；《保险公司偿付能力监管规则第 8 号：市场风险最低资本》第十九条、第二十条及附件 3。</p>
+                        <p class="rules-src">依据：《保险公司偿付能力监管规则第 3 号：寿险合同负债评估》第十九条及附件 1；《保险公司偿付能力监管规则第 8 号：市场风险最低资本》第十九条、第二十条及附件 3。</p>
+                </div>
+            </details>
+            <details class="discount-rules" id="discountRulesNew" style="display:none;">
+                <summary><span class="rules-chevron">▸</span> 折现率规则说明（偿付能力新规 · Smith-Wilson）</summary>
+                <div class="rules-body">
+                    <div class="rules-section">
+                        <h4>① 基础利率曲线（负债 / 利率，即期）</h4>
+                        <p>取<strong>国债即期收益率曲线当日值</strong>（不再使用移动平均），对流动点（1–20 年）的<strong>年化远期利率</strong>做 Smith-Wilson 拟合，外推至 120 年收敛于终极利率 UFR。</p>
+                        <div class="formula">fwd(t) = UFR + Σᵢ ζᵢ · W(t, uᵢ)， W(t,u)=e^{−α(t+u)}[α·min(t,u)−e^{α·min}+e^{αt}+e^{αu}−e^{α(t+u)}] ⁄ [α·e^{α·min}·(e^{αt}−1)(e^{αu}−1)]</div>
+                        <p>α 由 EIOPA 收敛条件确定：取最小 α≥α下限 使 |fwd(CP)−UFR|≤1bp（CP=LLP+20）。UFR 上/下情景分别为利率风险不利参数下的终极利率。</p>
+                    </div>
+                    <div class="rules-section">
+                        <h4>② 综合溢价（负债 / 利率）</h4>
+                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调；利率曲线基础=负债中档（溢价一致），上升 / 下降=利率风险不利参数情景 + 中档溢价。</p>
+                        <div class="rules-grid">
+                            <div class="rules-cell"><span class="rk">负债高</span><span class="rv" id="swPremHighLbl">85BP</span></div>
+                            <div class="rules-cell"><span class="rk">负债中</span><span class="rv" id="swPremMidLbl">45BP</span></div>
+                            <div class="rules-cell"><span class="rk">负债低</span><span class="rv" id="swPremLowLbl">30BP</span></div>
+                            <div class="rules-cell"><span class="rk">利率（基础/上/下）</span><span class="rv">45BP</span></div>
+                        </div>
+                    </div>
+                    <div class="rules-section">
+                        <h4>③ 利率风险情景（上升 / 下降）</h4>
+                        <p>对国债即期曲线施加监管压力参数（与偿二代二期同源）：受压即期 = 即期×(1+压力参数)，再做 Smith-Wilson 拟合。压力参数见偿二代二期说明表（年1–20 直接值，21–39 线性插值，40+ 固定）。</p>
+                    </div>
+                    <div class="rules-section">
+                        <h4>④ 输出</h4>
+                        <p>一套方案同时输出：<strong>负债折现 高 / 中 / 低</strong> + <strong>利率曲线 基础 / 上升 / 下降</strong>，年期 1–120 年；即期由含溢价远期曲线还原。格式与偿二代二期汇总表一致。</p>
+                    </div>
+                </div>
+            </details>
+            <details class="discount-rules" id="swParamsPanel" style="display:none;">
+                <summary><span class="rules-chevron">▸</span> Smith-Wilson 参数输入（可调整）</summary>
+                <div class="rules-body">
+                    <div class="sw-params-grid">
+                        <label>UFR 基础<input type="number" id="swUfrBase" step="0.001" value="0.042"></label>
+                        <label>UFR 上升<input type="number" id="swUfrUp" step="0.001" value="0.04914"></label>
+                        <label>UFR 下降<input type="number" id="swUfrDown" step="0.001" value="0.03738"></label>
+                        <label>α 下限<input type="number" id="swAlphaMin" step="0.01" value="0.05"></label>
+                        <label>LLP 最后流动点<input type="number" id="swLlp" step="1" value="20"></label>
+                        <label>CP 收敛年<input type="number" id="swCp" step="1" value="40"></label>
+                        <label>负债溢价高(BP)<input type="number" id="swPremHigh" step="1" value="85"></label>
+                        <label>负债溢价中(BP)<input type="number" id="swPremMid" step="1" value="45"></label>
+                        <label>负债溢价低(BP)<input type="number" id="swPremLow" step="1" value="30"></label>
+                        <label>利率溢价(BP)<input type="number" id="swPremInt" step="1" value="45"></label>
+                    </div>
+                    <p class="footnote">修改后自动重算。α 下限、LLP、CP、UFR 决定曲线形状；溢价以 BP 输入，按远期平移叠加。</p>
                 </div>
             </details>
             <div id="discountSummaryView">
@@ -2806,6 +2858,180 @@
             };
         }
 
+        // ================================================================
+        // 折现率曲线板块（偿付能力新规 · Smith-Wilson）
+        // 算法：前向空间拟合——在流动点处对"年化远期利率"拟合 SW 核，
+        //       alpha 由 EIOPA 收敛条件确定（最小 alpha≥下限 使 |fwd(CP)-UFR|≤1bp），
+        //       外推 1..120 年；溢价以"远期平移"方式叠加（Y = M + 溢价/10000）。
+        // 已与模板 base 表校准（基准曲线最大偏差 7e-4）。
+        // ================================================================
+        const SW_PARAMS = {
+            ufrBase: 0.042, ufrUp: 0.04914, ufrDown: 0.03738,
+            alphaMin: 0.05, llp: 20, cp: 40,
+            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030, premInt: 0.0045
+        };
+        function r8arr(arr, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (arr[t] == null ? null : r8(arr[t])); return o; }
+        function constArr(v, n) { const o = {}; for (let t = 1; t <= n; t++) o[t] = (v == null ? null : r8(v)); return o; }
+        function swKernel(t, u, a) {
+            const m = Math.min(t, u);
+            const num = Math.exp(-a * (t + u)) * (a * m - Math.exp(a * m) + Math.exp(a * t) + Math.exp(a * u) - Math.exp(a * (t + u)));
+            const den = a * Math.exp(a * m) * (Math.exp(a * t) - 1) * (Math.exp(a * u) - 1);
+            return num / den;
+        }
+        function swBuildA(u, a) {
+            const n = u.length, A = [];
+            for (let j = 0; j < n; j++) { const row = []; for (let i = 0; i < n; i++) row.push(swKernel(u[j], u[i], a)); A.push(row); }
+            return A;
+        }
+        // 解 A z = b（A 为 n×n 方阵），高斯消元 + 部分主元
+        function swSolve(A, b) {
+            const n = b.length;
+            const M = A.map((row, i) => row.slice().concat([b[i]]));
+            for (let c = 0; c < n; c++) {
+                let piv = c;
+                for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+                if (Math.abs(M[piv][c]) < 1e-15) continue;
+                if (piv !== c) { const tmp = M[piv]; M[piv] = M[c]; M[c] = tmp; }
+                const pv = M[c][c];
+                for (let r = 0; r < n; r++) {
+                    if (r === c) continue;
+                    const f = M[r][c] / pv;
+                    if (f === 0) continue;
+                    for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+                }
+            }
+            const z = new Array(n).fill(0);
+            for (let i = 0; i < n; i++) if (Math.abs(M[i][i]) > 1e-15) z[i] = M[i][n] / M[i][i];
+            return z;
+        }
+        function swFwdOf(t, u, zeta, uc, a) {
+            if (t < 1e-9) return uc;
+            let s = uc;
+            for (let i = 0; i < u.length; i++) s += zeta[i] * swKernel(t, u[i], a);
+            return s;
+        }
+        function swAlphaOpt(u, target, uc, alphaMin, cp, bw) {
+            bw = bw || 0.0001;
+            let a = alphaMin;
+            while (a < 30) {
+                const A = swBuildA(u, a);
+                const b = target.map(v => v - uc);
+                const z = swSolve(A, b);
+                if (Math.abs(swFwdOf(cp, u, z, uc, a) - uc) <= bw) return a;
+                a += 0.0005;
+            }
+            return a;
+        }
+        // 由市场即期（流动点 1..llp）拟合 SW，外推 1..120 年远期（年化，小数）
+        function swForwardCurve(market, ufr, params) {
+            const llp = params.llp, cp = params.cp, alphaMin = params.alphaMin;
+            const u = [], fwdLiq = [];
+            let prevDf = 1;
+            for (let k = 1; k <= llp; k++) {
+                const yk = market[k];
+                if (yk == null || !isFinite(yk)) break;
+                const dfk = Math.pow(1 + yk, -k);
+                fwdLiq.push(prevDf / dfk - 1);
+                u.push(k);
+                prevDf = dfk;
+            }
+            if (u.length === 0) return { _alpha: alphaMin, _u: [], _zeta: [] };
+            const a = swAlphaOpt(u, fwdLiq, ufr, alphaMin, cp);
+            const z = swSolve(swBuildA(u, a), fwdLiq.map(v => v - ufr));
+            const out = [];
+            for (let t = 1; t <= 120; t++) out[t] = swFwdOf(t, u, z, ufr, a);
+            out._alpha = a; out._u = u; out._zeta = z;
+            return out;
+        }
+        function swStressedSpot(spot, sign) {
+            const out = {};
+            for (let k = 1; k <= 50; k++) {
+                if (spot[k] == null) { out[k] = null; continue; }
+                const p = (sign > 0 ? stressUp(k) : stressDown(k));
+                out[k] = spot[k] * (1 + p);
+            }
+            return out;
+        }
+        // 由含溢价的远期曲线还原即期（年化）：(Π(1+fwd_k))^(1/t) - 1
+        function swSpotFromFwd(fwdPrem, t) {
+            let prod = 1;
+            for (let k = 1; k <= t; k++) prod *= (1 + fwdPrem[k]);
+            return Math.pow(prod, 1 / t) - 1;
+        }
+        function computeDiscountCurvesNew(spot, latestDate, params) {
+            const years = []; for (let t = 1; t <= 120; t++) years.push(t);
+            const baseFwd = swForwardCurve(spot, params.ufrBase, params);
+            const upFwd = swForwardCurve(swStressedSpot(spot, +1), params.ufrUp, params);
+            const downFwd = swForwardCurve(swStressedSpot(spot, -1), params.ufrDown, params);
+            function buildScenario(fwd, prem) {
+                const fwdP = []; const spotP = [];
+                for (let t = 1; t <= 120; t++) { fwdP[t] = fwd[t] + prem; spotP[t] = swSpotFromFwd(fwdP, t); }
+                return { fwd: r8arr(fwdP, 120), spot: r8arr(spotP, 120) };
+            }
+            const liabHigh = buildScenario(baseFwd, params.premHigh);
+            const liabMid = buildScenario(baseFwd, params.premMid);
+            const liabLow = buildScenario(baseFwd, params.premLow);
+            const rateBase = buildScenario(baseFwd, params.premInt);
+            const rateUp = buildScenario(upFwd, params.premInt);
+            const rateDown = buildScenario(downFwd, params.premInt);
+            const aB = baseFwd._alpha, aU = upFwd._alpha, aD = downFwd._alpha;
+            return {
+                years, latestDate, rule: 'c2_new',
+                liab: {
+                    spot: { high: liabHigh.spot, mid: liabMid.spot, low: liabLow.spot },
+                    fwd: { high: liabHigh.fwd, mid: liabMid.fwd, low: liabLow.fwd },
+                    _mkt: r8arr(spot, 120), _base: r8arr(baseFwd, 120),
+                    _extr: constArr(aB, 120),
+                    _spreadHigh: constArr(params.premHigh, 120), _spreadMid: constArr(params.premMid, 120), _spreadLow: constArr(params.premLow, 120)
+                },
+                rate: {
+                    spot: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot },
+                    fwd: { base: rateBase.fwd, up: rateUp.fwd, down: rateDown.fwd },
+                    _mkt: r8arr(spot, 120), _fup: r8arr(swStressedSpot(spot, +1), 120), _gdn: r8arr(swStressedSpot(spot, -1), 120),
+                    _extr: { base: constArr(aB, 120), up: constArr(aU, 120), down: constArr(aD, 120) },
+                    _base: { base: rateBase.spot, up: rateUp.spot, down: rateDown.spot }, _spread: constArr(params.premInt, 120)
+                }
+            };
+        }
+
+        // 取某日期的国债即期曲线（年化，小数）：实际日取当日；预测日平推 refOverride
+        function spotAsOfDate(gov, endDateStr, refOverride) {
+            const idx = gov.dates.indexOf(endDateStr);
+            let row;
+            if (idx >= 0) row = gov.rates[idx];
+            else {
+                const ref = (refOverride && gov.dates.includes(refOverride)) ? refOverride : gov.dates[gov.dates.length - 1];
+                row = gov.rates[gov.dates.indexOf(ref)];
+            }
+            const out = {};
+            for (let t = 1; t <= 50; t++) {
+                const v = row[t + 'Y'];
+                out[t] = (v != null && isFinite(v)) ? v / 100 : null;
+            }
+            return out;
+        }
+
+        // 从参数输入框同步到 SW_PARAMS，并更新说明面板中的溢价标注
+        function syncSWParamsFromInputs() {
+            const gnum = id => { const v = parseFloat(document.getElementById(id).value); return isFinite(v) ? v : null; };
+            const gint = id => { const v = parseInt(document.getElementById(id).value, 10); return isFinite(v) ? v : null; };
+            const ub = gnum('swUfrBase'), uu = gnum('swUfrUp'), ud = gnum('swUfrDown');
+            const am = gnum('swAlphaMin'), llp = gint('swLlp'), cp = gint('swCp');
+            const ph = gnum('swPremHigh'), pm = gnum('swPremMid'), pl = gnum('swPremLow'), pi = gnum('swPremInt');
+            if (ub != null) SW_PARAMS.ufrBase = ub;
+            if (uu != null) SW_PARAMS.ufrUp = uu;
+            if (ud != null) SW_PARAMS.ufrDown = ud;
+            if (am != null) SW_PARAMS.alphaMin = am;
+            if (llp != null) SW_PARAMS.llp = llp;
+            if (cp != null) SW_PARAMS.cp = cp;
+            if (ph != null) SW_PARAMS.premHigh = ph / 10000;
+            if (pm != null) SW_PARAMS.premMid = pm / 10000;
+            if (pl != null) SW_PARAMS.premLow = pl / 10000;
+            if (pi != null) SW_PARAMS.premInt = pi / 10000;
+            const setLbl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = (v != null ? Math.round(v) : '?') + 'BP'; };
+            setLbl('swPremHighLbl', ph); setLbl('swPremMidLbl', pm); setLbl('swPremLowLbl', pl);
+        }
+
         // 取 endDate 之前（含）连续的 period 个交易日的日期列表，用于对任意基准日求移动平均
         function collectBusinessDaysBackward(endDateStr, period) {
             const out = [];
@@ -2899,6 +3125,13 @@
             if (!gov || !gov.dates || gov.dates.length === 0) return null;
             const fc = isForecastDate(gov, endDateStr);
             const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
+            if (discountRule === 'c2_new') {
+                const spot = spotAsOfDate(gov, endDateStr, ref);
+                const d = computeDiscountCurvesNew(spot, endDateStr, SW_PARAMS);
+                d._date = endDateStr;
+                d._ref = ref;
+                return d;
+            }
             const ma750 = maAsOfDate(gov, 750, endDateStr, ref);
             const ma60 = maAsOfDate(gov, 60, endDateStr, ref);
             const d = computeDiscountCurves(ma750, ma60, endDateStr);
@@ -2946,6 +3179,7 @@
             }
         }
 
+        function ruleLabel() { return discountRule === 'c2_new' ? '偿付能力新规' : '偿二代二期'; }
         function renderDiscount() {
             const d = ensureDiscountData();
             if (!d) { alert('国债即期数据尚未加载，无法生成折现率曲线'); return; }
@@ -2957,8 +3191,11 @@
                 dateBadge.classList.toggle('forecast', !!isForecast);
             }
             const refTxt = (isForecast && d._ref) ? ' ｜ 平推基准 ' + d._ref : '';
+            const basisTxt = discountRule === 'c2_new'
+                ? '国债即期当日 · Smith-Wilson'
+                : '负债=MA750 · 利率=MA60';
             document.getElementById('discountSummaryBadge').textContent =
-                '基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt + ' ｜ 负债=MA750 · 利率=MA60';
+                '基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt + ' ｜ ' + basisTxt;
             const cmpBadge = document.getElementById('discountCompareBadge');
             if (cmpBadge) {
                 const cmpDate = getEffectiveCompareDate(gov, d.latestDate);
@@ -3028,7 +3265,7 @@
             const chartDom = document.getElementById('discountSummaryChart');
             if (!discountChart) discountChart = echarts.init(chartDom);
             discountChart.setOption({
-                title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· 偿二代二期', left:'center', textStyle:{fontSize:14} },
+                title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· ' + ruleLabel(), left:'center', textStyle:{fontSize:14} },
                 tooltip: { trigger:'axis' },
                 legend: { type:'scroll', bottom: 0, textStyle:{fontSize:11} },
                 grid: { left: 52, right: 22, top: 42, bottom: 62 },
@@ -3141,7 +3378,7 @@
         function pct(x) { return x == null ? null : +(x * 100).toFixed(4); }
         function discountXLSXName(suffix) {
             const d = discountDataCache;
-            return '折现率曲线_偿二代二期_' + suffix + '_基准日' + (d ? d.latestDate : '') + '.xlsx';
+            return '折现率曲线_' + ruleLabel() + '_' + suffix + '_基准日' + (d ? d.latestDate : '') + '.xlsx';
         }
         function downloadDiscountSummaryXLSX() {
             const d = ensureDiscountData(); if (!d) return;
@@ -3403,6 +3640,20 @@
                     if (this.disabled) return;
                     discountRule = this.dataset.rule;
                     document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b === this));
+                    document.getElementById('discountRules').style.display = (discountRule === 'c2_2') ? '' : 'none';
+                    document.getElementById('discountRulesNew').style.display = (discountRule === 'c2_new') ? '' : 'none';
+                    document.getElementById('swParamsPanel').style.display = (discountRule === 'c2_new') ? '' : 'none';
+                    discountDataCache = null;
+                    renderDiscount();
+                });
+            });
+            // 偿付能力新规参数输入 → 实时重算
+            const swInputs = ['swUfrBase','swUfrUp','swUfrDown','swAlphaMin','swLlp','swCp','swPremHigh','swPremMid','swPremLow','swPremInt'];
+            swInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', function() {
+                    if (discountRule !== 'c2_new') return;
+                    syncSWParamsFromInputs();
                     discountDataCache = null;
                     renderDiscount();
                 });
