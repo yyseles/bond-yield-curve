@@ -570,7 +570,7 @@
                     </div>
                     <div class="rules-section">
                         <h4>② 综合溢价（负债 / 利率）</h4>
-                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调（具体数值见下方参数面板）；利率曲线（基础 / 上升 / 下降）采用「终极利率溢价 P10」做远期平移。UFR 上升 / 下降由基础 UFR ×(1+40年不利幅度) 自动计算。</p>
+                        <p>以<strong>远期平移</strong>方式叠加：fwd′<sub>t</sub> = fwd<sub>t</sub> + 溢价。负债高 / 中 / 低三档溢价独立可调（具体数值见下方参数面板）；利率曲线（基础 / 上升 / 下降）采用「终极利率溢价 P10」做远期平移。UFR 上升 / 下降 = 基础 UFR ×(1+40年不利幅度) + 终极利率溢价(30bp)。</p>
                     </div>
                     <div class="rules-section">
                         <h4>③ 利率风险情景（上升 / 下降）</h4>
@@ -3091,8 +3091,9 @@
             const ufrVA = params.ufrBase + params.ultPrem;
             // 利率上行/下行的 UFR = 网页 UFR 基础（ufrBase = 0.042）× 压力乘数。
             // 压力只应用在「前 20 年基础利率」和「UFR」上，溢价水平与基础（中档）一致。
-            const ufrUp = params.ufrBase * (1 + params.upMag40);
-            const ufrDown = params.ufrBase * (1 + params.downMag40);
+            // 利率上行/下行 UFR = 网页 UFR 基础(0.042)×(1+40年不利幅度) + 后端终极利率溢价(30bp VA)
+            const ufrUp = params.ufrBase * (1 + params.upMag40) + params.ultPrem;
+            const ufrDown = params.ufrBase * (1 + params.downMag40) + params.ultPrem;
             params.ufrUp = ufrUp; params.ufrDown = ufrDown;
             function buildLiab(frontPrem) {
                 const boosted = {};
@@ -3112,7 +3113,8 @@
                 if (market[k] == null) { stressed[k] = null; continue; }
                 // 压力只作用在前 LLP 年（如 LLP=10 则仅前 10 年加压）
                 const p = (k <= params.llp) ? (sign > 0 ? stressUp(k) : stressDown(k)) : 0;
-                stressed[k] = market[k] * (1 + p);
+                // 综合溢价(premMid)加在 SW 输入点（与负债中档一致：压力只压市场部分，溢价不进 UFR）
+                stressed[k] = market[k] * (1 + p) + params.premMid;
             }
             const ufrTarget = (sign > 0 ? ufrUp : ufrDown);
             const fwd = swForwardCurve(stressed, ufrTarget, params);
@@ -3127,13 +3129,7 @@
         const rateBase = { raw: liabMid.raw, fwd: liabMid.fwd, spot: liabMid.spot };
             const rateUp = buildRateFromMid(spot, +1);
             const rateDown = buildRateFromMid(spot, -1);
-            // 与基础(中档)同溢价：SW 拟合后统一加回 premMid
-            for (let t = 1; t <= 120; t++) {
-                if (rateUp.spot[t] != null) rateUp.spot[t] += params.premMid;
-                if (rateUp.fwd[t] != null) rateUp.fwd[t] += params.premMid;
-                if (rateDown.spot[t] != null) rateDown.spot[t] += params.premMid;
-                if (rateDown.fwd[t] != null) rateDown.fwd[t] += params.premMid;
-            }
+            // 综合溢价(premMid)已在 buildRateFromMid 的 SW 输入点中加入，此处不再向输出加回
         const aB = liabMid.raw._alpha;
         const aU = rateUp.raw._alpha, aD = rateDown.raw._alpha;
             return {
@@ -3192,8 +3188,8 @@
             if (pm != null) SW_PARAMS.premMid = pm / 10000;
             if (pl != null) SW_PARAMS.premLow = pl / 10000;
             // 自动计算 UFR 上升/下降
-            SW_PARAMS.ufrUp = SW_PARAMS.ufrBase * (1 + SW_PARAMS.upMag40);
-            SW_PARAMS.ufrDown = SW_PARAMS.ufrBase * (1 + SW_PARAMS.downMag40);
+        SW_PARAMS.ufrUp = SW_PARAMS.ufrBase * (1 + SW_PARAMS.upMag40) + SW_PARAMS.ultPrem;
+        SW_PARAMS.ufrDown = SW_PARAMS.ufrBase * (1 + SW_PARAMS.downMag40) + SW_PARAMS.ultPrem;
             const ce = document.getElementById('swUfrComputed');
             if (ce) ce.textContent = '→ UFR上升 = ' + SW_PARAMS.ufrUp.toFixed(5) + ' ｜ UFR下降 = ' + SW_PARAMS.ufrDown.toFixed(5);
             updateSwExplanation();
