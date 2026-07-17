@@ -292,6 +292,34 @@ def save_json(filepath: str, data: dict):
 # 更新函数
 # ================================================================
 
+def apply_gov_spot_override(date_to_row: dict):
+    """用高精度国债即期覆盖层（gov_spot_override.json）覆盖指定日期的行，
+    使其在每日 CI 重抓后仍能保持高精度（公开源 ChinaBond 仅提供 4 位小数百分比）。
+    override 格式: { "YYYY-MM-DD": {"1Y": 1.337233, ..., "50Y": ...} }（百分比，与 data.json 一致）。"""
+    ov_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gov_spot_override.json")
+    if not os.path.exists(ov_file):
+        return 0
+    try:
+        with open(ov_file, "r", encoding="utf-8") as f:
+            override = json.load(f)
+    except Exception as e:
+        print(f"  ⚠ [国债即期] 覆盖层读取失败: {e}")
+        return 0
+    n = 0
+    for d, terms in override.items():
+        if d not in date_to_row:
+            continue
+        row = date_to_row[d]
+        for i, term in enumerate(ALL_TERMS):
+            if term in terms and terms[term] is not None:
+                row[i] = terms[term]
+        date_to_row[d] = row
+        n += 1
+    if n:
+        print(f"  ✓ [国债即期] 应用高精度覆盖层: {n} 个日期")
+    return n
+
+
 def update_gov_bond(today_str: str):
     print("\n" + "-" * 40)
     print("  [国债即期] 开始更新")
@@ -364,6 +392,9 @@ def update_gov_bond(today_str: str):
         date_to_row[d] = row
         date_to_ma750[d] = ma750_row
         date_to_ma60[d] = ma60_row
+
+    # 应用高精度覆盖层（公开源仅 4 位小数，覆盖层保持 Excel 对齐所需的精度）
+    apply_gov_spot_override(date_to_row)
 
     # ---- 回填最近 BACKFILL_WINDOW 个交易日的精确 MA（此前因 bug 为 null）----
     backfill_dates = [d for d in existing["dates"] if date_to_ma750.get(d) is None][-BACKFILL_WINDOW:]
