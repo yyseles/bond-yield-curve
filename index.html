@@ -555,7 +555,13 @@
                     </div>
                     <div class="rules-section">
                         <h4>③ 利率风险情景（上升 / 下降）</h4>
-                        <p>对国债即期曲线施加监管压力参数（与偿二代二期同源）：受压即期 = 即期×(1+压力参数)，再做 Smith-Wilson 拟合。压力参数见偿二代二期说明表（年1–20 直接值，21–39 线性插值，40+ 固定）。</p>
+                        <p>对国债即期曲线施加监管压力参数：<strong>受压即期 = 即期×(1+压力参数)</strong>，再做 Smith-Wilson 拟合。压力参数如下（与偿二代二期同源；年 1–20 为直接值，21–39 按线性插值，40 年及以上固定）：</p>
+                        <table class="rules-table">
+                            <caption>利率向上 / 向下压力参数（年，%）</caption>
+                            <thead><tr><th>年 t</th><th class="up">上升</th><th class="down">下降</th><th>年 t</th><th class="up">上升</th><th class="down">下降</th></tr></thead>
+                            <tbody id="swStressTbody"></tbody>
+                        </table>
+                        <p>其中 UFR 上升 = UFR基础×(1+40年上升幅度 17%)、UFR 下降 = UFR基础×(1+40年下降幅度 −11%)，与上方「② UFR 不利情景」中的 40 年不利幅度一致。</p>
                     </div>
                     <div class="rules-section">
                         <h4>④ 输出</h4>
@@ -586,9 +592,9 @@
                     <div class="sw-group">
                         <div class="sw-group-title">③ 综合溢价 (BP)</div>
                         <div class="sw-params-grid">
-                            <label>负债溢价高<input type="number" id="swPremHigh" step="1" value="85"></label>
-                            <label>负债溢价中<input type="number" id="swPremMid" step="1" value="45"></label>
-                            <label>负债溢价低<input type="number" id="swPremLow" step="1" value="30"></label>
+                            <label>负债溢价高<input type="number" id="swPremHigh" step="1" value="115"></label>
+                            <label>负债溢价中<input type="number" id="swPremMid" step="1" value="85"></label>
+                            <label>负债溢价低<input type="number" id="swPremLow" step="1" value="70"></label>
                             <label>终极利率溢价 P10<input type="number" id="swUltPrem" step="1" value="30"></label>
                         </div>
                     </div>
@@ -2892,7 +2898,7 @@
             ufrBase: 0.042, upMag40: 0.17, downMag40: -0.11,
             alphaMin: 0.05, llp: 20, cp: 40, bandwidth: 0.00001,
             ultPrem: 0.0030,
-            premHigh: 0.0085, premMid: 0.0045, premLow: 0.0030,
+            premHigh: 0.0115, premMid: 0.0085, premLow: 0.0070,
             liquid: null
         };
         // 默认流动性：前 llp 年=流动(1)，其余=非流动(0)
@@ -3094,6 +3100,21 @@
             const e1 = document.getElementById('swLiqDesc'); if (e1) e1.textContent = swLiqDescText();
             const e2 = document.getElementById('swBwDesc'); if (e2) e2.textContent = (SW_PARAMS.bandwidth * 10000).toFixed(2) + 'bp';
             const e3 = document.getElementById('swCpDesc'); if (e3) e3.textContent = 'CP = ' + SW_PARAMS.cp + '（默认 LLP+20 = ' + (SW_PARAMS.llp + 20) + '）';
+        }
+        // 动态渲染利率压力参数表：直接从 DISCOUNT_STRESS / stressUp / stressDown 生成，
+        // 保证说明表与实际计算（与偿二代二期同源）永远一致，不会因单独改表漂移。
+        function renderSwStressTable() {
+            const tb = document.getElementById('swStressTbody');
+            if (!tb) return;
+            let html = '';
+            for (let t = 1; t <= 10; t++) {
+                const r1 = stressUp(t) * 100, d1 = stressDown(t) * 100;
+                const t2 = t + 10, r2 = stressUp(t2) * 100, d2 = stressDown(t2) * 100;
+                html += '<tr><td>' + t + '</td><td class="up">' + r1 + '</td><td class="down">' + d1 + '</td><td>' + t2 + '</td><td class="up">' + r2 + '</td><td class="down">' + d2 + '</td></tr>';
+            }
+            const r40 = stressUp(40) * 100, d40 = stressDown(40) * 100;
+            html += '<tr><td colspan="3"></td><td>40 / 40+</td><td class="up">' + r40 + '</td><td class="down">' + d40 + '</td></tr>';
+            tb.innerHTML = html;
         }
         // 流动性标记网格（C 列）：点击切换；修改 LLP 时自动重设前 LLP 年
         function renderSwLiquidGrid() {
@@ -3925,6 +3946,7 @@
         async function init() {
             // 先绑定所有事件监听器（无论数据加载成功与否都需要）
             setupEventListeners();
+            renderSwStressTable();
             loadDashboard();
 
             // 第一步：尝试内嵌数据（独立版 HTML 内置）
