@@ -608,7 +608,6 @@
                                     <label>利率上升·40年不利幅度<input type="number" id="swUpMag40" step="0.01" value="0.17"></label>
                                     <label>利率下降·40年不利幅度<input type="number" id="swDownMag40" step="0.01" value="-0.11"></label>
                                 </div>
-                                <div class="sw-computed" id="swUfrComputed"></div>
                             </div>
                             <div class="sw-group">
                                 <div class="sw-group-title">③ 综合溢价 (BP)</div>
@@ -3190,8 +3189,6 @@
             // 自动计算 UFR 上升/下降
         SW_PARAMS.ufrUp = SW_PARAMS.ufrBase * (1 + SW_PARAMS.upMag40) + SW_PARAMS.ultPrem;
         SW_PARAMS.ufrDown = SW_PARAMS.ufrBase * (1 + SW_PARAMS.downMag40) + SW_PARAMS.ultPrem;
-            const ce = document.getElementById('swUfrComputed');
-            if (ce) ce.textContent = '→ UFR上升 = ' + SW_PARAMS.ufrUp.toFixed(5) + ' ｜ UFR下降 = ' + SW_PARAMS.ufrDown.toFixed(5);
             updateSwExplanation();
         }
         // 规则说明动态文本（不写死流动点与收敛容差）
