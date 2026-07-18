@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>利率曲线监测及分析报告</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
@@ -226,22 +229,22 @@
         .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
         .sw-liq-cell.on:hover { border-color: #1e7a48; }
         /* 参数面板：左侧表单 + 右侧流动性标记 */
-        .sw-params-cols { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; align-items: start; }
-        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 11px 12px; background: #fff; border: 1px solid #e0e8f0; border-radius: 10px; box-shadow: 0 1px 3px rgba(31,74,122,.06); }
-        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 13px; font-weight: 700; color: #1f4a7a; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid #dce4ed; letter-spacing: .3px; }
-        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 0; }
-        .sw-params-left .sw-params-grid label { padding: 6px 8px; font-size: 12px; gap: 4px; color: #1f4a7a; background: #fbfdff; border: 1px solid #dce8f3; border-radius: 7px; }
-        .sw-params-left .sw-params-grid input { padding: 4px 6px; font-size: 12.5px; color: #243; border-color: #c5d3e3; }
-        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 11px; color: #657892; margin: 2px 0 0; }
+        .sw-params-cols { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; align-items: start; }
+        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 11px; min-width: 0; }
+        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 10px 12px; background: #fff; border: 1px solid #d0dce8; border-radius: 10px; box-shadow: 0 2px 5px rgba(31,74,122,.07); }
+        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 14px; font-weight: 800; color: #1f4a7a; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid #c7d4e3; letter-spacing: .2px; }
+        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; margin: 0; }
+        .sw-params-left .sw-params-grid label { padding: 5px 7px; font-size: 12px; gap: 3px; color: #1f3a5f; background: #f8fbfe; border: 1px solid #d5e0eb; border-radius: 7px; }
+        .sw-params-left .sw-params-grid input { padding: 3px 5px; font-size: 12px; color: #243; border-color: #b8c8db; min-height: 24px; box-sizing: border-box; }
+        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 11px; color: #4a5a70; margin: 2px 0 0; }
         /* 紧凑流动性网格：10列×5行，只显示前20年，其余滚动 */
-        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 3px; max-height: 44px; overflow-y: auto; padding-right: 2px; }
+        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 4px; max-height: 54px; overflow-y: auto; padding-right: 2px; }
         .sw-params-right .sw-liquid-grid::-webkit-scrollbar { width: 4px; }
         .sw-params-right .sw-liquid-grid::-webkit-scrollbar-thumb { background: #c5d3e3; border-radius: 2px; }
-        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 18px; border-radius: 4px; font-size: 8px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
+        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 22px; border-radius: 5px; font-size: 9px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
         .sw-params-right .sw-liq-cell:hover { border-color: #1f4a7a; }
         /* 右侧图例 */
-        .sw-params-right .sw-liq-legend { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e1e7ef; font-size: 11px; color: #4a5a70; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .sw-params-right .sw-liq-legend { margin-top: 9px; padding-top: 7px; border-top: 1px dashed #d7e0ea; font-size: 11px; color: #4a5a70; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .sw-params-right .sw-liq-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid rgba(0,0,0,.08); }
         .sw-params-right .sw-liq-swatch.on { background: #1f4a7a; }
         .sw-params-right .sw-liq-swatch.off { background: #e6ebf1; }
@@ -4058,6 +4061,13 @@
         }
 
         async function init() {
+            // 缓存版本控制：页面结构或数据格式升级后，强制清理旧浏览器缓存，避免脏数据
+            const CURVE_CACHE_VERSION = '2026-07-18-b';
+            if (localStorage.getItem('curveCacheVersion') !== CURVE_CACHE_VERSION) {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.setItem('curveCacheVersion', CURVE_CACHE_VERSION);
+            }
+
             // 先绑定所有事件监听器（无论数据加载成功与否都需要）
             setupEventListeners();
             renderSwStressTable();
@@ -4079,13 +4089,21 @@
             document.getElementById('uploadStatus').textContent = '正在加载最新数据...';
             document.getElementById('uploadStatus').style.color = '#f57c00';
             try {
-                const resp = await fetch('data.json', { cache: 'no-cache' });
-                if (resp.ok) {
-                    const rawData = await resp.json();
-                    if (rawData && rawData.dates && rawData.dates.length > 0) {
-                        loadFromRawData(rawData);
-                        dataStores.gov_spot = dataStore;
-                        saveDataStore();
+                let rawData = null;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    try {
+                        const resp = await fetch('data.json?' + Date.now(), { cache: 'no-store' });
+                        if (resp.ok) {
+                            rawData = await resp.json();
+                            if (rawData && rawData.dates && rawData.dates.length > 0) break;
+                        }
+                    } catch (e) {}
+                    if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                }
+                if (rawData && rawData.dates && rawData.dates.length > 0) {
+                    loadFromRawData(rawData);
+                    dataStores.gov_spot = dataStore;
+                    saveDataStore();
                         document.getElementById('uploadStatus').textContent = '云端数据 (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')';
                         document.getElementById('uploadStatus').style.color = '#2e7d32';
                         forecastRefDate = null;
