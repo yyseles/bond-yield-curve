@@ -4101,8 +4101,8 @@
             if (statusEl) { statusEl.textContent = '正在加载最新数据...'; statusEl.style.color = '#f57c00'; }
 
             const DATA_SOURCES = [
-                'https://raw.githubusercontent.com/yyseles/bond-yield-curve/main/data.json',
-                'data.json'
+                'data.json',
+                'https://raw.githubusercontent.com/yyseles/bond-yield-curve/main/data.json'
             ];
             let rawData = null, usedSource = '';
             for (const src of DATA_SOURCES) {
