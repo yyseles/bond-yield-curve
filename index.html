@@ -3327,7 +3327,7 @@
         }
 
         // 取所有实际日期中的每月末（每月最后一个交易日），最近在前，限 120 个
-        function getMonthEndDates(gov) {
+        function getMonthEndDatesFromGov(gov) {
             if (!gov || !gov.dates) return [];
             const dates = gov.dates;
             const ends = [];
@@ -3397,7 +3397,7 @@
             // 对比日下拉：默认「上一交易日」，可选每月末（不列全部日期）
             const csel = document.getElementById('discountCompareDateSelect');
             if (csel) {
-                const me = getMonthEndDates(gov);
+                const me = getMonthEndDatesFromGov(gov);
                 const opts = ['<option value="">（上一交易日）</option>']
                     .concat(me.map(d => `<option value="${d}" ${d === discountCompareDate ? 'selected' : ''}>${d}</option>`));
                 csel.innerHTML = opts.join('');
