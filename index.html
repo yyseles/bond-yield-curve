@@ -225,21 +225,23 @@
         .sw-liq-cell.on { background: linear-gradient(180deg, #e8f6ee, #d3efdf); border-color: #7fc99b; color: #1e7a48; }
         .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
         .sw-liq-cell.on:hover { border-color: #1e7a48; }
-        /* 参数面板：左侧表单 + 右侧流动性标记，去掉内部白卡片，统一在大浅蓝卡片内 */
-        .sw-params-cols { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; align-items: center; }
-        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 0; background: none; border: none; box-shadow: none; }
-        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 10.5px; font-weight: 700; color: #8a9bb0; margin: 0 0 7px; padding: 0 0 5px; border-bottom: 1px solid #e6edf4; letter-spacing: .5px; }
-        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(86px, 1fr)); gap: 6px; margin: 0; }
-        .sw-params-left .sw-params-grid label { padding: 4px 6px; font-size: 10.5px; gap: 2px; }
-        .sw-params-left .sw-params-grid input { padding: 3px 4px; font-size: 11.5px; }
-        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 10px; color: #93a3b8; margin: 2px 0 0; }
-        /* 紧凑流动性网格：10列×5行，扁平方块，弱化为侧边开关（保持小巧） */
-        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 3px; }
+        /* 参数面板：左侧表单 + 右侧流动性标记 */
+        .sw-params-cols { display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; align-items: start; }
+        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 11px 12px; background: #fff; border: 1px solid #e0e8f0; border-radius: 10px; box-shadow: 0 1px 3px rgba(31,74,122,.06); }
+        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 13px; font-weight: 700; color: #1f4a7a; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid #dce4ed; letter-spacing: .3px; }
+        .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 0; }
+        .sw-params-left .sw-params-grid label { padding: 6px 8px; font-size: 12px; gap: 4px; color: #1f4a7a; background: #fbfdff; border: 1px solid #dce8f3; border-radius: 7px; }
+        .sw-params-left .sw-params-grid input { padding: 4px 6px; font-size: 12.5px; color: #243; border-color: #c5d3e3; }
+        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 11px; color: #657892; margin: 2px 0 0; }
+        /* 紧凑流动性网格：10列×5行，只显示前20年，其余滚动 */
+        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 3px; max-height: 44px; overflow-y: auto; padding-right: 2px; }
+        .sw-params-right .sw-liquid-grid::-webkit-scrollbar { width: 4px; }
+        .sw-params-right .sw-liquid-grid::-webkit-scrollbar-thumb { background: #c5d3e3; border-radius: 2px; }
         .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 18px; border-radius: 4px; font-size: 8px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
         .sw-params-right .sw-liq-cell:hover { border-color: #1f4a7a; }
-        /* 右侧图例：填充网格下方的空白，说明配色与流动年数 */
-        .sw-params-right .sw-liq-legend { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e1e7ef; font-size: 11px; color: #6b7a8c; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        /* 右侧图例 */
+        .sw-params-right .sw-liq-legend { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e1e7ef; font-size: 11px; color: #4a5a70; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .sw-params-right .sw-liq-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid rgba(0,0,0,.08); }
         .sw-params-right .sw-liq-swatch.on { background: #1f4a7a; }
         .sw-params-right .sw-liq-swatch.off { background: #e6ebf1; }
