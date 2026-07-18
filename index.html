@@ -229,22 +229,22 @@
         .sw-liq-cell:hover { border-color: #1f4a7a; color: #1f4a7a; }
         .sw-liq-cell.on:hover { border-color: #1e7a48; }
         /* 参数面板：左侧表单 + 右侧流动性标记 */
-        .sw-params-cols { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; align-items: start; }
-        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 11px; min-width: 0; }
-        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 10px 12px; background: #fff; border: 1px solid #d0dce8; border-radius: 10px; box-shadow: 0 2px 5px rgba(31,74,122,.07); }
-        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 14px; font-weight: 800; color: #1f4a7a; margin: 0 0 8px; padding: 0 0 6px; border-bottom: 1px solid #c7d4e3; letter-spacing: .2px; }
+        .sw-params-cols { display: grid; grid-template-columns: 3fr 1fr; gap: 18px; align-items: start; }
+        .sw-params-left, .sw-params-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        .sw-params-left .sw-group, .sw-params-right .sw-group { margin: 0; padding: 12px 14px 12px 16px; background: #fff; border: 1px solid #b8c8db; border-left: 4px solid #1f4a7a; border-radius: 10px; box-shadow: 0 3px 10px rgba(31,74,122,.12); }
+        .sw-params-left .sw-group-title, .sw-params-right .sw-group-title { font-size: 15px; font-weight: 800; color: #1f4a7a; margin: 0 0 9px; padding: 0 0 6px; border-bottom: 1px solid #c7d4e3; letter-spacing: .2px; }
         .sw-params-left .sw-params-grid { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; margin: 0; }
-        .sw-params-left .sw-params-grid label { padding: 5px 7px; font-size: 12px; gap: 3px; color: #1f3a5f; background: #f8fbfe; border: 1px solid #d5e0eb; border-radius: 7px; }
-        .sw-params-left .sw-params-grid input { padding: 3px 5px; font-size: 12px; color: #243; border-color: #b8c8db; min-height: 24px; box-sizing: border-box; }
-        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 11px; color: #4a5a70; margin: 2px 0 0; }
-        /* 紧凑流动性网格：10列×5行，只显示前20年，其余滚动 */
-        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 4px; max-height: 54px; overflow-y: auto; padding-right: 2px; }
+        .sw-params-left .sw-params-grid label { padding: 6px 8px; font-size: 13px; gap: 3px; color: #1f3a5f; background: #f3f8fb; border: 1px solid #d0dbe8; border-radius: 7px; font-weight: 600; }
+        .sw-params-left .sw-params-grid input { padding: 4px 6px; font-size: 13px; color: #243; border-color: #b0c0d8; min-height: 26px; box-sizing: border-box; }
+        .sw-params-left .sw-hint, .sw-params-right .sw-hint { font-size: 12px; color: #3a4a60; margin: 4px 0 0; }
+        /* 紧凑流动性网格：10列×2行，只显示前20年，其余滚动 */
+        .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); gap: 4px; max-height: 62px; overflow-y: auto; padding-right: 2px; }
         .sw-params-right .sw-liquid-grid::-webkit-scrollbar { width: 4px; }
         .sw-params-right .sw-liquid-grid::-webkit-scrollbar-thumb { background: #c5d3e3; border-radius: 2px; }
-        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 22px; border-radius: 5px; font-size: 9px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
+        .sw-params-right .sw-liq-cell { aspect-ratio: auto; min-height: 26px; border-radius: 5px; font-size: 10px; font-weight: 600; border-width: 1px; padding: 0; cursor: pointer; }
         .sw-params-right .sw-liq-cell:hover { border-color: #1f4a7a; }
         /* 右侧图例 */
-        .sw-params-right .sw-liq-legend { margin-top: 9px; padding-top: 7px; border-top: 1px dashed #d7e0ea; font-size: 11px; color: #4a5a70; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .sw-params-right .sw-liq-legend { margin-top: 8px; padding-top: 6px; border-top: 1px dashed #d0dbe8; font-size: 12px; color: #3a4a60; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .sw-params-right .sw-liq-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; border: 1px solid rgba(0,0,0,.08); }
         .sw-params-right .sw-liq-swatch.on { background: #1f4a7a; }
         .sw-params-right .sw-liq-swatch.off { background: #e6ebf1; }
