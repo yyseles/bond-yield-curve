@@ -23,7 +23,7 @@ ci = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ci)
 
 DATA_FILE = os.path.join(HERE, "data.json")
-MIN_START = "2024-01-01"   # 只回填 2024 年起（更早的保持原 4 位，用户未要求）
+MIN_START = "2022-01-01"   # 回填 2022 起低精度行（2024+ 已高精度自动跳过）
 
 
 def main():
