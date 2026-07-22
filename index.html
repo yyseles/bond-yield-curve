@@ -185,38 +185,41 @@
         .main-nav .nav-group-secondary button.active { background: #b9770e; color: #fff; border-color: #b9770e; box-shadow: 0 2px 6px rgba(185,119,14,.25); }
         /* 保险公司资本补充债发行信息 视图 */
         .view-bonds { padding-top: 6px; }
-        .bonds-subnav { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .bonds-subnav button { padding: 6px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f3f6fa; color: #3e5a7a; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .bonds-subnav button.active { background: #1f4a7a; color: #fff; border-color: #1f4a7a; }
-        .bonds-filters { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e4e9f0; border-radius: 10px; }
+        .bonds-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+        .bonds-range { font-size: 13px; color: #3e5a7a; font-weight: 600; }
+        .bonds-range::before { content: "📌"; margin-right: 6px; }
+        .bonds-filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 12px; background: #f6f9fc; border: 1px solid #e4e9f0; border-radius: 10px; }
         .bonds-filters label { font-size: 13px; font-weight: 600; color: #3e5a7a; }
-        .bonds-filters select { padding: 4px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
-        .bonds-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
-        .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#f5f8fc); border: 1px solid #e1e8f0; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(31,74,122,.06); }
+        .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
+        .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
+        .btn-download:hover { background: #163a61; }
+        .bonds-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
-        .bonds-cards .bcard .bv { font-size: 22px; font-weight: 700; color: #1f4a7a; }
+        .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
-        .bonds-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 14px; align-items: start; }
-        .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 14px; }
-        .bonds-panel h4 { margin: 0 0 10px; font-size: 14px; color: #1f3a5f; }
+        .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
+        .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); }
+        .bonds-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; color: #1f3a5f; font-weight: 700; }
+        .bonds-panel h4 .accent { width: 4px; height: 14px; border-radius: 2px; background: linear-gradient(#3b7dd8,#1f4a7a); display: inline-block; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .panel-head h4 { margin: 0; }
+        .mini-select { padding: 4px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 12px; }
+        .chart-box { width: 100%; height: 360px; }
         .bonds-panel table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .bonds-panel th, .bonds-panel td { border: 1px solid #eef2f7; padding: 5px 7px; text-align: right; }
-        .bonds-panel th { background: #f3f7fb; color: #3e5a7a; position: sticky; top: 0; }
+        .bonds-panel th, .bonds-panel td { border: 1px solid #eef2f7; padding: 6px 8px; text-align: right; }
+        .bonds-panel th { background: #f3f7fb; color: #3e5a7a; position: sticky; top: 0; font-weight: 600; }
         .bonds-panel td.lft, .bonds-panel th.lft { text-align: left; }
-        .bonds-panel .tbl-scroll { max-height: 420px; overflow: auto; }
-        .bonds-scatter { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 10px; margin-bottom: 14px; }
-        .bonds-table-wrap { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 12px; }
-        .bonds-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .bonds-table-wrap th, .bonds-table-wrap td { border: 1px solid #eef2f7; padding: 5px 8px; text-align: right; white-space: nowrap; }
-        .bonds-table-wrap th { background: #f3f7fb; color: #3e5a7a; cursor: pointer; position: sticky; top: 0; }
-        .bonds-table-wrap td.lft, .bonds-table-wrap th.lft { text-align: left; }
-        .bonds-table-wrap .tbl-scroll { max-height: 520px; overflow: auto; }
-        .status-tag { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; }
+        .bonds-panel tbody tr:nth-child(even) { background: #fafcfe; }
+        .bonds-panel tbody tr:hover { background: #f0f6ff; }
+        .bonds-panel .tbl-scroll { max-height: 440px; overflow: auto; border-radius: 8px; }
+        .status-tag { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 600; }
         .status-存续 { background: #e6f4ea; color: #1e7e34; }
         .status-已赎回 { background: #fdecea; color: #c0392b; }
         .status-已到期 { background: #eef0f2; color: #7a8aa0; }
-        .bonds-note { font-size: 12px; color: #7a8aa0; margin: 6px 0 0; }
-        @media (max-width: 760px) { .bonds-cols { grid-template-columns: 1fr; } }
+        .bonds-note { font-size: 12px; color: #8a99ad; margin: 6px 0 0; }
+        @media (max-width: 980px) { .bonds-row { grid-template-columns: 1fr; } }
+        @media (max-width: 760px) { .bonds-toolbar { flex-direction: column; align-items: flex-start; } .btn-download { margin-left: 0; } }
         /* 折现率曲线视图 */
         .view-discount { padding-top: 4px; }
         .discount-controls { justify-content: space-between; align-items: center; }
@@ -785,61 +788,65 @@
 
     <!-- 保险公司资本补充债发行信息 视图 -->
     <div class="view-bonds" id="viewBonds" style="display:none;">
-        <div class="bonds-subnav" id="bondsSubnav">
-            <button data-btype="合计" class="active">合计（资本补充债+永续债）</button>
-            <button data-btype="资本补充债">资本补充债</button>
-            <button data-btype="永续债">无固定期限资本债券（永续债）</button>
-        </div>
-
-        <div class="bonds-filters">
-            <label>行业：</label>
-            <select id="bondFilterIndustry">
-                <option value="">全部</option>
-                <option value="寿险">寿险</option>
-                <option value="产险">产险</option>
-                <option value="再保">再保</option>
-                <option value="集团">集团</option>
-            </select>
-            <label>年份：</label>
-            <select id="bondFilterYear"><option value="">全部</option></select>
-            <label>状态：</label>
-            <select id="bondFilterStatus">
-                <option value="">全部</option>
-                <option value="存续">存续</option>
-                <option value="已赎回">已赎回</option>
-                <option value="已到期">已到期</option>
-            </select>
-            <span class="bonds-note" id="bondFilterCount"></span>
+        <div class="bonds-toolbar">
+            <div class="bonds-range" id="bondRangeNote"></div>
+            <div class="bonds-filters">
+                <label>行业：</label>
+                <select id="bondFilterIndustry">
+                    <option value="">全部</option>
+                    <option value="寿险">寿险</option>
+                    <option value="产险">产险</option>
+                    <option value="再保">再保</option>
+                    <option value="集团">集团</option>
+                </select>
+                <label>状态：</label>
+                <select id="bondFilterStatus">
+                    <option value="">全部</option>
+                    <option value="存续">存续</option>
+                    <option value="已赎回">已赎回</option>
+                    <option value="已到期">已到期</option>
+                </select>
+                <span class="bonds-note" id="bondFilterCount"></span>
+                <button id="bondDownloadBtn" class="btn-download" type="button">⬇ 下载全部债券明细(CSV)</button>
+            </div>
         </div>
 
         <div class="bonds-cards" id="bondSummaryCards"></div>
 
-        <div class="bonds-cols">
+        <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
+        <div class="bonds-row">
             <div class="bonds-panel">
-                <h4>年度发行汇总（按发行年份）</h4>
+                <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
+                <p class="bonds-note">堆积柱：资本补充债 / 永续债；折线：发行总额。单位：亿元。</p>
+                <div id="bondComboChart" class="chart-box"></div>
+            </div>
+            <div class="bonds-panel">
+                <h4><span class="accent"></span>年度发行汇总（按发行年份）</h4>
                 <div class="tbl-scroll"><table id="bondYearTable"></table></div>
             </div>
+        </div>
+
+        <!-- 中部：分行业汇总(可切换年份) + 票面利率散点 -->
+        <div class="bonds-row">
             <div class="bonds-panel">
-                <h4>分行业汇总（产 / 寿 / 再保 / 集团）</h4>
+                <div class="panel-head">
+                    <h4><span class="accent"></span>分行业汇总（产 / 寿 / 再保 / 集团）</h4>
+                    <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
+                </div>
                 <div class="tbl-scroll"><table id="bondIndustryTable"></table></div>
-                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。</p>
+                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分。</p>
+            </div>
+            <div class="bonds-panel">
+                <h4><span class="accent"></span>票面利率散点分布</h4>
+                <p class="bonds-note">每点一只债，X=发行年份，Y=票面利率(%)，点大小≈发行额，颜色=状态。</p>
+                <div id="bondScatterChart" class="chart-box"></div>
             </div>
         </div>
 
-        <div class="bonds-panel" style="margin-bottom:14px;">
-            <h4>公司 × 年 发行总额明细（亿元）</h4>
+        <!-- 下部：公司 × 年 发行总额明细 -->
+        <div class="bonds-panel">
+            <h4><span class="accent"></span>公司 × 年 发行总额明细（亿元）</h4>
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
-        </div>
-
-        <div class="bonds-scatter">
-            <h4 style="margin:0 0 6px;font-size:14px;color:#1f3a5f;">票面利率散点分布（每点一只债，X=发行年份，Y=票面利率%）</h4>
-            <div id="bondScatterChart" style="width:100%;height:380px;"></div>
-        </div>
-
-        <div class="bonds-table-wrap">
-            <h4 style="margin:0 0 10px;font-size:14px;color:#1f3a5f;">全部债券明细</h4>
-            <div class="tbl-scroll"><table id="bondDetailTable"></table></div>
-            <p class="bonds-note">状态判定：含权债首个赎回日 &lt; 今日 → 已赎回；到期兑付日 &lt; 今日 → 已到期；否则存续。赎回仅改状态，不影响当年发行总额。</p>
         </div>
     </div>
 
@@ -3929,7 +3936,7 @@
                 bt.style.display = 'none';
                 document.getElementById('viewBonds').style.display = '';
                 renderBondsView();
-                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); }, 60);
+                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); }, 60);
                 return;
             }
             if (v === 'discount') {
@@ -3956,21 +3963,24 @@
         // ================================================================
         // 保险公司资本补充债发行信息 视图
         // ================================================================
-        let currentBondsType = '合计';
         let bondScatterChart = null;
-        let bondDetailSort = { key: 'issueDate', dir: -1 };
+        let bondComboChart = null;
+        let industryYear = '';
 
         function filteredBonds() {
             if (!insBonds || !insBonds.bonds) return [];
             const ind = document.getElementById('bondFilterIndustry').value;
-            const yr = document.getElementById('bondFilterYear').value;
             const st = document.getElementById('bondFilterStatus').value;
             return insBonds.bonds.filter(b =>
-                (currentBondsType === '合计' || b.bondType === currentBondsType) &&
                 (!ind || b.industry === ind) &&
-                (!yr || (b.issueDate || '').slice(0, 4) === yr) &&
                 (!st || b.status === st)
             );
+        }
+        // 行业汇总面板专有的年份筛选（与顶部全局筛选独立）
+        function industryRows() {
+            const rows = filteredBonds();
+            if (!industryYear) return rows;
+            return rows.filter(b => (b.issueDate || '').slice(0, 4) === industryYear);
         }
 
         function wavgRate(rows) {
@@ -3990,45 +4000,42 @@
                 return;
             }
             const rows = filteredBonds();
-            document.getElementById('bondFilterCount').textContent =
-                `共 ${rows.length} 只 · 数据截至 ${insBonds.generatedAt || '—'}`;
+            const rangeNote = insBonds.note || '';
+            document.getElementById('bondRangeNote').textContent =
+                (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}`;
+            document.getElementById('bondFilterCount').textContent = `当前筛选：${rows.length} 只`;
             renderBondSummaryCards(rows);
+            renderBondComboChart(rows);
             renderBondYearTable(rows);
-            renderBondIndustryTable(rows);
-            renderBondCompanyYear(rows);
+            renderBondIndustryTable(industryRows());
             renderBondScatter(rows);
-            renderBondDetailTable(rows);
+            renderBondCompanyYear(rows);
         }
 
         function renderBondSummaryCards(rows) {
-            const combined = currentBondsType === '合计';
             const total = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const cap = rows.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const perp = rows.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const live = rows.filter(b => b.status === '存续').reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const wa = wavgRate(rows);
-            const rates = rows.map(b => b.couponRate).filter(r => r != null);
-            const hi = rates.length ? Math.max(...rates) : null;
-            const lo = rates.length ? Math.min(...rates) : null;
+            const hi = maxRate(rows);
+            const lo = minRate(rows);
             const cards = [
                 ['发行总额(亿元)', fmtAmnt(total)],
+                ['其中：资本补充债(亿)', fmtAmnt(cap)],
+                ['其中：永续债(亿)', fmtAmnt(perp)],
+                ['存续规模(亿元)', fmtAmnt(live)],
+                ['债券只数', rows.length],
+                ['加权平均票面利率', fmtRate(wa)],
+                ['最高票面利率', fmtRate(hi)],
+                ['最低票面利率', fmtRate(lo)],
             ];
-            if (combined) {
-                cards.push(['其中：资本补充债(亿)', fmtAmnt(cap)]);
-                cards.push(['其中：永续债(亿)', fmtAmnt(perp)]);
-            }
-            cards.push(['存续规模(亿元)', fmtAmnt(live)]);
-            cards.push(['债券只数', rows.length]);
-            cards.push(['加权平均票面利率', fmtRate(wa)]);
-            cards.push(['最高票面利率', fmtRate(hi)]);
-            cards.push(['最低票面利率', fmtRate(lo)]);
             document.getElementById('bondSummaryCards').innerHTML = cards.map(c =>
                 `<div class="bcard"><div class="bk">${c[0]}</div><div class="bv">${c[1]}</div></div>`
             ).join('');
         }
 
         function renderBondYearTable(rows) {
-            const combined = currentBondsType === '合计';
             const map = {};
             rows.forEach(b => {
                 const y = (b.issueDate || '').slice(0, 4);
@@ -4037,17 +4044,13 @@
                 map[y].push(b);
             });
             const years = Object.keys(map).sort((a, b) => b - a);
-            let html = '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th>';
-            if (combined) html += '<th>资本补充债(亿)</th><th>永续债(亿)</th>';
-            html += '<th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
+            let html = '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
             years.forEach(y => {
                 const g = map[y];
                 const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const cap = g.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const perp = g.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-                html += `<tr><td class="lft">${y}</td><td>${g.length}</td><td><b>${fmtAmnt(total)}</b></td>`;
-                if (combined) html += `<td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td>`;
-                html += `<td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
+                html += `<tr><td class="lft">${y}</td><td>${g.length}</td><td><b>${fmtAmnt(total)}</b></td><td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondYearTable').innerHTML = html;
@@ -4126,46 +4129,68 @@
             }, true);
         }
 
-        function renderBondDetailTable(rows) {
-            const cols = [
-                ['issuer', '发行人', 'lft'], ['bondShort', '债券简称', 'lft'], ['industry', '行业', ''],
-                ['issueDate', '发行日', 'lft'], ['bondPeriod', '期限', ''], ['issueAmnt', '发行额(亿)', ''],
-                ['couponRate', '票面利率%', ''], ['debtRating', '债项评级', ''], ['status', '状态', ''],
-                ['mrtyDate', '到期日', 'lft'], ['valueDate', '起息日', 'lft'],
-            ];
-            let data = rows.slice();
-            const { key, dir } = bondDetailSort;
-            data.sort((a, b) => {
-                let x = a[key], y = b[key];
-                if (key === 'couponRate' || key === 'issueAmnt') { x = x == null ? -1 : x; y = y == null ? -1 : y; return (x - y) * dir; }
-                x = (x == null ? '' : String(x)); y = (y == null ? '' : String(y));
-                return x < y ? -dir : (x > y ? dir : 0);
+        function renderBondComboChart(rows) {
+            const dom = document.getElementById('bondComboChart');
+            if (typeof echarts === 'undefined') { dom.innerHTML = '<p style="color:#999;padding:20px;">图表库未加载</p>'; return; }
+            if (!bondComboChart) bondComboChart = echarts.init(dom);
+            const map = {};
+            rows.forEach(b => {
+                const y = (b.issueDate || '').slice(0, 4);
+                if (!y) return;
+                const m = map[y] || (map[y] = { cap: 0, perp: 0 });
+                if (b.bondType === '永续债') m.perp += b.issueAmnt || 0;
+                else m.cap += b.issueAmnt || 0;
             });
-            let html = '<thead><tr>' + cols.map(c => `<th class="${c[2]}" data-k="${c[0]}">${c[1]}${bondDetailSort.key === c[0] ? (bondDetailSort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('') + '</tr></thead><tbody>';
-            data.forEach(b => {
-                html += `<tr><td class="lft">${b.issuer || ''}</td><td class="lft">${b.bondShort || ''}</td><td>${b.industry || ''}</td>`
-                    + `<td class="lft">${b.issueDate || ''}</td><td>${b.bondPeriod || ''}</td><td>${fmtAmnt(b.issueAmnt)}</td>`
-                    + `<td>${b.couponRate == null ? '—' : b.couponRate.toFixed(2)}</td><td>${b.debtRating || ''}</td>`
-                    + `<td><span class="status-tag status-${b.status}">${b.status}</span></td>`
-                    + `<td class="lft">${b.mrtyDate || ''}</td><td class="lft">${b.valueDate || ''}</td></tr>`;
-            });
-            html += '</tbody>';
-            document.getElementById('bondDetailTable').innerHTML = html;
-            document.querySelectorAll('#bondDetailTable th').forEach(th => {
-                th.onclick = () => {
-                    const k = th.dataset.k;
-                    if (bondDetailSort.key === k) bondDetailSort.dir *= -1;
-                    else { bondDetailSort.key = k; bondDetailSort.dir = (k === 'issuer' || k === 'bondShort' || k === 'issueDate' || k === 'mrtyDate' || k === 'valueDate') ? 1 : -1; }
-                    renderBondDetailTable(filteredBonds());
-                };
-            });
+            const years = Object.keys(map).sort((a, b) => a - b);
+            const capArr = years.map(y => +(map[y].cap.toFixed(1)));
+            const perpArr = years.map(y => +(map[y].perp.toFixed(1)));
+            const totalArr = years.map(y => +((map[y].cap + map[y].perp).toFixed(1)));
+            bondComboChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+                    formatter: p => {
+                        let s = p[0].axisValue + ' 年<br/>';
+                        p.forEach(it => { s += `${it.marker}${it.seriesName}：${it.value} 亿<br/>`; });
+                        return s;
+                    } },
+                legend: { data: ['资本补充债', '永续债', '发行总额'], top: 0 },
+                grid: { left: 60, right: 24, top: 42, bottom: 44 },
+                xAxis: { type: 'category', data: years, axisLabel: { rotate: 30 }, axisTick: { alignWithLabel: true } },
+                yAxis: { type: 'value', name: '发行额(亿元)' },
+                series: [
+                    { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 40 },
+                    { name: '永续债', type: 'bar', stack: 'amt', data: perpArr, itemStyle: { color: '#e6a23c' }, barMaxWidth: 40 },
+                    { name: '发行总额', type: 'line', data: totalArr, symbol: 'circle', symbolSize: 7,
+                      lineStyle: { width: 2.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' },
+                      label: { show: true, position: 'top', formatter: p => p.value, color: '#c0392b', fontSize: 11 } },
+                ],
+            }, true);
         }
 
-        function populateBondYearFilter() {
+        function downloadBondDetails() {
+            if (!insBonds || !insBonds.bonds) return;
+            const cols = [
+                ['issuer', '发行人'], ['bondShort', '债券简称'], ['industry', '行业'],
+                ['bondType', '类型'], ['issueDate', '发行日'], ['bondPeriod', '期限'],
+                ['issueAmnt', '发行额(亿)'], ['couponRate', '票面利率%'], ['debtRating', '债项评级'],
+                ['status', '状态'], ['mrtyDate', '到期日'], ['valueDate', '起息日'], ['ratingStr', '主体/债项'],
+            ];
+            const esc = v => { let s = (v == null ? '' : String(v)); if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"'; return s; };
+            let csv = '﻿' + cols.map(c => esc(c[1])).join(',') + '\n';
+            insBonds.bonds.forEach(b => { csv += cols.map(c => esc(b[c[0]])).join(',') + '\n'; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '保险公司资本补充债明细_' + (insBonds.generatedAt || '') + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function populateIndustryYear() {
             if (!insBonds || !insBonds.bonds) return;
             const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
-            const sel = document.getElementById('bondFilterYear');
-            sel.innerHTML = '<option value="">全部</option>' + ys.map(y => `<option value="${y}">${y}</option>`).join('');
+            const sel = document.getElementById('bondIndustryYear');
+            sel.innerHTML = '<option value="">全部年份</option>' + ys.map(y => `<option value="${y}">${y} 年</option>`).join('');
         }
 
         function handleHashChange() {
@@ -4349,18 +4374,17 @@
             document.querySelectorAll('#mainNav button').forEach(btn => {
                 btn.addEventListener('click', () => showMainView(btn.dataset.view));
             });
-            // 保险公司资本补充债发行信息 板块：子标签 + 筛选
-            document.querySelectorAll('#bondsSubnav button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('#bondsSubnav button').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentBondsType = this.dataset.btype;
-                    renderBondsView();
-                });
-            });
-            ['bondFilterIndustry', 'bondFilterYear', 'bondFilterStatus'].forEach(id => {
+            // 保险公司资本补充债发行信息 板块：全局筛选 + 下载 + 行业年份
+            ['bondFilterIndustry', 'bondFilterStatus'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', renderBondsView);
+            });
+            const dlBtn = document.getElementById('bondDownloadBtn');
+            if (dlBtn) dlBtn.addEventListener('click', downloadBondDetails);
+            const iySel = document.getElementById('bondIndustryYear');
+            if (iySel) iySel.addEventListener('change', function() {
+                industryYear = this.value;
+                renderBondIndustryTable(industryRows());
             });
             document.querySelectorAll('#ruleToggle button').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -4609,7 +4633,7 @@
                         const parsed = JSON.parse(txt);
                         if (parsed && parsed.bonds && parsed.bonds.length > 0) {
                             insBonds = parsed;
-                            populateBondYearFilter();
+                            populateIndustryYear();
                             if (currentMainView === 'bonds') renderBondsView();
                             return;
                         }

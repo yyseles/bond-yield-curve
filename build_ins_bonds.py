@@ -34,6 +34,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 XLSX = os.path.join(os.path.dirname(HERE), "保险公司历年资本补充债发行情况.xlsx")
 OUT = os.path.join(HERE, "ins_bonds.json")
 
+# 数据起始年份：2015/2016 年样本极少且口径不一，按需求自 2018 年起
+START_YEAR = 2018
+
 
 def infer_industry(issuer):
     if not issuer:
@@ -100,6 +103,11 @@ def main():
         if status not in ("存续", "已赎回", "已到期"):
             status = "存续"
 
+        # 数据口径：仅保留 2018 年及以后发行的债
+        issue_year = (value_date or "")[:4]
+        if issue_year and issue_year.isdigit() and int(issue_year) < START_YEAR:
+            continue
+
         if perp:
             bond_type = "永续债"
             bond_period = "5+N年"
@@ -141,6 +149,7 @@ def main():
     out = {
         "generatedAt": date.today().isoformat(),
         "source": "用户维护Excel《保险公司历年资本补充债发行情况.xlsx》+ 中国货币网(chinamoney)",
+        "note": f"数据自 {START_YEAR} 年起（2015–2016 年样本较少，已剔除）",
         "count": len(bonds),
         "bonds": bonds,
     }
