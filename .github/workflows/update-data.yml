@@ -45,7 +45,7 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests openpyxl
+        run: pip install requests openpyxl akshare
 
       - name: 抓取最新利率数据（四曲线）
         # 仅定时/手动触发时抓数据回填；普通代码推送直接走部署，避免慢速回填拖住上线
@@ -54,10 +54,16 @@ jobs:
         continue-on-error: true
         run: python ci_update.py
 
+      - name: 抓取保险公司资本补充债/永续债数据
+        # 仅定时/手动触发时抓取；失败不阻断部署（保留已有 ins_bonds.json 基线）
+        if: github.event_name != 'push'
+        continue-on-error: true
+        run: python fetch_ins_bonds.py
+
       - name: 校验数据文件
         continue-on-error: true
         run: |
-          for f in data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json; do
+          for f in data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json ins_bonds.json; do
             if [ -f "$f" ]; then
               SIZE=$(wc -c < "$f")
               echo "$f 大小: $SIZE bytes"
@@ -74,7 +80,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json 2>/dev/null || git add data.json || echo "No data files to add"
+          git add data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json ins_bonds.json 2>/dev/null || git add data.json || echo "No data files to add"
           # 检查 data.json 是否有实质变化
           if git diff --cached --quiet; then
             echo "数据无变化，检查是否需要 keepalive 保活..."
