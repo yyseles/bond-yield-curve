@@ -476,7 +476,7 @@
             <div class="ma-controls discount-controls">
                 <div class="rule-toggle" id="ruleToggle">
                     <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
-                    <button class="active" data-rule="c2_2">偿二代二期</button>
+                    <button class="active" data-rule="c2_2">CROSS</button>
                     <button data-rule="c2_new">Solvency II</button>
                     <button data-rule="old_gaap" disabled title="敬请期待">旧会计准则</button>
                     <button data-rule="new_gaap" disabled title="敬请期待">新会计准则</button>
@@ -505,7 +505,7 @@
                 </div>
             </div>
             <details class="discount-rules" id="discountRules">
-                <summary><span class="rules-chevron">▸</span> 折现率规则说明（偿二代二期）</summary>
+                <summary><span class="rules-chevron">▸</span> 折现率规则说明（CROSS）</summary>
                 <div class="rules-body">
                     <div class="rules-section">
                         <h4>① 基础利率曲线（负债，即期）</h4>
@@ -591,7 +591,7 @@
                     </div>
                     <div class="rules-section">
                         <h4>④ 输出</h4>
-                        <p>一套方案同时输出：<strong>负债折现 高 / 中 / 低</strong> + <strong>利率曲线 基础 / 上升 / 下降</strong>，年期 1–120 年；即期由含溢价远期曲线还原。格式与偿二代二期汇总表一致。</p>
+                        <p>一套方案同时输出：<strong>负债折现 高 / 中 / 低</strong> + <strong>利率曲线 基础 / 上升 / 下降</strong>，年期 1–120 年；即期由含溢价远期曲线还原。格式与CROSS汇总表一致。</p>
                     </div>
                 </div>
             </details>
@@ -2793,7 +2793,7 @@
         }
 
         // ================================================================
-        // 折现率曲线板块（偿二代二期规则）
+        // 折现率曲线板块（CROSS规则）
         // ================================================================
         let discountChart = null;
         let discountCompareChart = null;
@@ -2871,7 +2871,7 @@
             return Math.pow(1 + spot[t], t) / Math.pow(1 + spot[t - 1], t - 1) - 1;
         }
 
-        // 精确复现 Excel「偿二代二期」算法
+        // 精确复现 Excel「CROSS」算法
         function computeDiscountCurves(ma750, ma60, latestDate) {
             const SY = DISC_PARAMS.startYear, EY = DISC_PARAMS.endYear;
             const years = [];
@@ -3218,7 +3218,7 @@
             const e3 = document.getElementById('swCpDesc'); if (e3) e3.textContent = 'CP = ' + SW_PARAMS.cp + '（默认 LLP+20 = ' + (SW_PARAMS.llp + 20) + '）';
         }
         // 动态渲染利率压力参数表：直接从 DISCOUNT_STRESS / stressUp / stressDown 生成，
-        // 保证说明表与实际计算（与偿二代二期同源）永远一致，不会因单独改表漂移。
+        // 保证说明表与实际计算（与CROSS同源）永远一致，不会因单独改表漂移。
         function renderSwStressTable() {
             const tb = document.getElementById('swStressTbody');
             if (!tb) return;
@@ -3406,7 +3406,7 @@
             }
         }
 
-        function ruleLabel() { return discountRule === 'c2_new' ? 'Solvency II' : '偿二代二期'; }
+        function ruleLabel() { return discountRule === 'c2_new' ? 'Solvency II' : 'CROSS'; }
         function renderDiscount() {
             if (discountRule === 'c2_new') syncSWParamsFromInputs();
             const d = ensureDiscountData();
