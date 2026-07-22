@@ -193,6 +193,11 @@
         .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
         .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
         .btn-download:hover { background: #163a61; }
+        /* 资本债板块首行（组合图 + 年度发行表）整体加高，视觉舒展、不挤 */
+        .view-bonds .bonds-row { gap: 18px; }
+        .view-bonds .bonds-row .bonds-panel { display: flex; flex-direction: column; }
+        .view-bonds .bonds-row .chart-box { height: 520px; }
+        .view-bonds .bonds-row .tbl-scroll { max-height: 520px; flex: 1; min-height: 0; }
         .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
@@ -4260,29 +4265,36 @@
             rows.forEach(b => {
                 const y = (b.issueDate || '').slice(0, 4);
                 if (!y) return;
-                const m = map[y] || (map[y] = { cap: 0, perp: 0, wsum: 0, wn: 0 });
+                const m = map[y] || (map[y] = { cap: 0, perp: 0, wsum: 0, wn: 0, hi: -Infinity, lo: Infinity });
                 if (b.bondType === '永续债') m.perp += b.issueAmnt || 0;
                 else m.cap += b.issueAmnt || 0;
-                if (b.couponRate != null) { m.wsum += b.couponRate * (b.issueAmnt || 0); m.wn += (b.issueAmnt || 0); }
+                if (b.couponRate != null) {
+                    m.wsum += b.couponRate * (b.issueAmnt || 0);
+                    m.wn += (b.issueAmnt || 0);
+                    if (b.couponRate > m.hi) m.hi = b.couponRate;
+                    if (b.couponRate < m.lo) m.lo = b.couponRate;
+                }
             });
             const years = Object.keys(map).sort((a, b) => a - b);
             const capArr = years.map(y => +(map[y].cap.toFixed(1)));
             const perpArr = years.map(y => +(map[y].perp.toFixed(1)));
             const totalArr = years.map(y => +((map[y].cap + map[y].perp).toFixed(1)));
             const waArr = years.map(y => map[y].wn > 0 ? +(map[y].wsum / map[y].wn).toFixed(2) : null);
+            const hiArr = years.map(y => isFinite(map[y].hi) ? +(map[y].hi.toFixed(2)) : null);
+            const loArr = years.map(y => isFinite(map[y].lo) ? +(map[y].lo.toFixed(2)) : null);
             bondComboChart.setOption({
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
                     formatter: p => {
                         let s = p[0].axisValue + ' 年<br/>';
-                        p.forEach(it => { if (it.seriesName !== '柱顶总额') s += `${it.marker}${it.seriesName}：${it.value}${it.seriesName === '加权平均利率' ? '%' : ' 亿'}<br/>`; });
+                        p.forEach(it => { if (it.seriesName !== '柱顶总额') s += `${it.marker}${it.seriesName}：${it.value}${it.seriesName.includes('利率') ? '%' : ' 亿'}<br/>`; });
                         return s;
                     } },
-                legend: { data: ['资本补充债', '永续债', '加权平均利率'], top: 0 },
-                grid: { left: 60, right: 56, top: 42, bottom: 44 },
+                legend: { data: ['资本补充债', '永续债', '加权平均利率', '最高利率', '最低利率'], top: 0 },
+                grid: { left: 60, right: 64, top: 50, bottom: 50 },
                 xAxis: { type: 'category', data: years, axisLabel: { rotate: 30 }, axisTick: { alignWithLabel: true } },
                 yAxis: [
                     { type: 'value', name: '发行额(亿元)', position: 'left' },
-                    { type: 'value', name: '加权平均利率(%)', position: 'right', min: v => Math.max(0, (v.min - 0.5).toFixed(2)), max: v => (v.max + 0.5).toFixed(2), splitLine: { show: false } },
+                    { type: 'value', name: '利率(%)', position: 'right', min: v => Math.max(0, (v.min - 0.5).toFixed(2)), max: v => (v.max + 0.5).toFixed(2), splitLine: { show: false } },
                 ],
                 series: [
                     { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 38 },
@@ -4290,8 +4302,12 @@
                     // 总额作为数据标签：放在柱顶
                     { name: '柱顶总额', type: 'bar', stack: 'amt', data: totalArr, itemStyle: { color: 'transparent' }, barMaxWidth: 38,
                       label: { show: true, position: 'top', formatter: p => p.value, color: '#1f4a7a', fontSize: 11, fontWeight: 600 } },
-                    { name: '加权平均利率', type: 'line', yAxisIndex: 1, data: waArr, symbol: 'circle', symbolSize: 7,
+                    { name: '加权平均利率', type: 'line', yAxisIndex: 1, data: waArr, symbol: 'circle', symbolSize: 8,
                       lineStyle: { width: 2.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } },
+                    { name: '最高利率', type: 'line', yAxisIndex: 1, data: hiArr, symbol: 'triangle', symbolSize: 8,
+                      lineStyle: { width: 1.5, color: '#e74c3c', type: 'dashed' }, itemStyle: { color: '#e74c3c' } },
+                    { name: '最低利率', type: 'line', yAxisIndex: 1, data: loArr, symbol: 'diamond', symbolSize: 8,
+                      lineStyle: { width: 1.5, color: '#3b7dd8', type: 'dashed' }, itemStyle: { color: '#3b7dd8' } },
                 ],
             }, true);
         }
