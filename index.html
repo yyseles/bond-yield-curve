@@ -477,7 +477,7 @@
                 <div class="rule-toggle" id="ruleToggle">
                     <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
                     <button class="active" data-rule="c2_2">偿二代二期</button>
-                    <button data-rule="c2_new">偿付能力新规</button>
+                    <button data-rule="c2_new">Solvency II</button>
                     <button data-rule="old_gaap" disabled title="敬请期待">旧会计准则</button>
                     <button data-rule="new_gaap" disabled title="敬请期待">新会计准则</button>
                 </div>
@@ -567,7 +567,7 @@
                 </div>
             </details>
             <details class="discount-rules" id="discountRulesNew" style="display:none;">
-                <summary><span class="rules-chevron">▸</span> 折现率规则说明（偿付能力新规 · Smith-Wilson）</summary>
+                <summary><span class="rules-chevron">▸</span> 折现率规则说明（Solvency II · Smith-Wilson）</summary>
                 <div class="rules-body">
                     <div class="rules-section">
                         <h4>① 基础利率曲线（负债 / 利率，即期）</h4>
@@ -2923,7 +2923,7 @@
         }
 
         // ================================================================
-        // 折现率曲线板块（偿付能力新规 · Smith-Wilson）
+        // 折现率曲线板块（Solvency II · Smith-Wilson）
         // 负债曲线：在流动点市场即期上叠加「前段综合溢价」后重新做 Smith-Wilson 拟合，
         //          UFR 收敛目标叠加「后端终极利率溢价」（ufrVA = ufrBase + ultPrem）。
         //          不利情景下的综合溢价与基础情景一致（高/中/低各自独立收敛 α）。
@@ -3406,7 +3406,7 @@
             }
         }
 
-        function ruleLabel() { return discountRule === 'c2_new' ? '偿付能力新规' : '偿二代二期'; }
+        function ruleLabel() { return discountRule === 'c2_new' ? 'Solvency II' : '偿二代二期'; }
         function renderDiscount() {
             if (discountRule === 'c2_new') syncSWParamsFromInputs();
             const d = ensureDiscountData();
@@ -3880,7 +3880,7 @@
                     renderDiscount();
                 });
             });
-            // 偿付能力新规参数输入 → 实时重算
+            // Solvency II参数输入 → 实时重算
             const swInputs = ['swUfrBase','swUpMag40','swDownMag40','swAlphaMin','swLlp','swCp','swBandwidth','swUltPrem','swPremHigh','swPremMid','swPremLow'];
             swInputs.forEach(id => {
                 const el = document.getElementById(id);
