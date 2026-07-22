@@ -1,0 +1,65 @@
+name: 每周更新保险公司资本补充债/永续债数据
+
+# 资补债 / 永续债并非每日发行（全年险企永续债仅数十只），故周频即可，
+# 避免对 chinamoney 接口造成不必要的频率压力与限流（421）。
+# 单次全量抓取（fetch_ins_bonds.py 默认两种类型都抓），按 (发行人, 债券简称) 增量合并去重。
+on:
+  schedule:
+    # 北京时间每周一 19:00 (UTC 11:00)
+    - cron: '0 11 * * 1'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  update-bonds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置时区为北京时间
+        run: sudo timedatectl set-timezone Asia/Shanghai
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: pip install requests openpyxl akshare
+
+      - name: 抓取保险公司资本补充债/永续债（全量两种类型，增量合并）
+        continue-on-error: true
+        run: python fetch_ins_bonds.py
+
+      - name: 校验 ins_bonds.json
+        continue-on-error: true
+        run: |
+          if [ -f "ins_bonds.json" ]; then
+            SIZE=$(wc -c < "ins_bonds.json")
+            echo "ins_bonds.json 大小: $SIZE bytes"
+            if [ "$SIZE" -lt 100 ]; then
+              echo "⚠ ins_bonds.json 异常（<100B），不提交"
+              exit 1
+            fi
+            python -c "import json; d=json.load(open('ins_bonds.json')); print('债券总数:', d['count'], '| 类型:', sorted(set(b['bondType'] for b in d['bonds'])))"
+          else
+            echo "⚠ ins_bonds.json 不存在"
+            exit 1
+          fi
+
+      - name: 提交并推送更新
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ins_bonds.json
+          if git diff --cached --quiet; then
+            echo "ins_bonds.json 无变化，跳过提交"
+          else
+            git commit -m "自动更新资本补充债/永续债数据: $(date +'%Y-%m-%d %H:%M')"
+            git push
+            echo "✓ 资本补充债/永续债数据更新完成"
+          fi

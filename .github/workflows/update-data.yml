@@ -54,11 +54,9 @@ jobs:
         continue-on-error: true
         run: python ci_update.py
 
-      - name: 抓取保险公司资本补充债/永续债数据
-        # 仅定时/手动触发时抓取；失败不阻断部署（保留已有 ins_bonds.json 基线）
-        if: github.event_name != 'push'
-        continue-on-error: true
-        run: python fetch_ins_bonds.py
+      # 注：保险公司资本补充债/永续债数据改由独立的 update-bonds.yml 以周频（每周一）更新，
+      # 不再在此每日 workflow 中重复抓取，避免对 chinamoney 接口造成频率压力与限流（421）。
+      # 下方校验步骤仍会检查 ins_bonds.json 是否存在且大小正常。
 
       - name: 校验数据文件
         continue-on-error: true
