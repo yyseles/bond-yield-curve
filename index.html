@@ -268,6 +268,7 @@
         .bonds-panel .tbl-scroll table td { padding: 11px 10px; font-size: 14px; }
         /* 年度发行汇总表：列宽一致（等宽），避免数字列忽宽忽窄 */
         #bondYearTable { table-layout: fixed; }
+        #bondYearTable .cnt-sub { font-size: 11px; color: #8a99ad; margin-left: 3px; font-weight: 400; white-space: nowrap; }
         /* 公司×年明细：发行人列固定较窄宽度并省略超长名称，年份列均分剩余空间 */
         #bondCompanyYearTable { table-layout: fixed; }
         #bondCompanyYearTable .col-issuer { width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4173,13 +4174,16 @@
                 const hue = Math.round(120 * (1 - t)); // 高值红(0) → 低值绿(120)
                 return ` style="background:hsl(${hue},72%,92%);color:hsl(${hue},68%,30%);font-weight:700"`;
             };
-            let html = '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
+            let html = '<colgroup><col style="width:7%"><col style="width:15%"><col><col><col><col><col><col></colgroup>'
+                + '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
             years.forEach((y, i) => {
                 const g = map[y];
                 const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const cap = g.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const perp = g.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-                html += `<tr><td class="lft">${y}</td><td>${g.length}</td><td><b>${fmtAmnt(total)}</b></td><td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td>`
+                const capN = g.filter(b => b.bondType === '资本补充债').length;
+                const perpN = g.filter(b => b.bondType === '永续债').length;
+                html += `<tr><td class="lft">${y}</td><td><b>${g.length}</b><span class="cnt-sub">（资补${capN}；永续${perpN}）</span></td><td><b>${fmtAmnt(total)}</b></td><td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td>`
                     + `<td${rateStyle(waArr[i])}>${fmtRate(waArr[i])}</td>`
                     + `<td${rateStyle(hiArr[i])}>${fmtRate(hiArr[i])}</td>`
                     + `<td${rateStyle(loArr[i])}>${fmtRate(loArr[i])}</td></tr>`;
