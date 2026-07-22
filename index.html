@@ -193,11 +193,44 @@
         .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
         .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
         .btn-download:hover { background: #163a61; }
-        .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; box-sizing: border-box; }
+        .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
         .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
+        /* 资本债顶部 3 列分组汇总卡 */
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
+        .summary-col { border-radius: 14px; padding: 14px 16px 12px; background: #fff; box-shadow: 0 3px 12px rgba(31,74,122,.08); border: 1px solid #e4e9f0; min-width: 0; position: relative; overflow: hidden; }
+        .summary-col::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+        .summary-col.col-issue::before { background: linear-gradient(90deg, #1f4a7a, #3b7dd8); }
+        .summary-col.col-live::before { background: linear-gradient(90deg, #1f6d4a, #2e9e5b); }
+        .summary-col.col-rate::before { background: linear-gradient(90deg, #b8651b, #e08a3a); }
+        .summary-col-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .summary-col-head .ico { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
+        .col-issue .summary-col-head .ico { background: linear-gradient(135deg, #1f4a7a, #3b7dd8); }
+        .col-live .summary-col-head .ico { background: linear-gradient(135deg, #1f6d4a, #2e9e5b); }
+        .col-rate .summary-col-head .ico { background: linear-gradient(135deg, #b8651b, #e08a3a); }
+        .summary-col-head .title { font-size: 14px; font-weight: 700; color: #1f3a5f; letter-spacing: 0.2px; }
+        .summary-col-head .sub { font-size: 11px; color: #94a3b8; margin-left: auto; font-weight: 500; }
+        .summary-rows { display: grid; grid-template-rows: repeat(3, 1fr); gap: 8px; }
+        .summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px dashed #e9eef5; }
+        .summary-row:first-child { border-top: none; padding-top: 2px; }
+        .summary-row .lk { font-size: 12px; color: #6b7c93; font-weight: 500; white-space: nowrap; }
+        .summary-row .lv { font-size: 19px; font-weight: 700; color: #1f3a5f; font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .summary-row.is-main .lv { font-size: 22px; }
+        .summary-row.is-sub { padding-left: 8px; }
+        .summary-row.is-sub .lk { font-size: 11px; color: #94a3b8; }
+        .summary-row.is-sub .lv { font-size: 15px; font-weight: 600; }
+        .col-issue .summary-row.is-main .lv { color: #1f4a7a; }
+        .col-issue .summary-row.is-sub .lv { color: #3b7dd8; }
+        .col-live .summary-row.is-main .lv { color: #1f6d4a; }
+        .col-live .summary-row.is-sub .lv { color: #2e9e5b; }
+        .col-rate .summary-row.is-main .lv { color: #b8651b; }
+        .col-rate .summary-row.is-sub .lv { color: #c98a45; }
+        .summary-col.col-issue { background: linear-gradient(180deg, #f5f8fd 0%, #ffffff 65%); }
+        .summary-col.col-live { background: linear-gradient(180deg, #f3faf6 0%, #ffffff 65%); }
+        .summary-col.col-rate { background: linear-gradient(180deg, #fdf6ef 0%, #ffffff 65%); }
+        @media (max-width: 760px) { .summary-grid { grid-template-columns: 1fr; } }
         .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
         .bonds-row > * { min-width: 0; }
         .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
@@ -811,7 +844,7 @@
             </div>
         </div>
 
-        <div class="bonds-cards" id="bondSummaryCards"></div>
+        <div class="summary-grid" id="bondSummaryCards"></div>
 
         <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
         <div class="bonds-row">
@@ -4028,23 +4061,53 @@
             const total = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const cap = rows.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const perp = rows.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const live = rows.filter(b => b.status === '存续').reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            const live = rows.filter(b => b.status === '存续');
+            const liveTotal = live.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            const liveCap = live.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            const livePerp = live.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
             const wa = wavgRate(rows);
             const hi = maxRate(rows);
             const lo = minRate(rows);
-            const cards = [
-                ['发行总额(亿元)', fmtAmnt(total)],
-                ['其中：资本补充债(亿)', fmtAmnt(cap)],
-                ['其中：永续债(亿)', fmtAmnt(perp)],
-                ['存续规模(亿元)', fmtAmnt(live)],
-                ['债券只数', rows.length],
-                ['加权平均票面利率', fmtRate(wa)],
-                ['最高票面利率', fmtRate(hi)],
-                ['最低票面利率', fmtRate(lo)],
-            ];
-            document.getElementById('bondSummaryCards').innerHTML = cards.map(c =>
-                `<div class="bcard"><div class="bk">${c[0]}</div><div class="bv">${c[1]}</div></div>`
-            ).join('');
+            const fmtPair = (v, unit) => v + ' <small style="font-size:11px;font-weight:500;color:#94a3b8">' + unit + '</small>';
+            const html = `
+                <div class="summary-col col-issue">
+                    <div class="summary-col-head">
+                        <span class="ico">📊</span>
+                        <span class="title">发行总额</span>
+                        <span class="sub">亿元</span>
+                    </div>
+                    <div class="summary-rows">
+                        <div class="summary-row is-main"><span class="lk">合计</span><span class="lv">${fmtAmnt(total)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">其中 · 资本补充债</span><span class="lv">${fmtAmnt(cap)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">其中 · 永续债</span><span class="lv">${fmtAmnt(perp)}</span></div>
+                    </div>
+                </div>
+                <div class="summary-col col-live">
+                    <div class="summary-col-head">
+                        <span class="ico">💎</span>
+                        <span class="title">存续规模</span>
+                        <span class="sub">亿元 · ${live.length} 只</span>
+                    </div>
+                    <div class="summary-rows">
+                        <div class="summary-row is-main"><span class="lk">合计</span><span class="lv">${fmtAmnt(liveTotal)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">其中 · 资本补充债</span><span class="lv">${fmtAmnt(liveCap)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">其中 · 永续债</span><span class="lv">${fmtAmnt(livePerp)}</span></div>
+                    </div>
+                </div>
+                <div class="summary-col col-rate">
+                    <div class="summary-col-head">
+                        <span class="ico">📈</span>
+                        <span class="title">票面利率</span>
+                        <span class="sub">% · ${rows.length} 只</span>
+                    </div>
+                    <div class="summary-rows">
+                        <div class="summary-row is-main"><span class="lk">加权平均</span><span class="lv">${fmtRate(wa)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">最高</span><span class="lv">${fmtRate(hi)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">最低</span><span class="lv">${fmtRate(lo)}</span></div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('bondSummaryCards').innerHTML = html;
         }
 
         function renderBondYearTable(rows) {
