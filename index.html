@@ -196,13 +196,16 @@
         /* 资本债板块：行1(组合图+年度表) 与 行2(分行业+散点) 统一高度，等高对齐 */
         .bonds-row.is-top, .bonds-row.is-mid { gap: 18px; }
         .bonds-row.is-top .bonds-panel, .bonds-row.is-mid .bonds-panel { display: flex; flex-direction: column; }
-        .bonds-row.is-top .chart-box { height: 1440px; }
-        .bonds-row.is-top .tbl-scroll { max-height: 1440px; flex: 1; min-height: 0; }
-        #bondScatterChart { height: 1440px; }
-        /* 分行业汇总：表与饼图并排（左表右饼），等高不遮挡 */
-        .ind-layout { display: flex; gap: 14px; align-items: stretch; margin-top: 2px; }
-        .ind-layout .ind-tbl { flex: 1; min-width: 0; overflow: auto; }
-        .bonds-row.is-mid .ind-layout .ind-chart { flex: 0 0 280px; width: 280px; align-self: stretch; min-height: 320px; }
+        .bonds-row.is-top .chart-box { height: 460px; flex: none; }
+        .bonds-row.is-top .tbl-scroll { flex: 1 1 auto; min-height: 0; max-height: 460px; }
+        /* 行2 三列：左=分行业汇总表，中=行业占比饼图，右=票面利率散点；三栏等高，以中间饼图(300)为基准 */
+        .bonds-row.is-mid { grid-template-columns: 1fr 1fr 1.2fr; align-items: stretch; }
+        .bonds-row.is-mid #bondScatterChart { height: 300px; flex: none; }
+        /* 分行业汇总表：撑满左栏高度，内容垂直居中，与中/右栏等高 */
+        .ind-tbl { overflow: auto; max-height: 320px; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+        .ind-tbl table { width: 100%; }
+        /* 饼图：固定高度、不参与 flex 拉伸、垂直居中，避免宽度塌缩导致不显示 */
+        #bondIndustryChart.ind-chart { height: 300px; width: 100%; margin: auto 0; flex: none; box-sizing: border-box; }
         .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
@@ -247,11 +250,11 @@
         .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
         .bonds-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; color: #1f3a5f; font-weight: 700; }
         .bonds-panel h4 .accent { width: 4px; height: 14px; border-radius: 2px; background: linear-gradient(#3b7dd8,#1f4a7a); display: inline-block; }
-        .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; min-height: 40px; }
         .panel-head h4 { margin: 0; }
+        .panel-head .ph-spacer { display: inline-block; min-width: 60px; }
         .mini-select { padding: 4px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 12px; }
         .chart-box { width: 100%; height: 440px; }
-        .chart-box.ind-chart { height: 280px; margin-top: 8px; }
         .bonds-panel > .chart-box { flex: 1; min-height: 0; }
         .bonds-panel table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .bonds-panel th, .bonds-panel td { border: 1px solid #eef2f7; padding: 6px 8px; text-align: right; }
@@ -260,6 +263,14 @@
         .bonds-panel tbody tr:nth-child(even) { background: #fafcfe; }
         .bonds-panel tbody tr:hover { background: #f0f6ff; }
         .bonds-panel .tbl-scroll { max-height: 440px; overflow: auto; border-radius: 8px; }
+        /* 加大 tbl-scroll 表格行高，使 9 行+表头 ≈ 460px，与左侧组合图高度匹配 */
+        .bonds-panel .tbl-scroll table th { padding: 12px 10px; font-size: 14px; }
+        .bonds-panel .tbl-scroll table td { padding: 11px 10px; font-size: 14px; }
+        /* 年度发行汇总表：列宽一致（等宽），避免数字列忽宽忽窄 */
+        #bondYearTable { table-layout: fixed; }
+        /* 公司×年明细：发行人列固定较窄宽度并省略超长名称，年份列均分剩余空间 */
+        #bondCompanyYearTable { table-layout: fixed; }
+        #bondCompanyYearTable .col-issuer { width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bonds-panel .grow { flex: 1; }
         .cell-hi { background: #fdecea !important; color: #c0392b; font-weight: 700; }
         .cell-lo { background: #e8f5e9 !important; color: #2e9e5b; font-weight: 700; }
@@ -841,16 +852,6 @@
         <div class="bonds-toolbar">
             <div class="bonds-range" id="bondRangeNote"></div>
             <div class="bonds-filters">
-                <label>状态：</label>
-                <select id="bondFilterStatus">
-                    <option value="">全部</option>
-                    <option value="存续">存续</option>
-                    <option value="已赎回">已赎回</option>
-                    <option value="已到期">已到期</option>
-                </select>
-                <label>截止年份：</label>
-                <select id="bondEndYear"></select>
-                <span class="bonds-note" id="bondFilterCount"></span>
                 <button id="bondDownloadBtn" class="btn-download" type="button">⬇ 下载全部债券明细(CSV)</button>
             </div>
         </div>
@@ -860,31 +861,43 @@
         <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
         <div class="bonds-row is-top">
             <div class="bonds-panel">
-                <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
-                <p class="bonds-note">堆积柱：资本补充债 / 永续债（柱顶为发行总额）；折线：加权平均票面利率（%，次轴）。</p>
+                <div class="panel-head">
+                    <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
+                    <select id="bondComboEndYear" class="mini-select" title="近五年窗口的截止年份"></select>
+                </div>
                 <div id="bondComboChart" class="chart-box"></div>
             </div>
             <div class="bonds-panel">
-                <h4><span class="accent"></span>年度发行汇总（按发行年份）</h4>
+                <div class="panel-head">
+                    <h4><span class="accent"></span>年度发行汇总（按发行年份）</h4>
+                    <span class="ph-spacer"></span>
+                </div>
                 <div class="tbl-scroll"><table id="bondYearTable"></table></div>
             </div>
         </div>
 
-        <!-- 中部：分行业汇总(可切换年份) + 票面利率散点 -->
+        <!-- 中部：左=分行业汇总表，中=行业占比饼图，右=票面利率散点 -->
         <div class="bonds-row is-mid">
             <div class="bonds-panel">
                 <div class="panel-head">
                     <h4><span class="accent"></span>分行业汇总（产 / 寿 / 再保 / 集团）</h4>
                     <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
                 </div>
-                <div class="ind-layout">
-                    <div class="tbl-scroll ind-tbl"><table id="bondIndustryTable"></table></div>
-                    <div id="bondIndustryChart" class="chart-box ind-chart"></div>
-                </div>
+                <div class="tbl-scroll ind-tbl"><table id="bondIndustryTable"></table></div>
                 <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分。</p>
             </div>
             <div class="bonds-panel">
-                <h4><span class="accent"></span>票面利率散点分布</h4>
+                <div class="panel-head">
+                    <h4><span class="accent"></span>行业占比</h4>
+                    <span class="ph-spacer"></span>
+                </div>
+                <div id="bondIndustryChart" class="chart-box ind-chart"></div>
+            </div>
+            <div class="bonds-panel">
+                <div class="panel-head">
+                    <h4><span class="accent"></span>票面利率散点分布</h4>
+                    <select id="bondScatterEndYear" class="mini-select" title="近五年窗口的截止年份"></select>
+                </div>
                 <p class="bonds-note">每点一只债，X=发行年份，Y=票面利率(%)，点大小≈发行额，颜色=状态。</p>
                 <div id="bondScatterChart" class="chart-box"></div>
             </div>
@@ -4014,28 +4027,28 @@
         let bondComboChart = null;
         let bondIndustryChart = null;
         let industryYear = '';
-        let endYear = '';
+        let comboEndYear = '';
+        let scatterEndYear = '';
         const zhCollator = new Intl.Collator('zh-Hans-CN');
 
-        function filteredBonds() {
-            if (!insBonds || !insBonds.bonds) return [];
-            const st = document.getElementById('bondFilterStatus').value;
-            return insBonds.bonds.filter(b => !st || b.status === st);
+        // 全量债券（顶部汇总卡 / 公司×年表 使用，不受截止年份影响）
+        function allBonds() {
+            return (insBonds && insBonds.bonds) ? insBonds.bonds : [];
         }
-        // 行业汇总面板专有的年份筛选（与顶部全局筛选独立）
+        // 行业汇总面板专有的年份筛选
         function industryRows() {
-            const rows = filteredBonds();
+            const rows = allBonds();
             if (!industryYear) return rows;
             return rows.filter(b => (b.issueDate || '').slice(0, 4) === industryYear);
         }
-        // 组合图 / 年度表 / 散点图共用的「最近五年」滑动窗口（截至 endYear 向前 4 年）
-        function chartWindowRows() {
-            const rows = filteredBonds();
-            if (!endYear) return rows;
-            const lo = String(parseInt(endYear, 10) - 4);
+        // 近五年滑动窗口（endYear 向前 4 年）
+        function winRows(endY) {
+            const rows = allBonds();
+            if (!endY) return rows;
+            const lo = String(parseInt(endY, 10) - 4);
             return rows.filter(b => {
                 const y = (b.issueDate || '').slice(0, 4);
-                return y >= lo && y <= endYear;
+                return y >= lo && y <= endY;
             });
         }
 
@@ -4052,22 +4065,26 @@
         function renderBondsView() {
             const wrap = document.getElementById('viewBonds');
             if (!insBonds || !insBonds.bonds) {
-                wrap.querySelector('.bonds-cards').innerHTML = '<div class="loading-overlay"><div class="spinner"></div><p>资本债数据加载中…</p></div>';
+                wrap.querySelector('.summary-grid').innerHTML = '<div class="loading-overlay"><div class="spinner"></div><p>资本债数据加载中…</p></div>';
                 return;
             }
-            const rows = filteredBonds();
-            const win = chartWindowRows();
+            const rows = allBonds();
+            const comboWin = winRows(comboEndYear);
+            const scatterWin = winRows(scatterEndYear);
             const rangeNote = insBonds.note || '';
             document.getElementById('bondRangeNote').textContent =
                 (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}`;
-            document.getElementById('bondFilterCount').textContent = `当前筛选：${rows.length} 只`;
+            // 顶部汇总卡 / 公司×年表：全量
             renderBondSummaryCards(rows);
-            renderBondComboChart(win);
-            renderBondYearTable(win);
+            renderBondCompanyYear(rows);
+            // 组合图 + 年度表：受组合图截止年份控制
+            renderBondComboChart(comboWin);
+            renderBondYearTable(rows);
+            // 行业汇总：独立的行业年份下拉
             renderBondIndustryTable(industryRows());
             renderBondIndustryChart(industryRows());
-            renderBondScatter(win);
-            renderBondCompanyYear(rows);
+            // 散点图：受散点截止年份控制
+            renderBondScatter(scatterWin);
         }
 
         function renderBondSummaryCards(rows) {
@@ -4230,7 +4247,7 @@
             });
             // 年份倒序：合计列在第一位
             const yArr = [...years].sort((a, b) => b - a);
-            let html = '<thead><tr><th class="lft">发行人</th><th>合计</th>' + yArr.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>';
+            let html = '<thead><tr><th class="lft col-issuer">发行人</th><th>合计</th>' + yArr.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>';
             // 按发行人名称拼音排序
             Object.keys(comps).sort((a, b) => zhCollator.compare(a, b)).forEach(c => {
                 let tot = 0;
@@ -4239,7 +4256,7 @@
                     if (v) { tot += v; return `<td>${fmtAmnt(v)}</td>`; }
                     return '<td>—</td>';
                 }).join('');
-                html += `<tr><td class="lft">${c}</td><td><b>${fmtAmnt(tot)}</b></td>${tds}</tr>`;
+                html += `<tr><td class="lft col-issuer" title="${c}">${c}</td><td><b>${fmtAmnt(tot)}</b></td>${tds}</tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondCompanyYearTable').innerHTML = html;
@@ -4316,11 +4333,11 @@
                 series: [
                     { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 32 },
                     { name: '永续债', type: 'bar', stack: 'amt', data: perpArr, itemStyle: { color: '#e6a23c' }, barMaxWidth: 32 },
-                    // 总额作为数据标签：放在柱顶
-                    { name: '柱顶总额', type: 'bar', stack: 'amt', data: totalArr, itemStyle: { color: 'transparent' }, barMaxWidth: 32,
-                      label: { show: true, position: 'top', formatter: p => p.value, color: '#1f4a7a', fontSize: 10, fontWeight: 600 } },
+                    // 总额作为数据标签：放在柱顶（不参与堆叠，避免轴被翻倍）
+                    { name: '柱顶总额', type: 'bar', data: totalArr, itemStyle: { color: 'transparent' }, barMaxWidth: 32,
+                      label: { show: true, position: 'top', distance: 4, formatter: p => p.value, color: '#1f4a7a', fontSize: 10, fontWeight: 600 } },
                     { name: '加权平均利率', type: 'line', yAxisIndex: 1, data: waArr, symbol: 'circle', symbolSize: 8,
-                      lineStyle: { width: 2.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } },
+                      lineStyle: { width: 2.5, color: '#8e44ad' }, itemStyle: { color: '#8e44ad' } },
                     { name: '最高利率', type: 'line', yAxisIndex: 1, data: hiArr, symbol: 'triangle', symbolSize: 8,
                       lineStyle: { width: 1.5, color: '#e74c3c', type: 'dashed' }, itemStyle: { color: '#e74c3c' } },
                     { name: '最低利率', type: 'line', yAxisIndex: 1, data: loArr, symbol: 'diamond', symbolSize: 8,
@@ -4356,14 +4373,16 @@
             sel.innerHTML = '<option value="">全部年份</option>' + ys.map(y => `<option value="${y}">${y} 年</option>`).join('');
         }
 
-        // 截止年份（最近五年窗口）下拉：默认取最新发行年份
-        function populateEndYear() {
+        // 截止年份下拉（组合图 / 散点图 各一个），默认取最新发行年份
+        function populateEndYearSelect(selId, setter) {
             if (!insBonds || !insBonds.bonds) return;
             const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
-            const sel = document.getElementById('bondEndYear');
+            const sel = document.getElementById(selId);
+            if (!sel) return;
             sel.innerHTML = ys.map(y => `<option value="${y}">截至 ${y} 年</option>`).join('');
-            endYear = ys[0] || '';
-            sel.value = endYear;
+            const def = ys[0] || '';
+            sel.value = def;
+            setter(def);
         }
 
         function handleHashChange() {
@@ -4547,11 +4566,7 @@
             document.querySelectorAll('#mainNav button').forEach(btn => {
                 btn.addEventListener('click', () => showMainView(btn.dataset.view));
             });
-            // 保险公司资本补充债发行信息 板块：全局筛选 + 下载 + 行业年份
-            ['bondFilterStatus'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.addEventListener('change', renderBondsView);
-            });
+            // 保险公司资本补充债发行信息 板块：下载 + 行业年份 + 组合图/散点截止年份
             const dlBtn = document.getElementById('bondDownloadBtn');
             if (dlBtn) dlBtn.addEventListener('click', downloadBondDetails);
             const iySel = document.getElementById('bondIndustryYear');
@@ -4560,10 +4575,19 @@
                 renderBondIndustryTable(industryRows());
                 renderBondIndustryChart(industryRows());
             });
-            const eySel = document.getElementById('bondEndYear');
-            if (eySel) eySel.addEventListener('change', function() {
-                endYear = this.value;
-                renderBondsView();
+            // 组合图截止年份
+            const coSel = document.getElementById('bondComboEndYear');
+            if (coSel) coSel.addEventListener('change', function() {
+                comboEndYear = this.value;
+                const w = winRows(comboEndYear);
+                renderBondComboChart(w);
+                renderBondYearTable(allBonds());
+            });
+            // 散点图截止年份
+            const scSel = document.getElementById('bondScatterEndYear');
+            if (scSel) scSel.addEventListener('change', function() {
+                scatterEndYear = this.value;
+                renderBondScatter(winRows(scatterEndYear));
             });
             document.querySelectorAll('#ruleToggle button').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -4813,7 +4837,8 @@
                         if (parsed && parsed.bonds && parsed.bonds.length > 0) {
                             insBonds = parsed;
                             populateIndustryYear();
-                            populateEndYear();
+                            populateEndYearSelect('bondComboEndYear', v => comboEndYear = v);
+                            populateEndYearSelect('bondScatterEndYear', v => scatterEndYear = v);
                             if (currentMainView === 'bonds') renderBondsView();
                             return;
                         }
