@@ -183,18 +183,27 @@
         .main-nav .nav-group-secondary button { background: #f7f4ee; border-color: #e3d9c4; color: #9a7b3e; }
         .main-nav .nav-group-secondary button:hover { background: #f0eadd; }
         .main-nav .nav-group-secondary button.active { background: #b9770e; color: #fff; border-color: #b9770e; box-shadow: 0 2px 6px rgba(185,119,14,.25); }
+        .main-nav #widthGuideBtn { padding: 7px 12px; border-radius: 9px; border: 1px dashed #e74c3c; background: #fff5f4; color: #e74c3c; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .main-nav #widthGuideBtn.on { background: #e74c3c; color: #fff; }
+        .main-nav #widthIndicator { font-size: 12px; font-weight: 700; color: #e74c3c; margin-left: 4px; white-space: nowrap; }
         /* 保险公司资本补充债发行信息 视图 */
-        .view-bonds { padding-top: 6px; }
+        .view-bonds { padding-top: 6px; width: 100%; max-width: 100%; box-sizing: border-box; }
         .bonds-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
         .bonds-range { font-size: 13px; color: #3e5a7a; font-weight: 600; }
+        /* 宽度参考线：开启后在 .container 两侧画红线，便于核对宽度一致性 */
+        .width-guide { position: fixed; top: 0; bottom: 0; width: 0; border-left: 2px dashed #e74c3c; border-right: 2px dashed #e74c3c; pointer-events: none; z-index: 9999; display: none; }
+        .width-guide.on { display: block; }
+        .width-guide::before, .width-guide::after { content: ''; position: absolute; top: 60px; padding: 4px 10px; background: #e74c3c; color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(231,76,60,.4); }
+        .width-guide::before { left: 2px; border-radius: 0 6px 6px 0; content: '◀ 左边界 ' attr(data-w) 'px'; }
+        .width-guide::after { right: 2px; border-radius: 6px 0 0 6px; content: '右边界 ' attr(data-w) 'px ▶'; }
         .bonds-range::before { content: "📌"; margin-right: 6px; }
         .bonds-filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 12px; background: #f6f9fc; border: 1px solid #e4e9f0; border-radius: 10px; }
         .bonds-filters label { font-size: 13px; font-weight: 600; color: #3e5a7a; }
         .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
         .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
         .btn-download:hover { background: #163a61; }
-        .bonds-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
-        .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); }
+        .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; box-sizing: border-box; }
+        .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
         .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
@@ -327,6 +336,8 @@
                 <div class="nav-group nav-group-secondary">
                     <button data-view="bonds">🏦 保险公司资本补充债发行信息</button>
                 </div>
+                <button id="widthGuideBtn" title="显示/隐藏容器左右边界参考线，用于核对各板块宽度是否一致">📏 边界</button>
+                <span id="widthIndicator" title="当前板块容器实际渲染宽度"></span>
             </div>
             <div class="bond-toggle" id="bondToggle">
                 <button class="active" data-bond="gov_spot">国债即期</button>
@@ -3959,7 +3970,38 @@
                 if (currentMonitorSubview === 'detail') showDetail(currentBondType);
                 else showOverview();
             }
+            updateWidthIndicator();
         }
+
+        // 容器宽度自检：显示当前板块容器的实际渲染宽度，并绘制左右边界参考线
+        function updateWidthIndicator() {
+            const c = document.querySelector('.container');
+            const w = Math.round(c.getBoundingClientRect().width);
+            const ind = document.getElementById('widthIndicator');
+            if (ind) ind.textContent = '容器宽度 ' + w + 'px';
+            const g = document.getElementById('widthGuide');
+            if (g && g.classList.contains('on')) positionWidthGuide();
+        }
+        function positionWidthGuide() {
+            const c = document.querySelector('.container');
+            const r = c.getBoundingClientRect();
+            const g = document.getElementById('widthGuide');
+            if (!g) return;
+            g.style.left = r.left + 'px';
+            g.style.width = r.width + 'px';
+            g.setAttribute('data-w', Math.round(r.width));
+        }
+        document.getElementById('widthGuideBtn').addEventListener('click', () => {
+            const g = document.getElementById('widthGuide');
+            g.classList.toggle('on');
+            document.getElementById('widthGuideBtn').classList.toggle('on');
+            if (g.classList.contains('on')) positionWidthGuide();
+        });
+        window.addEventListener('resize', () => {
+            const g = document.getElementById('widthGuide');
+            if (g && g.classList.contains('on')) positionWidthGuide();
+            updateWidthIndicator();
+        });
 
         // ================================================================
         // 保险公司资本补充债发行信息 视图
@@ -4843,8 +4885,10 @@
             await init();
             // 初始化完成后处理 URL hash（支持刷新/分享链接直接进入详情页）
             handleHashChange();
+            updateWidthIndicator();
         });
         window.addEventListener('hashchange', handleHashChange);
     </script>
+    <div class="width-guide" id="widthGuide"></div>
 </body>
 </html>
