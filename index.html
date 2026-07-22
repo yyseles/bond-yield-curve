@@ -194,6 +194,12 @@
         .discount-date-row .badge.forecast { background: #fff4e5; color: #b9770e; border-color: #f0d3a0; }
         .discount-date-row .fc-ref-wrap { display: inline-flex; gap: 6px; align-items: center; padding-left: 10px; margin-left: 6px; border-left: 1px dashed #e1e7ef; }
         .discount-date-row .fc-ref-wrap select { padding: 4px 8px; border-radius: 7px; border: 1px solid #f0d3a0; background: #fffaf0; color: #b9770e; font-size: 13px; min-width: 150px; }
+        /* 折现率基准日：年/月/日 分级选择 */
+        .discount-date-row .disc-ymd { min-width: 0; padding: 4px 6px; }
+        .discount-date-row .disc-sep { color: #3e5a7a; font-size: 12px; font-weight: 600; }
+        .discount-date-row .disc-fc-select { min-width: 150px; padding: 4px 8px; border-radius: 7px; border: 1px solid #f0d3a0; background: #fffaf0; color: #b9770e; font-size: 13px; }
+        .discount-date-row .disc-fc-toggle { padding: 4px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #f3f8fb; color: #3e5a7a; font-size: 12px; cursor: pointer; }
+        .discount-date-row .disc-fc-toggle:hover { border-color: #1f4a7a; }
         .discount-rules { margin: 12px 0 6px; border: 1px solid #dce3ec; border-radius: 12px; background: linear-gradient(180deg,#fbfdff,#f3f8fd); padding: 6px 16px 12px; box-shadow: 0 1px 3px rgba(31,74,122,.05); }
         .discount-rules summary { cursor: pointer; font-size: 13.5px; font-weight: 700; color: #1f4a7a; user-select: none; padding: 6px 0; display: flex; align-items: center; gap: 8px; }
         .discount-rules summary .rules-chevron { transition: transform .2s; color: #5b87c4; font-size: 12px; }
@@ -482,8 +488,14 @@
                     <button data-rule="new_gaap" disabled title="敬请期待">IFRS17</button>
                 </div>
                 <div class="discount-date-row">
-                    <label for="discountDateSelect" style="font-size:13px;font-weight:600;color:#3e5a7a;">基准日：</label>
-                    <select id="discountDateSelect"></select>
+                    <label style="font-size:13px;font-weight:600;color:#3e5a7a;">基准日：</label>
+                    <span id="discountYMDWrap" style="display:inline-flex;gap:4px;align-items:center;">
+                        <select id="discountYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                        <select id="discountMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                        <select id="discountDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                    </span>
+                    <select id="discountForecastDateSelect" class="disc-fc-select" style="display:none;"></select>
+                    <button id="discountToggleFc" class="disc-fc-toggle" type="button">预测</button>
                     <span class="badge" id="discountDateBadge"></span>
                     <span class="fc-ref-wrap" id="discountForecastRefWrap" style="display:none;">
                         <label for="discountForecastRefSelect" style="font-size:13px;font-weight:600;color:#b9770e;">平推基准：</label>
@@ -2807,6 +2819,8 @@
         let discountForecastRefDate = null; // 预测日平推基准（实际日期），null=用最新实际日
         let discountDataCache = null;
         let discountCompareDate = null;   // 对比基准日（可选）
+        let discountYMD = null;            // 实际日期分组：{byYM:{ 'YYYY-MM':Set(dd) }, years:[...]}
+        let discountForecastList = [];     // 预测月未日期列表
 
         // 利率风险压力参数表：年期1-20 直接值；21-39 线性插值；40-50 固定
         const DISCOUNT_STRESS = {
@@ -3381,20 +3395,27 @@
             return discountDataCache;
         }
 
+        function discGetGov() {
+            return (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+        }
+
         function populateDiscountDateSelect() {
-            const sel = document.getElementById('discountDateSelect');
-            if (!sel) return;
-            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            const gov = discGetGov();
             if (!gov || !gov.dates || gov.dates.length === 0) return;
-            const actualDates = gov.dates;
-            const recent = actualDates.slice(-500);
+            // 实际日期按 年->月->日 分组，便于分级定位（早年份也易找）
+            const byYM = {};
+            gov.dates.forEach(d => {
+                const ym = d.slice(0, 7);
+                (byYM[ym] = byYM[ym] || new Set()).add(d.slice(8));
+            });
+            const years = [...new Set(gov.dates.map(d => d.slice(0, 4)))].sort().reverse();
+            discountYMD = { byYM, years };
+            // 预测月未日期
             const fDates = generateForecastDates(gov.latestDate, 750);
-            const fMonthEnds = getMonthEndDates(fDates);
-            const html = recent.map(d => `<option value="${d}" ${d === discountDate ? 'selected' : ''}>${d}</option>`).join('')
-                + (fMonthEnds.length > 0
-                    ? `<optgroup label="预测日期（平推法）">` + fMonthEnds.map(d => `<option value="${d}" ${d === discountDate ? 'selected' : ''}>${d} (预测)</option>`).join('') + `</optgroup>`
-                    : '');
-            sel.innerHTML = html;
+            discountForecastList = getMonthEndDates(fDates);
+            const fsel = document.getElementById('discountForecastDateSelect');
+            if (fsel) fsel.innerHTML = discountForecastList.map(d => `<option value="${d}">${d} (预测)</option>`).join('');
+            syncDiscountDatePickerMode(gov);
             discountDatePopulated = true;
             // 对比日下拉：默认「上一交易日」，可选每月末（不列全部日期）
             const csel = document.getElementById('discountCompareDateSelect');
@@ -3404,6 +3425,66 @@
                     .concat(me.map(d => `<option value="${d}" ${d === discountCompareDate ? 'selected' : ''}>${d}</option>`));
                 csel.innerHTML = opts.join('');
             }
+        }
+
+        // 实际/预测 两种模式切换，并据 discountDate 同步控件显示
+        function syncDiscountDatePickerMode(gov) {
+            const isFc = discountDate && isForecastDate(gov, discountDate);
+            const ymdWrap = document.getElementById('discountYMDWrap');
+            const fsel = document.getElementById('discountForecastDateSelect');
+            const btn = document.getElementById('discountToggleFc');
+            if (isFc) {
+                if (ymdWrap) ymdWrap.style.display = 'none';
+                if (fsel) { fsel.style.display = ''; fsel.value = discountDate; }
+                if (btn) btn.textContent = '实际';
+            } else {
+                if (ymdWrap) ymdWrap.style.display = 'inline-flex';
+                if (fsel) fsel.style.display = 'none';
+                if (btn) btn.textContent = '预测';
+                syncDiscountYMDFromDate(gov, discountDate || gov.latestDate);
+            }
+        }
+
+        function syncDiscountYMDFromDate(gov, date) {
+            const ySel = document.getElementById('discountYearSel');
+            const mSel = document.getElementById('discountMonthSel');
+            const dSel = document.getElementById('discountDaySel');
+            if (!ySel || !mSel || !dSel || !discountYMD) return;
+            const y = date.slice(0, 4), m = date.slice(5, 7), d = date.slice(8);
+            ySel.innerHTML = discountYMD.years.map(yy => `<option value="${yy}" ${yy === y ? 'selected' : ''}>${yy}</option>`).join('');
+            populateDiscountMonths(y, m);
+            populateDiscountDays(y, m, d);
+        }
+
+        function populateDiscountMonths(year, selMonth) {
+            const mSel = document.getElementById('discountMonthSel');
+            if (!mSel || !discountYMD) return;
+            const months = [...new Set(Object.keys(discountYMD.byYM).filter(k => k.slice(0, 4) === year).map(k => k.slice(5)))].sort();
+            mSel.innerHTML = months.map(mm => `<option value="${mm}" ${mm === selMonth ? 'selected' : ''}>${mm}</option>`).join('');
+        }
+
+        function populateDiscountDays(year, month, selDay) {
+            const dSel = document.getElementById('discountDaySel');
+            if (!dSel || !discountYMD) return;
+            const days = [...(discountYMD.byYM[year + '-' + month] || [])].sort();
+            dSel.innerHTML = days.map(dd => `<option value="${dd}" ${dd === selDay ? 'selected' : ''}>${dd}</option>`).join('');
+        }
+
+        function getCurrentDiscountDate() {
+            const ySel = document.getElementById('discountYearSel');
+            const mSel = document.getElementById('discountMonthSel');
+            const dSel = document.getElementById('discountDaySel');
+            if (ySel && mSel && dSel && ySel.value && mSel.value && dSel.value)
+                return ySel.value + '-' + mSel.value + '-' + dSel.value;
+            return null;
+        }
+
+        function onDiscountDateChanged(val) {
+            if (!val) return;
+            discountDate = val;
+            discountDataCache = null;
+            syncDiscountForecastRefUI();
+            renderDiscount();
         }
 
         function ruleLabel() { return discountRule === 'c2_new' ? 'Solvency II' : 'CROSS'; }
@@ -3696,10 +3777,7 @@
                 bt.style.display = 'none';
                 if (!discountDate) discountDate = dataStore.latestDate;
                 if (!discountDatePopulated) populateDiscountDateSelect();
-                else {
-                    const sel = document.getElementById('discountDateSelect');
-                    if (sel && discountDate) sel.value = discountDate;
-                }
+                else syncDiscountDatePickerMode(discGetGov());
                 syncDiscountForecastRefUI();
                 renderDiscount();
                 setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); }, 60);
@@ -3911,12 +3989,46 @@
             document.getElementById('discountSummaryBtn').addEventListener('click', downloadDiscountSummaryXLSX);
             document.getElementById('discountOutputBtn').addEventListener('click', downloadDiscountOutputXLSX);
             document.getElementById('discountWorkingBtn').addEventListener('click', downloadDiscountWorkingXLSX);
-            const discountDateSel = document.getElementById('discountDateSelect');
-            if (discountDateSel) discountDateSel.addEventListener('change', function() {
-                discountDate = this.value;
-                discountDataCache = null;
-                syncDiscountForecastRefUI();
-                renderDiscount();
+            const discountYearSel = document.getElementById('discountYearSel');
+            if (discountYearSel) discountYearSel.addEventListener('change', function() {
+                populateDiscountMonths(this.value, null);
+                const mSel = document.getElementById('discountMonthSel');
+                const firstMonth = mSel && mSel.options.length ? mSel.options[0].value : null;
+                populateDiscountDays(this.value, firstMonth, null);
+                onDiscountDateChanged(getCurrentDiscountDate());
+            });
+            const discountMonthSel = document.getElementById('discountMonthSel');
+            if (discountMonthSel) discountMonthSel.addEventListener('change', function() {
+                const y = document.getElementById('discountYearSel').value;
+                populateDiscountDays(y, this.value, null);
+                onDiscountDateChanged(getCurrentDiscountDate());
+            });
+            const discountDaySel = document.getElementById('discountDaySel');
+            if (discountDaySel) discountDaySel.addEventListener('change', function() {
+                onDiscountDateChanged(getCurrentDiscountDate());
+            });
+            const discountFcDateSel = document.getElementById('discountForecastDateSelect');
+            if (discountFcDateSel) discountFcDateSel.addEventListener('change', function() {
+                onDiscountDateChanged(this.value);
+            });
+            const discountFcBtn = document.getElementById('discountToggleFc');
+            if (discountFcBtn) discountFcBtn.addEventListener('click', function() {
+                const gov = discGetGov();
+                const toForecast = this.textContent === '预测';
+                const ymdWrap = document.getElementById('discountYMDWrap');
+                const fSel = document.getElementById('discountForecastDateSelect');
+                if (toForecast) {
+                    if (ymdWrap) ymdWrap.style.display = 'none';
+                    if (fSel) { fSel.style.display = ''; if (!fSel.value && discountForecastList.length) fSel.value = discountForecastList[0]; }
+                    this.textContent = '实际';
+                    if (fSel && fSel.value) onDiscountDateChanged(fSel.value);
+                } else {
+                    if (ymdWrap) ymdWrap.style.display = 'inline-flex';
+                    if (fSel) fSel.style.display = 'none';
+                    this.textContent = '预测';
+                    syncDiscountYMDFromDate(gov, discountDate || gov.latestDate);
+                    onDiscountDateChanged(getCurrentDiscountDate());
+                }
             });
             const discountRefSel = document.getElementById('discountForecastRefSelect');
             if (discountRefSel) discountRefSel.addEventListener('change', function() {
