@@ -269,6 +269,7 @@
         /* 年度发行汇总表：列宽一致（等宽），避免数字列忽宽忽窄 */
         #bondYearTable { table-layout: fixed; }
         #bondYearTable .cnt-sub { font-size: 11px; color: #8a99ad; margin-left: 3px; font-weight: 400; white-space: nowrap; }
+        #bondYearTable tbody td:nth-child(2) { white-space: nowrap; }
         /* 公司×年明细：发行人列固定较窄宽度并省略超长名称，年份列均分剩余空间 */
         #bondCompanyYearTable { table-layout: fixed; }
         #bondCompanyYearTable .col-issuer { width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4174,7 +4175,7 @@
                 const hue = Math.round(120 * (1 - t)); // 高值红(0) → 低值绿(120)
                 return ` style="background:hsl(${hue},72%,92%);color:hsl(${hue},68%,30%);font-weight:700"`;
             };
-            let html = '<colgroup><col style="width:7%"><col style="width:15%"><col><col><col><col><col><col></colgroup>'
+            let html = '<colgroup><col style="width:7%"><col style="width:18%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:10%"><col style="width:10%"><col style="width:10%"></colgroup>'
                 + '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
             years.forEach((y, i) => {
                 const g = map[y];
