@@ -193,11 +193,16 @@
         .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
         .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
         .btn-download:hover { background: #163a61; }
-        /* 资本债板块首行（组合图 + 年度发行表）整体加高，视觉舒展、不挤 */
-        .view-bonds .bonds-row { gap: 18px; }
-        .view-bonds .bonds-row .bonds-panel { display: flex; flex-direction: column; }
-        .view-bonds .bonds-row .chart-box { height: 620px; }
-        .view-bonds .bonds-row .tbl-scroll { max-height: 620px; flex: 1; min-height: 0; }
+        /* 资本债板块：行1(组合图+年度表) 与 行2(分行业+散点) 统一高度，等高对齐 */
+        .bonds-row.is-top, .bonds-row.is-mid { gap: 18px; }
+        .bonds-row.is-top .bonds-panel, .bonds-row.is-mid .bonds-panel { display: flex; flex-direction: column; }
+        .bonds-row.is-top .chart-box { height: 700px; }
+        .bonds-row.is-top .tbl-scroll { max-height: 700px; flex: 1; min-height: 0; }
+        #bondScatterChart { height: 660px; }
+        /* 分行业汇总：表与饼图并排（左表右饼） */
+        .ind-layout { display: flex; gap: 14px; align-items: stretch; margin-top: 2px; }
+        .ind-layout .ind-tbl { flex: 1; min-width: 0; max-height: 540px; overflow: auto; }
+        .bonds-row.is-mid .ind-layout .ind-chart { flex: 0 0 250px; width: 250px; height: 300px; align-self: center; }
         .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
@@ -853,7 +858,7 @@
         <div class="summary-grid" id="bondSummaryCards"></div>
 
         <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
-        <div class="bonds-row">
+        <div class="bonds-row is-top">
             <div class="bonds-panel">
                 <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
                 <p class="bonds-note">堆积柱：资本补充债 / 永续债（柱顶为发行总额）；折线：加权平均票面利率（%，次轴）。</p>
@@ -866,14 +871,16 @@
         </div>
 
         <!-- 中部：分行业汇总(可切换年份) + 票面利率散点 -->
-        <div class="bonds-row">
+        <div class="bonds-row is-mid">
             <div class="bonds-panel">
                 <div class="panel-head">
                     <h4><span class="accent"></span>分行业汇总（产 / 寿 / 再保 / 集团）</h4>
                     <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
                 </div>
-                <div class="tbl-scroll"><table id="bondIndustryTable"></table></div>
-                <div id="bondIndustryChart" class="chart-box ind-chart"></div>
+                <div class="ind-layout">
+                    <div class="tbl-scroll ind-tbl"><table id="bondIndustryTable"></table></div>
+                    <div id="bondIndustryChart" class="chart-box ind-chart"></div>
+                </div>
                 <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分。</p>
             </div>
             <div class="bonds-panel">
