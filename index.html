@@ -14,7 +14,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
-        .container { max-width: none; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 16px 24px; border: 1px solid #e6edf5; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
         h1 { font-size: 22px; font-weight: 600; color: #0b1a33; margin: 0; white-space: nowrap; }
         .subtitle { font-size: 13px; color: #5a6e8a; border-left: none; padding-left: 0; background: transparent; border-radius: 0; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 0; }
@@ -199,13 +199,15 @@
         .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
         .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
-        .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); }
+        .bonds-row > * { min-width: 0; }
+        .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
         .bonds-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; color: #1f3a5f; font-weight: 700; }
         .bonds-panel h4 .accent { width: 4px; height: 14px; border-radius: 2px; background: linear-gradient(#3b7dd8,#1f4a7a); display: inline-block; }
         .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
         .panel-head h4 { margin: 0; }
         .mini-select { padding: 4px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 12px; }
         .chart-box { width: 100%; height: 360px; }
+        .chart-box.ind-chart { height: 230px; margin-top: 6px; }
         .bonds-panel table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .bonds-panel th, .bonds-panel td { border: 1px solid #eef2f7; padding: 6px 8px; text-align: right; }
         .bonds-panel th { background: #f3f7fb; color: #3e5a7a; position: sticky; top: 0; font-weight: 600; }
@@ -213,6 +215,9 @@
         .bonds-panel tbody tr:nth-child(even) { background: #fafcfe; }
         .bonds-panel tbody tr:hover { background: #f0f6ff; }
         .bonds-panel .tbl-scroll { max-height: 440px; overflow: auto; border-radius: 8px; }
+        .bonds-panel .grow { flex: 1; }
+        .cell-hi { background: #fdecea !important; color: #c0392b; font-weight: 700; }
+        .cell-lo { background: #e8f0fe !important; color: #1f63c0; font-weight: 700; }
         .status-tag { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 600; }
         .status-存续 { background: #e6f4ea; color: #1e7e34; }
         .status-已赎回 { background: #fdecea; color: #c0392b; }
@@ -806,6 +811,8 @@
                     <option value="已赎回">已赎回</option>
                     <option value="已到期">已到期</option>
                 </select>
+                <label>截止年份：</label>
+                <select id="bondEndYear"></select>
                 <span class="bonds-note" id="bondFilterCount"></span>
                 <button id="bondDownloadBtn" class="btn-download" type="button">⬇ 下载全部债券明细(CSV)</button>
             </div>
@@ -834,6 +841,7 @@
                     <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
                 </div>
                 <div class="tbl-scroll"><table id="bondIndustryTable"></table></div>
+                <div id="bondIndustryChart" class="chart-box ind-chart"></div>
                 <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分。</p>
             </div>
             <div class="bonds-panel">
@@ -3936,7 +3944,7 @@
                 bt.style.display = 'none';
                 document.getElementById('viewBonds').style.display = '';
                 renderBondsView();
-                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); }, 60);
+                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); if (bondIndustryChart) bondIndustryChart.resize(); }, 60);
                 return;
             }
             if (v === 'discount') {
@@ -3965,7 +3973,10 @@
         // ================================================================
         let bondScatterChart = null;
         let bondComboChart = null;
+        let bondIndustryChart = null;
         let industryYear = '';
+        let endYear = '';
+        const zhCollator = new Intl.Collator('zh-Hans-CN');
 
         function filteredBonds() {
             if (!insBonds || !insBonds.bonds) return [];
@@ -3981,6 +3992,16 @@
             const rows = filteredBonds();
             if (!industryYear) return rows;
             return rows.filter(b => (b.issueDate || '').slice(0, 4) === industryYear);
+        }
+        // 组合图 / 年度表 / 散点图共用的「最近五年」滑动窗口（截至 endYear 向前 4 年）
+        function chartWindowRows() {
+            const rows = filteredBonds();
+            if (!endYear) return rows;
+            const lo = String(parseInt(endYear, 10) - 4);
+            return rows.filter(b => {
+                const y = (b.issueDate || '').slice(0, 4);
+                return y >= lo && y <= endYear;
+            });
         }
 
         function wavgRate(rows) {
@@ -4000,15 +4021,17 @@
                 return;
             }
             const rows = filteredBonds();
+            const win = chartWindowRows();
             const rangeNote = insBonds.note || '';
             document.getElementById('bondRangeNote').textContent =
                 (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}`;
             document.getElementById('bondFilterCount').textContent = `当前筛选：${rows.length} 只`;
             renderBondSummaryCards(rows);
-            renderBondComboChart(rows);
-            renderBondYearTable(rows);
+            renderBondComboChart(win);
+            renderBondYearTable(win);
             renderBondIndustryTable(industryRows());
-            renderBondScatter(rows);
+            renderBondIndustryChart(industryRows());
+            renderBondScatter(win);
             renderBondCompanyYear(rows);
         }
 
@@ -4044,13 +4067,30 @@
                 map[y].push(b);
             });
             const years = Object.keys(map).sort((a, b) => b - a);
-            let html = '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
+            // 三列利率的极值，用于高/低配色
+            const waArr = [], hiArr = [], loArr = [];
             years.forEach(y => {
+                const g = map[y];
+                waArr.push(wavgRate(g)); hiArr.push(maxRate(g)); loArr.push(minRate(g));
+            });
+            const rateCell = (arr, v) => {
+                if (v == null) return '';
+                const mx = Math.max(...arr), mn = Math.min(...arr);
+                if (mx === mn) return '';
+                if (v === mx) return ' class="cell-hi"';
+                if (v === mn) return ' class="cell-lo"';
+                return '';
+            };
+            let html = '<thead><tr><th class="lft">发行年份</th><th>只数</th><th>总额(亿)</th><th>资本补充债(亿)</th><th>永续债(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
+            years.forEach((y, i) => {
                 const g = map[y];
                 const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const cap = g.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
                 const perp = g.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-                html += `<tr><td class="lft">${y}</td><td>${g.length}</td><td><b>${fmtAmnt(total)}</b></td><td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
+                html += `<tr><td class="lft">${y}</td><td>${g.length}</td><td><b>${fmtAmnt(total)}</b></td><td>${fmtAmnt(cap)}</td><td>${fmtAmnt(perp)}</td>`
+                    + `<td${rateCell(waArr, waArr[i])}>${fmtRate(waArr[i])}</td>`
+                    + `<td${rateCell(hiArr, hiArr[i])}>${fmtRate(hiArr[i])}</td>`
+                    + `<td${rateCell(loArr, loArr[i])}>${fmtRate(loArr[i])}</td></tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondYearTable').innerHTML = html;
@@ -4075,6 +4115,26 @@
             document.getElementById('bondIndustryTable').innerHTML = html;
         }
 
+        function renderBondIndustryChart(rows) {
+            const dom = document.getElementById('bondIndustryChart');
+            if (typeof echarts === 'undefined') { dom.innerHTML = '<p style="color:#999;padding:10px;">图表库未加载</p>'; return; }
+            if (!bondIndustryChart) bondIndustryChart = echarts.init(dom);
+            const map = {};
+            rows.forEach(b => { const k = b.industry || '其他'; map[k] = (map[k] || 0) + (b.issueAmnt || 0); });
+            const order = ['寿险', '产险', '再保', '集团', '其他'];
+            const keys = Object.keys(map).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+            const colors = { '寿险': '#3b7dd8', '产险': '#e6a23c', '再保': '#67c23a', '集团': '#9b59b6', '其他': '#95a5a6' };
+            const data = keys.map(k => ({ value: +(map[k].toFixed(1)), itemStyle: { color: colors[k] || '#3b7dd8', borderRadius: [0, 6, 6, 0] } }));
+            bondIndustryChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: p => `${p[0].name}：${p[0].value} 亿` },
+                grid: { left: 56, right: 48, top: 8, bottom: 8 },
+                xAxis: { type: 'value', name: '发行额(亿元)' },
+                yAxis: { type: 'category', data: keys, inverse: true },
+                series: [{ type: 'bar', data, barMaxWidth: 22,
+                    label: { show: true, position: 'right', formatter: p => p.value, color: '#5a6e8a', fontSize: 11 } }],
+            }, true);
+        }
+
         function renderBondCompanyYear(rows) {
             const comps = {}, years = new Set();
             rows.forEach(b => {
@@ -4087,7 +4147,8 @@
             });
             const yArr = [...years].sort();
             let html = '<thead><tr><th class="lft">发行人</th>' + yArr.map(y => `<th>${y}</th>`).join('') + '<th>合计</th></tr></thead><tbody>';
-            Object.keys(comps).sort().forEach(c => {
+            // 按发行人名称拼音排序
+            Object.keys(comps).sort((a, b) => zhCollator.compare(a, b)).forEach(c => {
                 let tot = 0;
                 const tds = yArr.map(y => {
                     const v = comps[c][y];
@@ -4191,6 +4252,16 @@
             const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
             const sel = document.getElementById('bondIndustryYear');
             sel.innerHTML = '<option value="">全部年份</option>' + ys.map(y => `<option value="${y}">${y} 年</option>`).join('');
+        }
+
+        // 截止年份（最近五年窗口）下拉：默认取最新发行年份
+        function populateEndYear() {
+            if (!insBonds || !insBonds.bonds) return;
+            const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
+            const sel = document.getElementById('bondEndYear');
+            sel.innerHTML = ys.map(y => `<option value="${y}">截至 ${y} 年</option>`).join('');
+            endYear = ys[0] || '';
+            sel.value = endYear;
         }
 
         function handleHashChange() {
@@ -4385,6 +4456,12 @@
             if (iySel) iySel.addEventListener('change', function() {
                 industryYear = this.value;
                 renderBondIndustryTable(industryRows());
+                renderBondIndustryChart(industryRows());
+            });
+            const eySel = document.getElementById('bondEndYear');
+            if (eySel) eySel.addEventListener('change', function() {
+                endYear = this.value;
+                renderBondsView();
             });
             document.querySelectorAll('#ruleToggle button').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -4634,6 +4711,7 @@
                         if (parsed && parsed.bonds && parsed.bonds.length > 0) {
                             insBonds = parsed;
                             populateIndustryYear();
+                            populateEndYear();
                             if (currentMainView === 'bonds') renderBondsView();
                             return;
                         }
