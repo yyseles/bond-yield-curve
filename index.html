@@ -239,6 +239,8 @@
         @media (max-width: 760px) { .summary-grid { grid-template-columns: 1fr; } }
         .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
         .bonds-row > * { min-width: 0; }
+        /* 行 1（组合图 + 年度表）改为 3:2 比例，组合图更宽柱子不挤 */
+        .bonds-row.bonds-row-top { grid-template-columns: 3fr 2fr; }
         .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
         .bonds-panel h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; color: #1f3a5f; font-weight: 700; }
         .bonds-panel h4 .accent { width: 4px; height: 14px; border-radius: 2px; background: linear-gradient(#3b7dd8,#1f4a7a); display: inline-block; }
@@ -853,7 +855,7 @@
         <div class="summary-grid" id="bondSummaryCards"></div>
 
         <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
-        <div class="bonds-row">
+        <div class="bonds-row bonds-row-top">
             <div class="bonds-panel">
                 <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
                 <p class="bonds-note">堆积柱：资本补充债 / 永续债（柱顶为发行总额）；折线：加权平均票面利率（%，次轴）。</p>
@@ -4289,19 +4291,19 @@
                         p.forEach(it => { if (it.seriesName !== '柱顶总额') s += `${it.marker}${it.seriesName}：${it.value}${it.seriesName.includes('利率') ? '%' : ' 亿'}<br/>`; });
                         return s;
                     } },
-                legend: { data: ['资本补充债', '永续债', '加权平均利率', '最高利率', '最低利率'], top: 0 },
-                grid: { left: 60, right: 64, top: 50, bottom: 50 },
-                xAxis: { type: 'category', data: years, axisLabel: { rotate: 30 }, axisTick: { alignWithLabel: true } },
+                legend: { data: ['资本补充债', '永续债', '加权平均利率', '最高利率', '最低利率'], top: 4 },
+                grid: { left: 56, right: 56, top: 56, bottom: 36 },
+                xAxis: { type: 'category', data: years, axisLabel: { fontSize: 12 }, axisTick: { alignWithLabel: true } },
                 yAxis: [
-                    { type: 'value', name: '发行额(亿元)', position: 'left' },
-                    { type: 'value', name: '利率(%)', position: 'right', min: v => Math.max(0, (v.min - 0.5).toFixed(2)), max: v => (v.max + 0.5).toFixed(2), splitLine: { show: false } },
+                    { type: 'value', name: '发行额(亿)', position: 'left', nameTextStyle: { fontSize: 11 } },
+                    { type: 'value', name: '利率(%)', position: 'right', min: v => Math.max(0, (v.min - 0.5).toFixed(2)), max: v => (v.max + 0.5).toFixed(2), splitLine: { show: false }, nameTextStyle: { fontSize: 11 } },
                 ],
                 series: [
-                    { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 38 },
-                    { name: '永续债', type: 'bar', stack: 'amt', data: perpArr, itemStyle: { color: '#e6a23c' }, barMaxWidth: 38 },
+                    { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 32 },
+                    { name: '永续债', type: 'bar', stack: 'amt', data: perpArr, itemStyle: { color: '#e6a23c' }, barMaxWidth: 32 },
                     // 总额作为数据标签：放在柱顶
-                    { name: '柱顶总额', type: 'bar', stack: 'amt', data: totalArr, itemStyle: { color: 'transparent' }, barMaxWidth: 38,
-                      label: { show: true, position: 'top', formatter: p => p.value, color: '#1f4a7a', fontSize: 11, fontWeight: 600 } },
+                    { name: '柱顶总额', type: 'bar', stack: 'amt', data: totalArr, itemStyle: { color: 'transparent' }, barMaxWidth: 32,
+                      label: { show: true, position: 'top', formatter: p => p.value, color: '#1f4a7a', fontSize: 10, fontWeight: 600 } },
                     { name: '加权平均利率', type: 'line', yAxisIndex: 1, data: waArr, symbol: 'circle', symbolSize: 8,
                       lineStyle: { width: 2.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } },
                     { name: '最高利率', type: 'line', yAxisIndex: 1, data: hiArr, symbol: 'triangle', symbolSize: 8,
