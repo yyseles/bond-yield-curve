@@ -215,12 +215,13 @@
         .summary-rows { display: grid; grid-template-rows: repeat(3, 1fr); gap: 8px; }
         .summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px dashed #e9eef5; }
         .summary-row:first-child { border-top: none; padding-top: 2px; }
-        .summary-row .lk { font-size: 12px; color: #6b7c93; font-weight: 500; white-space: nowrap; }
-        .summary-row .lv { font-size: 19px; font-weight: 700; color: #1f3a5f; font-variant-numeric: tabular-nums; line-height: 1.1; }
-        .summary-row.is-main .lv { font-size: 22px; }
+        .summary-row .lk { font-size: 13px; color: #5a6b82; font-weight: 600; white-space: nowrap; }
+        .summary-row .lv { font-size: 20px; font-weight: 700; color: #1f3a5f; font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .summary-row.is-main .lk { font-size: 14px; }
+        .summary-row.is-main .lv { font-size: 24px; }
         .summary-row.is-sub { padding-left: 8px; }
-        .summary-row.is-sub .lk { font-size: 11px; color: #94a3b8; }
-        .summary-row.is-sub .lv { font-size: 15px; font-weight: 600; }
+        .summary-row.is-sub .lk { font-size: 13px; color: #8395ab; font-weight: 600; }
+        .summary-row.is-sub .lv { font-size: 18px; font-weight: 700; }
         .col-issue .summary-row.is-main .lv { color: #1f4a7a; }
         .col-issue .summary-row.is-sub .lv { color: #3b7dd8; }
         .col-live .summary-row.is-main .lv { color: #1f6d4a; }
@@ -4074,7 +4075,7 @@
                     <div class="summary-col-head">
                         <span class="ico">📊</span>
                         <span class="title">发行总额</span>
-                        <span class="sub">亿元</span>
+                        <span class="sub">亿元 · ${rows.length} 只</span>
                     </div>
                     <div class="summary-rows">
                         <div class="summary-row is-main"><span class="lk">合计</span><span class="lv">${fmtAmnt(total)}</span></div>
