@@ -197,6 +197,10 @@
         /* 折现率基准日：年/月/日 分级选择 */
         .discount-date-row .disc-ymd { min-width: 0; padding: 4px 6px; }
         .discount-date-row .disc-sep { color: #3e5a7a; font-size: 12px; font-weight: 600; }
+        /* 通用 年/月/日 三级联动选择器（利率监测板块复用） */
+        .ymd-wrap { display: inline-flex; align-items: center; gap: 4px; }
+        .ymd-wrap .disc-ymd { min-width: 0; padding: 3px 5px; font-size: 12px; max-width: 110px; }
+        .ymd-wrap .disc-sep { color: #3e5a7a; font-size: 12px; font-weight: 600; }
         .discount-date-row .disc-fc-select { min-width: 150px; padding: 4px 8px; border-radius: 7px; border: 1px solid #f0d3a0; background: #fffaf0; color: #b9770e; font-size: 13px; }
         .discount-date-row .disc-fc-toggle { padding: 4px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #f3f8fb; color: #3e5a7a; font-size: 12px; cursor: pointer; }
         .discount-date-row .disc-fc-toggle:hover { border-color: #1f4a7a; }
@@ -308,8 +312,12 @@
                     <span class="bond-name">📊 中债国债即期利率曲线</span>
                     <span class="badge">多时点对比</span>
                     <div class="date-selector">
-                        <label for="curveDateSelect" style="font-size:13px;font-weight:400;">查看日期：</label>
-                        <select id="curveDateSelect"></select>
+                        <label style="font-size:13px;font-weight:400;">查看日期：</label>
+                        <span class="ymd-wrap">
+                            <select id="curveYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                            <select id="curveMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                            <select id="curveDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                        </span>
                     </div>
                 </div>
                 <div class="metrics-row" id="metricsRow"></div>
@@ -321,8 +329,12 @@
                     <span>📋 关键期限利率</span>
                     <span class="badge">所选日期 / 750日平均 · 变动比较</span>
                     <div class="date-selector">
-                        <label for="keyDateSelect" style="font-size:13px;font-weight:400;">查看日期：</label>
-                        <select id="keyDateSelect"></select>
+                        <label style="font-size:13px;font-weight:400;">查看日期：</label>
+                        <span class="ymd-wrap">
+                            <select id="keyYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                            <select id="keyMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                            <select id="keyDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                        </span>
                     </div>
                 </div>
                 <div class="table-wrap" id="keyTermsTableWrap">
@@ -359,8 +371,12 @@
                             <option value="750" selected>750日 (3年)</option>
                             <option value="2500">2500日 (10年)</option>
                         </select>
-                        <label for="forecastRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
-                        <select id="forecastRefDateSelect"></select>
+                        <label style="font-size:13px;font-weight:400;">基准日：</label>
+                        <span class="ymd-wrap">
+                            <select id="refYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                            <select id="refMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                            <select id="refDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                        </span>
                     </div>
                 </div>
                 <div class="view-controls">
@@ -383,8 +399,12 @@
                     <span class="badge">关键期限 · 动态周期</span>
                     <button class="btn-download" id="quarterDownloadBtn" style="font-size:11px;padding:3px 12px;">📥 导出XLSX</button>
                     <div class="date-selector">
-                        <label for="quarterRefDateSelect" style="font-size:13px;font-weight:400;">基准日：</label>
-                        <select id="quarterRefDateSelect"></select>
+                        <label style="font-size:13px;font-weight:400;">基准日：</label>
+                        <span class="ymd-wrap">
+                            <select id="qrefYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                            <select id="qrefMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                            <select id="qrefDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                        </span>
                     </div>
                 </div>
                 <div class="table-wrap" id="quarterTableWrap">
@@ -457,15 +477,27 @@
                             <option value="custom">自定义区间</option>
                         </select>
                         <span id="maCurveRangePickers" style="display:none;">
-                            <input type="date" id="maCurveFrom" title="起始日期">
+                            <span class="ymd-wrap">
+                                <select id="fromYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                                <select id="fromMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                                <select id="fromDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                            </span>
                             <span style="color:#8898b0;">~</span>
-                            <input type="date" id="maCurveTo" title="结束日期">
+                            <span class="ymd-wrap">
+                                <select id="toYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                                <select id="toMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                                <select id="toDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                            </span>
                         </span>
                     </span>
                 </div>
                 <div class="ma-controls">
                     <label>日期</label>
-                    <select id="maDateSelect"></select>
+                    <span class="ymd-wrap">
+                        <select id="maYearSel" class="disc-ymd"></select><span class="disc-sep">年</span>
+                        <select id="maMonthSel" class="disc-ymd"></select><span class="disc-sep">月</span>
+                        <select id="maDaySel" class="disc-ymd"></select><span class="disc-sep">日</span>
+                    </span>
                     <div class="ma-period-group" id="maPeriodGroupB"></div>
                     <div class="ma-custom-row">
                         <input type="number" id="maCustomInputB" placeholder="天数" min="1" max="5000">
@@ -2138,35 +2170,72 @@
         // ================================================================
         // 选择器与渲染
         // ================================================================
-        function populateDateSelectors() {
-            const dates = dataStore.dates;
-            const select1 = document.getElementById('curveDateSelect');
-            const select2 = document.getElementById('keyDateSelect');
-            const currentSelected = selectedDate || dataStore.latestDate;
-            [select1, select2].forEach(sel => {
-                sel.innerHTML = '';
-                for (const d of dates) {
-                    const opt = document.createElement('option');
-                    opt.value = d;
-                    opt.textContent = d;
-                    if (d === currentSelected) opt.selected = true;
-                    sel.appendChild(opt);
-                }
+        // 利率监测板块通用：年/月/日 三级联动日期选择器
+        let monitorYMD = null;  // {byYM:{ 'YYYY-MM':Set(dd) }, years:[...]}
+        function buildMonitorYMD() {
+            const byYM = {};
+            (dataStore.dates || []).forEach(d => {
+                const ym = d.slice(0, 7);
+                (byYM[ym] = byYM[ym] || new Set()).add(d.slice(8));
             });
-            select1.onchange = function() {
-                selectedDate = this.value;
-                updateMetrics();
-                renderCurveChart();
-                renderKeyTermsTable();
-                document.getElementById('keyDateSelect').value = selectedDate;
-            };
-            select2.onchange = function() {
-                selectedDate = this.value;
-                updateMetrics();
-                renderCurveChart();
-                renderKeyTermsTable();
-                document.getElementById('curveDateSelect').value = selectedDate;
-            };
+            const years = [...new Set((dataStore.dates || []).map(d => d.slice(0, 4)))].sort().reverse();
+            monitorYMD = { byYM, years };
+        }
+        function monPopMonths(prefix, year, selMonth) {
+            const mSel = document.getElementById(prefix + 'MonthSel');
+            if (!mSel || !monitorYMD) return;
+            const months = [...new Set(Object.keys(monitorYMD.byYM).filter(k => k.slice(0, 4) === year).map(k => k.slice(5)))].sort();
+            const has = months.includes(selMonth);
+            mSel.innerHTML = months.map(mm => `<option value="${mm}" ${mm === (has ? selMonth : months[0]) ? 'selected' : ''}>${mm}</option>`).join('');
+        }
+        function monPopDays(prefix, year, month, selDay) {
+            const dSel = document.getElementById(prefix + 'DaySel');
+            if (!dSel || !monitorYMD) return;
+            const days = [...(monitorYMD.byYM[year + '-' + month] || [])].sort();
+            const has = days.includes(selDay);
+            dSel.innerHTML = days.map(dd => `<option value="${dd}" ${dd === (has ? selDay : days[0]) ? 'selected' : ''}>${dd}</option>`).join('');
+        }
+        function monSyncYMD(prefix, date) {
+            const ySel = document.getElementById(prefix + 'YearSel');
+            const mSel = document.getElementById(prefix + 'MonthSel');
+            const dSel = document.getElementById(prefix + 'DaySel');
+            if (!ySel || !mSel || !dSel || !date) return;
+            const y = date.slice(0, 4), m = date.slice(5, 7), d = date.slice(8);
+            ySel.innerHTML = monitorYMD.years.map(yy => `<option value="${yy}" ${yy === y ? 'selected' : ''}>${yy}</option>`).join('');
+            monPopMonths(prefix, y, m);
+            monPopDays(prefix, y, m, d);
+        }
+        function monGetDate(prefix) {
+            const ySel = document.getElementById(prefix + 'YearSel');
+            const mSel = document.getElementById(prefix + 'MonthSel');
+            const dSel = document.getElementById(prefix + 'DaySel');
+            if (ySel && mSel && dSel && ySel.value && mSel.value && dSel.value)
+                return ySel.value + '-' + mSel.value + '-' + dSel.value;
+            return null;
+        }
+        function bindMonYMD(prefix, onPick) {
+            ['Year', 'Month', 'Day'].forEach(k => {
+                const el = document.getElementById(prefix + k + 'Sel');
+                if (!el) return;
+                el.addEventListener('change', function() {
+                    if (k === 'Year') {
+                        const m = document.getElementById(prefix + 'MonthSel');
+                        monPopMonths(prefix, this.value, m ? m.value : null);
+                        if (m) monPopDays(prefix, this.value, m.value, null);
+                    } else if (k === 'Month') {
+                        const y = document.getElementById(prefix + 'YearSel');
+                        monPopDays(prefix, y ? y.value : null, this.value, null);
+                    }
+                    const dt = monGetDate(prefix);
+                    if (dt && onPick) onPick(dt, prefix);
+                });
+            });
+        }
+        function populateDateSelectors() {
+            if (dataStore.dates && dataStore.dates.length) buildMonitorYMD();
+            const cur = selectedDate || dataStore.latestDate;
+            monSyncYMD('curve', cur);
+            monSyncYMD('key', cur);
         }
 
         // ================================================================
@@ -2249,14 +2318,19 @@
             termSelect.innerHTML = termsToShow.map(t =>
                 `<option value="${t}" ${t === maSelectedTerm ? 'selected' : ''}>${t}</option>`
             ).join('');
-            // 日期选择器
-            const dateSelect = document.getElementById('maDateSelect');
+            // 日期选择器（年/月/日 三级联动）
+            if (!monitorYMD) buildMonitorYMD();
             const dates = dataStore.dates;
-            // 只放最近500个交易日，避免下拉太长
-            const recentDates = dates.slice(-500);
-            dateSelect.innerHTML = recentDates.map(d =>
-                `<option value="${d}" ${d === maSelectedDate ? 'selected' : ''}>${d}</option>`
-            ).join('');
+            const cur = maSelectedDate || dataStore.latestDate;
+            // 仅保留最近 500 个交易日范围内可定位（其余仍可在年/月/日中拾取）
+            const recentSet = new Set(dates.slice(-500));
+            if (!recentSet.has(cur) && dates.length) maSelectedDate = dates[dates.length - 1];
+            monSyncYMD('ma', maSelectedDate || dataStore.latestDate);
+            // 导出区间起止默认值（仅首次填充，避免覆盖用户自定义选择）
+            if (dates.length) {
+                if (!document.getElementById('fromYearSel').value) monSyncYMD('from', dates[0]);
+                if (!document.getElementById('toYearSel').value) monSyncYMD('to', dates[dates.length - 1]);
+            }
         }
 
         function renderMAPeriodControls() {
@@ -2312,8 +2386,8 @@
                 maSelectedTerm = this.value;
                 renderMATimeSeriesChart();
             });
-            document.getElementById('maDateSelect').addEventListener('change', function() {
-                maSelectedDate = this.value;
+            bindMonYMD('ma', function(dt) {
+                maSelectedDate = dt;
                 renderMACurveChart();
             });
             // 回车提交
@@ -2500,10 +2574,8 @@
             } else if (mode === 'full') {
                 dateList = dataStore.dates.slice();
             } else { // custom 区间
-                let from = document.getElementById('maCurveFrom').value;
-                let to = document.getElementById('maCurveTo').value;
-                if (!from) from = dataStore.dates[0];
-                if (!to) to = dataStore.dates[dataStore.dates.length - 1];
+                let from = monGetDate('from') || dataStore.dates[0];
+                let to = monGetDate('to') || dataStore.dates[dataStore.dates.length - 1];
                 dateList = dataStore.dates.filter(d => d >= from && d <= to);
                 if (dateList.length === 0) { alert('所选区间内没有可用数据。'); return; }
             }
@@ -2575,37 +2647,10 @@
 
         // 填充预测基准日选择器（750MA预测 + 季度末预测 共用）
         function populateForecastRefDateSelectors() {
-            const dates = dataStore.dates;
-            if (!dates || dates.length === 0) return;
-            const currentRef = forecastRefDate || dataStore.latestDate;
-            const select1 = document.getElementById('forecastRefDateSelect');
-            const select2 = document.getElementById('quarterRefDateSelect');
-            [select1, select2].forEach(sel => {
-                sel.innerHTML = '';
-                for (const d of dates) {
-                    const opt = document.createElement('option');
-                    opt.value = d;
-                    opt.textContent = d;
-                    if (d === currentRef) opt.selected = true;
-                    sel.appendChild(opt);
-                }
-            });
-            select1.onchange = function() {
-                forecastRefDate = this.value;
-                document.getElementById('quarterRefDateSelect').value = forecastRefDate;
-                recalcForecastData(forecastRefDate);
-                populateForecastDateSelector();
-                renderForecastChart();
-                renderQuarterTable(forecastRefDate);
-            };
-            select2.onchange = function() {
-                forecastRefDate = this.value;
-                document.getElementById('forecastRefDateSelect').value = forecastRefDate;
-                recalcForecastData(forecastRefDate);
-                populateForecastDateSelector();
-                renderForecastChart();
-                renderQuarterTable(forecastRefDate);
-            };
+            if (!dataStore.dates || dataStore.dates.length === 0) return;
+            const cur = forecastRefDate || dataStore.latestDate;
+            monSyncYMD('ref', cur);
+            monSyncYMD('qref', cur);
         }
 
         // ================================================================
@@ -3895,15 +3940,40 @@
             // MA期限曲线导出范围切换
             const exportRangeSel = document.getElementById('maCurveExportRange');
             const rangePickers = document.getElementById('maCurveRangePickers');
-            const maFrom = document.getElementById('maCurveFrom');
-            const maTo = document.getElementById('maCurveTo');
             if (dataStore && dataStore.dates.length) {
-                maFrom.value = dataStore.dates[0];
-                maTo.value = dataStore.dates[dataStore.dates.length - 1];
+                if (!monitorYMD) buildMonitorYMD();
+                monSyncYMD('from', dataStore.dates[0]);
+                monSyncYMD('to', dataStore.dates[dataStore.dates.length - 1]);
             }
             exportRangeSel.addEventListener('change', function() {
                 rangePickers.style.display = (this.value === 'custom') ? 'inline-flex' : 'none';
             });
+
+            // 利率监测板块 年/月/日 三级联动绑定
+            function onMonCurveDate(dt) {
+                selectedDate = dt;
+                monSyncYMD('curve', dt);
+                monSyncYMD('key', dt);
+                updateMetrics();
+                renderCurveChart();
+                renderKeyTermsTable();
+            }
+            bindMonYMD('curve', onMonCurveDate);
+            bindMonYMD('key', onMonCurveDate);
+            function onMonRefDate(dt) {
+                forecastRefDate = dt;
+                monSyncYMD('ref', dt);
+                monSyncYMD('qref', dt);
+                recalcForecastData(forecastRefDate);
+                populateForecastDateSelector();
+                renderForecastChart();
+                renderQuarterTable(forecastRefDate);
+            }
+            bindMonYMD('ref', onMonRefDate);
+            bindMonYMD('qref', onMonRefDate);
+            // 导出区间起止：仅更新控件，导出时实时读取
+            bindMonYMD('from', function() {});
+            bindMonYMD('to', function() {});
 
             // 预测周期选择器
             document.getElementById('forecastPeriodSelect').addEventListener('change', function() {
@@ -4267,13 +4337,15 @@
             document.getElementById('keyTermsBody').innerHTML = '';
             document.getElementById('quarterBody').innerHTML = '<tr><td colspan="12" style="color:#888;padding:20px;">暂无数据</td></tr>';
             document.getElementById('historyBody').innerHTML = '<tr><td colspan="2" style="color:#888;padding:20px;">暂无数据</td></tr>';
-            document.getElementById('curveDateSelect').innerHTML = '<option>—</option>';
-            document.getElementById('keyDateSelect').innerHTML = '<option>—</option>';
+            // 清空 年/月/日 三级联动选择器
+            ['curve','key','ref','qref','ma','from','to'].forEach(p => {
+                ['Year','Month','Day'].forEach(k => {
+                    const el = document.getElementById(p + k + 'Sel');
+                    if (el) el.innerHTML = '<option>—</option>';
+                });
+            });
             document.getElementById('forecastDateSelect').innerHTML = '<option>—</option>';
-            document.getElementById('forecastRefDateSelect').innerHTML = '<option>—</option>';
-            document.getElementById('quarterRefDateSelect').innerHTML = '<option>—</option>';
             document.getElementById('maTermSelect').innerHTML = '<option>—</option>';
-            document.getElementById('maDateSelect').innerHTML = '<option>—</option>';
             document.getElementById('maPeriodGroupA').innerHTML = '';
             document.getElementById('maPeriodGroupB').innerHTML = '';
             document.getElementById('maTimeSeriesChart').innerHTML = emptyHtml;
