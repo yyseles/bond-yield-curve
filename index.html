@@ -861,6 +861,11 @@
         <div class="bonds-toolbar">
             <div class="bonds-range" id="bondRangeNote"></div>
             <div class="bonds-filters">
+                <label>汇总年份
+                    <select id="bondSummaryYear" title="筛选顶部三张汇总卡的统计年份">
+                        <option value="all">全部</option>
+                    </select>
+                </label>
                 <button id="bondDownloadBtn" class="btn-download" type="button">⬇ 下载全部债券明细(CSV)</button>
             </div>
         </div>
@@ -4045,6 +4050,7 @@
         let industryYear = '';
         let comboEndYear = '';
         let scatterEndYear = '';
+        let summaryYear = 'all';
         const zhCollator = new Intl.Collator('zh-Hans-CN');
 
         // 全量债券（顶部汇总卡 / 公司×年表 使用，不受截止年份影响）
@@ -4094,8 +4100,9 @@
             }, null);
             document.getElementById('bondRangeNote').textContent =
                 (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}` + (minYear ? `（统计自${minYear}年起）` : '');
-            // 顶部汇总卡 / 公司×年表：全量
-            renderBondSummaryCards(rows);
+            // 顶部汇总卡：受「汇总年份」筛选控制（默认全部）；公司×年表：全量
+            const summaryRows = summaryYear === 'all' ? rows : rows.filter(b => (b.issueDate || '').slice(0, 4) === summaryYear);
+            renderBondSummaryCards(summaryRows);
             renderBondCompanyYear(rows);
             // 组合图 + 年度表：受组合图截止年份控制
             renderBondComboChart(comboWin);
@@ -4432,6 +4439,17 @@
             setter(def);
         }
 
+        function populateSummaryYearSelect() {
+            if (!insBonds || !insBonds.bonds) return;
+            const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
+            const sel = document.getElementById('bondSummaryYear');
+            if (!sel) return;
+            // 保留第一个「全部」选项
+            const opts = ['<option value="all">全部</option>'].concat(ys.map(y => `<option value="${y}">${y} 年</option>`)).join('');
+            sel.innerHTML = opts;
+            sel.value = summaryYear;
+        }
+
         function handleHashChange() {
             const hash = location.hash.replace('#', '');
             const validTypes = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
@@ -4635,6 +4653,14 @@
             if (scSel) scSel.addEventListener('change', function() {
                 scatterEndYear = this.value;
                 renderBondScatter(winRows(scatterEndYear));
+            });
+            // 顶部汇总卡：汇总年份筛选
+            const sySel = document.getElementById('bondSummaryYear');
+            if (sySel) sySel.addEventListener('change', function() {
+                summaryYear = this.value;
+                const rows = allBonds();
+                const summaryRows = summaryYear === 'all' ? rows : rows.filter(b => (b.issueDate || '').slice(0, 4) === summaryYear);
+                renderBondSummaryCards(summaryRows);
             });
             document.querySelectorAll('#ruleToggle button').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -4886,6 +4912,7 @@
                             populateIndustryYear();
                             populateEndYearSelect('bondComboEndYear', v => comboEndYear = v);
                             populateEndYearSelect('bondScatterEndYear', v => scatterEndYear = v);
+                            populateSummaryYearSelect();
                             if (currentMainView === 'bonds') renderBondsView();
                             return;
                         }
