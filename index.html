@@ -377,18 +377,19 @@
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 760px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } .sw-params-cols { grid-template-columns: 1fr; } .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); } }
     /* 预定利率动态追踪 */
-    .preset-rule-card { background:#f8fafc; border:1px solid #e1e8ef; border-radius:10px; margin:14px 0 6px; overflow:hidden; }
-    .preset-rule-card > summary { list-style:none; cursor:pointer; padding:10px 16px; font-size:13px; font-weight:600; color:#1f3a5f; display:flex; align-items:center; gap:8px; user-select:none; }
+    .preset-rule-card { display:inline-block; position:relative; }
+    .preset-rule-card > summary { list-style:none; cursor:pointer; padding:3px 10px; font-size:12.5px; font-weight:600; color:#1f3a5f; display:inline-flex; align-items:center; gap:5px; user-select:none; border:1px solid #cdd8e6; border-radius:14px; background:#f4f7fb; }
     .preset-rule-card > summary::-webkit-details-marker { display:none; }
-    .preset-rule-card > summary::after { content:'▸'; margin-left:auto; font-size:14px; color:#7a8aa0; transition:transform .2s; }
+    .preset-rule-card > summary::after { content:'▸'; font-size:11px; color:#7a8aa0; transition:transform .2s; }
     .preset-rule-card[open] > summary::after { transform:rotate(90deg); }
-    .preset-rule-card > summary .badge { background:#fff; color:#5b6b80; border:1px solid #d7dee8; font-size:11px; padding:2px 9px; border-radius:10px; font-weight:500; }
-    .preset-rule-body { padding:6px 18px 14px; font-size:12.5px; color:#41506a; line-height:1.9; border-top:1px dashed #e1e8ef; margin-top:0; }
-    .preset-rule-body p { margin:8px 0 4px; color:#5a6e8a; }
-    .preset-rule-body .step { display:block; padding:3px 0 3px 26px; text-indent:-22px; }
-    .preset-rule-body .step b { color:#1f4a7a; font-weight:600; margin-right:2px; }
-    .preset-rule-body code { background:#fff5e0; color:#b8651b; padding:1px 6px; border-radius:4px; font-size:12px; font-weight:600; font-family:'SF Mono',Consolas,Monaco,monospace; }
-    .preset-rule-body .src { margin-top:10px; padding-top:10px; border-top:1px dashed #e1e8ef; font-size:11.5px; color:#7a8aa0; }
+    .preset-rule-card[open] > summary { background:#1f4a7a; color:#fff; border-color:#1f4a7a; }
+    .preset-rule-card[open] > summary::after { color:#fff; }
+    .preset-rule-popover { position:absolute; top:calc(100% + 6px); left:0; z-index:1000; background:#fff; border:1px solid #d0dde8; border-radius:10px; box-shadow:0 6px 22px rgba(31,74,122,0.14); padding:14px 18px; width:max-content; max-width:560px; font-size:12.5px; color:#41506a; line-height:1.9; }
+    .preset-rule-popover p { margin:0 0 6px; color:#5a6e8a; }
+    .preset-rule-popover .step { display:block; padding:2px 0 2px 24px; text-indent:-20px; }
+    .preset-rule-popover .step b { color:#1f4a7a; font-weight:600; margin-right:2px; }
+    .preset-rule-popover code { background:#fff5e0; color:#b8651b; padding:1px 6px; border-radius:4px; font-size:12px; font-weight:600; font-family:'SF Mono',Consolas,Monaco,monospace; }
+    .preset-rule-popover .src { margin-top:8px; padding-top:8px; border-top:1px dashed #e1e8ef; font-size:11.5px; color:#7a8aa0; }
 
     .preset-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:16px 0; }
     .pcard { background:#fff; border:1px solid #e4e9f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 10px rgba(31,74,122,.06); position:relative; overflow:hidden; min-width:0; }
@@ -981,19 +982,19 @@
     <div class="view-preset" id="viewPreset" style="display:none;">
 
         <div class="preset-status" id="presetStatus">正在加载数据…</div>
-        <details class="preset-rule-card">
-            <summary>📜 规则说明（点击展开）<span class="badge">金寿险函〔2025〕10号</span></summary>
-            <div class="preset-rule-body">
-                <p>本板块按监管规则，将市场利率挂钩为 <b>预定利率研究值（参考口径）</b>，并对未来 8 个季度做基准情景（利率冻结）平推预测。纯前端实时计算，数据自 2019 年起展示。</p>
-                <span class="step"><b>①</b> 利率走廊 = (<code>5Y LPR</code> + <code>5Y定存</code>) / 2 的 <code>126日</code>移动平均（6个月）</span>
-                <span class="step"><b>②</b> 基础回报 = <code>10Y国债到期</code> + 税收溢价（<code>9Y国开</code> − <code>9Y国债</code>）</span>
-                <span class="step"><b>③</b> 基础回报水平 = MIN(基础回报的 <code>250日MA</code>, <code>750日MA</code>)</span>
-                <span class="step"><b>④</b> 参考利率 <code>M</code> = MIN(走廊6MMA, 基础回报水平)</span>
-                <span class="step"><b>⑤</b> 预定利率 <code>N</code> = 对 M 的分段调节（监管调节系数表，高区反向压低）</span>
-                <div class="src">📌 数据来源：中债到期收益率（国债/国开，本平台已有）· 中国货币网 <code>5Y LPR</code> · 工商银行 5年定存（=六大行均值）· 中保协季度公布的研究值（仅监测，不计算）。</div>
-            </div>
-        </details>
         <div class="preset-toolbar" id="presetToolbar">
+            <details class="preset-rule-card">
+                <summary>📜 规则</summary>
+                <div class="preset-rule-popover">
+                    <p>本板块按监管规则，将市场利率挂钩为 <b>预定利率研究值（参考口径）</b>，并对未来 8 个季度做基准情景（利率冻结）平推预测。纯前端实时计算，数据自 2019 年起展示。</p>
+                    <span class="step"><b>①</b> 利率走廊 = (<code>5Y LPR</code> + <code>5Y定存</code>) / 2 的 <code>126日</code>移动平均</span>
+                    <span class="step"><b>②</b> 基础回报 = <code>10Y国债到期</code> + 税收溢价（<code>9Y国开</code> − <code>9Y国债</code>）</span>
+                    <span class="step"><b>③</b> 基础回报水平 = MIN(基础回报的 <code>250日MA</code>, <code>750日MA</code>)</span>
+                    <span class="step"><b>④</b> 参考利率 <code>M</code> = MIN(走廊6MMA, 基础回报水平)</span>
+                    <span class="step"><b>⑤</b> 预定利率 <code>N</code> = 对 M 的分段调节（高区反向压低）</span>
+                    <div class="src">📌 数据：中债国债/国开 · 中国货币网 <code>5Y LPR</code> · 工行 5Y 定存 · 中保协季度研究值。依据：金寿险函〔2025〕10号。</div>
+                </div>
+            </details>
             <label>基准日：<input type="date" id="presetBaseDate" onchange="onPresetBaseDateChange()" /></label>
             <button class="btn-today" onclick="resetPresetBaseDate()">回到最新</button>
             <span class="toolbar-hint" id="presetBaseHint">展示该日数据快照（含当时的前瞻预测）</span>
