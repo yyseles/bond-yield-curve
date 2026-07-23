@@ -219,8 +219,13 @@ def main():
     # chinamoney 仅补充其中缺失的新发行债，避免重复计数或把永续债覆盖丢失。
     seen = {}
 
+    def _norm_issuer(s):
+        s = str(s or "").strip()
+        m = re.search(r"[（(]原", s)   # 去掉 "(原:信诚人寿…)" 曾用名后缀，避免同一公司被当两条
+        return s[:m.start()].strip() if m else s
+
     def _key(b):
-        return (str(b.get("issuer", "")).strip(), str(b.get("bondShort", "")).strip())
+        return (_norm_issuer(b.get("issuer")), str(b.get("bondShort", "")).strip())
 
     if os.path.exists(DATA_FILE):
         try:
@@ -246,7 +251,7 @@ def main():
                     continue
                 short = row.get("债券简称") or ""
                 code = row.get("查询代码")
-                key = (issuer.strip(), short.strip())
+                key = (_norm_issuer(issuer), short.strip())
                 if not code or key in seen:
                     continue
                 info = fetch_detail(code)
