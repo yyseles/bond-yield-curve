@@ -1,0 +1,14 @@
+{
+  "source": "中国保险行业协会(iachina.cn)季度例会公告《人身保险产品预定利率研究值》（依据金寿险函〔2025〕10号）",
+  "unit": "%",
+  "note": "监管每季度公布一次研究值，本表为公布值（非本平台计算值）。2024Q4 起数据来自公开整理，请核对官方公告原文；后续由用户定期更新。",
+  "records": [
+    {"quarter": "2024Q4", "quarter_end": "2024-12-31", "published_N": 2.34, "published_at": "2025-01", "source_url": ""},
+    {"quarter": "2025Q1", "quarter_end": "2025-03-31", "published_N": 2.13, "published_at": "2025-04", "source_url": ""},
+    {"quarter": "2025Q2", "quarter_end": "2025-06-30", "published_N": 1.99, "published_at": "2025-07", "source_url": ""},
+    {"quarter": "2025Q3", "quarter_end": "2025-09-30", "published_N": 1.90, "published_at": "2025-10", "source_url": ""},
+    {"quarter": "2025Q4", "quarter_end": "2025-12-31", "published_N": 1.89, "published_at": "2026-01", "source_url": ""},
+    {"quarter": "2026Q1", "quarter_end": "2026-03-31", "published_N": 1.93, "published_at": "2026-04", "source_url": ""},
+    {"quarter": "2026Q2", "quarter_end": "2026-06-30", "published_N": 1.94, "published_at": "2026-07-21", "source_url": "https://www.iachina.cn/art/2026/7/21/art_22_109159.html"}
+  ]
+}

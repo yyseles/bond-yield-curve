@@ -376,6 +376,29 @@
         .sw-liq-count { font-weight: 700; color: #1f4a7a; }
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 760px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } .sw-params-cols { grid-template-columns: 1fr; } .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); } }
+    /* 预定利率动态追踪 */
+    .preset-intro { background: linear-gradient(135deg,#f4f8fd,#eef4fb); border-left:4px solid #1f4a7a; }
+    .preset-intro p { margin:6px 0; font-size:13px; color:#41506a; line-height:1.6; }
+    .preset-intro .formula { background:#fff; border:1px solid #e1e8f0; border-radius:8px; padding:8px 12px; font-size:12.5px; color:#1f3a5f; margin-top:8px; }
+    .preset-intro .formula code { color:#b8651b; font-weight:600; }
+    .preset-intro .src-note { font-size:11.5px; color:#7a8aa0; margin-top:8px; }
+    .preset-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin:16px 0; }
+    .pcard { background:#fff; border:1px solid #e4e9f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 10px rgba(31,74,122,.06); position:relative; overflow:hidden; min-width:0; }
+    .pcard::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,#3b7dd8,#1f4a7a); }
+    .pcard .pk { font-size:12px; color:#7a8aa0; margin-bottom:6px; font-weight:600; }
+    .pcard .pv { font-size:24px; font-weight:700; color:#1f3a5f; font-variant-numeric:tabular-nums; line-height:1.1; }
+    .pcard .pv small { font-size:12px; color:#7a8aa0; font-weight:500; }
+    .pcard .psub { font-size:11px; color:#94a3b8; margin-top:5px; }
+    .pcard.c-cor::before { background:linear-gradient(90deg,#27ae60,#1e8449); }
+    .pcard.c-base::before { background:linear-gradient(90deg,#8e44ad,#6c3483); }
+    .pcard.c-reg::before { background:linear-gradient(90deg,#d4a017,#b8860b); }
+    .preset-forecast-area { background:linear-gradient(135deg,#f0faf3,#e8f6ee); border:1px solid #cfe9d8; border-radius:14px; padding:0 0 10px; margin-top:16px; }
+    .preset-forecast-area .area-title { font-size:13px; font-weight:700; color:#1f6d4a; padding:12px 18px 0; display:flex; align-items:center; gap:8px; }
+    .preset-forecast-area .grid-2 { padding:14px 14px 0; margin-bottom:0; }
+    .q-hl { background:#fff7e6 !important; }
+    .q-hl td:first-child { font-weight:700; color:#b8651b; }
+    .preset-status { font-size:12px; color:#f57c00; padding:8px 16px; }
+    @media (max-width:1200px){ .preset-cards{ grid-template-columns:repeat(2,1fr);} }
     </style>
 </head>
 <body>
@@ -386,6 +409,7 @@
                 <div class="nav-group nav-group-primary">
                     <button class="active" data-view="monitor">📊 利率曲线监测</button>
                     <button data-view="discount">💱 折现率曲线</button>
+                    <button data-view="preset">📉 预定利率追踪</button>
                 </div>
                 <span class="nav-sep" title="分界线：左侧为利率监测主功能，右侧为行业公开数据补充信息">│</span>
                 <div class="nav-group nav-group-secondary">
@@ -929,6 +953,86 @@
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
         </div>
     </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         预定利率动态追踪（依据金寿险函〔2025〕10号）
+         ═══════════════════════════════════════════════ -->
+    <div class="view-preset" id="viewPreset" style="display:none;">
+        <div class="card preset-intro">
+            <div class="card-title"><span>📉 预定利率动态追踪</span><span class="badge">依据 金寿险函〔2025〕10号</span></div>
+            <p>本板块按监管规则，将市场利率挂钩为<b>预定利率研究值（参考口径）</b>，并对未来 8 个季度做基准情景（利率冻结）平推预测。纯前端实时计算，数据自 2019 年起展示。</p>
+            <div class="formula">
+                ① 利率走廊 = ((5Y LPR + 5Y定存) / 2) 的 <code>126日</code>移动平均（6个月）<br>
+                ② 基础回报 = <code>10Y国债到期</code> + 税收溢价（9Y国开 − 9Y国债）<br>
+                ③ 基础回报水平 = MIN(基础回报的 <code>250日</code>MA, <code>750日</code>MA)<br>
+                ④ 参考利率 <code>M</code> = MIN(走廊6MMA, 基础回报水平)<br>
+                ⑤ 预定利率 <code>N</code> = 对 M 的分段调节（监管调节系数表，高区反向压低）
+            </div>
+            <div class="src-note">数据来源：中债到期收益率（国债/国开，本平台已有）· 中国货币网 5Y LPR · 工商银行 5年定存（=六大行均值）· 中保协季度公布的监管研究值（仅监测，不计算）。</div>
+        </div>
+
+        <div class="preset-status" id="presetStatus">正在加载数据…</div>
+        <div class="preset-cards" id="presetSummary"></div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span>① 利率走廊</span><span class="badge">LPR5Y · 定存5Y · 中值 · 6MMA</span></div>
+                <div class="chart-box" id="presetChartCorridor"></div>
+                <div class="footnote">利率单位：% ｜ 展示自 2019 年起</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>② 基础回报构建</span><span class="badge">10Y国债 + 税收溢价</span></div>
+                <div class="chart-box" id="presetChartBaseReturn"></div>
+                <div class="footnote">利率单位：% ｜ 税收溢价为 bp（右轴）</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span>③ 基础回报水平</span><span class="badge">250MA · 750MA · MIN</span></div>
+                <div class="chart-box" id="presetChartMALevel"></div>
+                <div class="footnote">利率单位：% ｜ 取两者较小值</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>④⑤ 参考利率 M vs 预定利率 N</span><span class="badge">含调节突变带</span></div>
+                <div class="chart-box" id="presetChartMN"></div>
+                <div class="footnote">利率单位：% ｜ 竖线为监管调节阈值（3.5%/4.0% 处 N 突降）</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>📋 输入数据源（LPR / 定存 调整历史 + 衍生走廊）</span><span class="badge">行政利率 · 仅调整日变动</span></div>
+            <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetInputTable"></table></div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title"><span>📋 M → N 分段调节对照</span><span class="badge">当前 M 落入区间高亮</span></div>
+                <div class="table-wrap"><table id="presetMNTable"></table></div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>📋 未来季度末预测（基准情景·平推）</span><span class="badge">前4季高亮 · 共8季</span></div>
+                <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetForecastTable"></table></div>
+                <div class="footnote">假设：LPR/定存/债券收益率均冻结于最新值，移动平均窗口继续滚动（平推法）。</div>
+            </div>
+        </div>
+
+        <div class="preset-forecast-area">
+            <div class="area-title">🟢 预测与监管对照（基准情景）</div>
+            <div class="grid-2">
+                <div class="card" style="background:#fff;">
+                    <div class="card-title"><span>预定利率 N 走势与预测</span><span class="badge">历史实线 · 未来虚线</span></div>
+                    <div class="chart-box" id="presetChartForecast" style="height:420px;"></div>
+                    <div class="footnote">散点为中保协公布的监管研究值；竖线为监管下调事件。</div>
+                </div>
+                <div class="card" style="background:#fff;">
+                    <div class="card-title"><span>公式值 vs 监管公布值（回溯）</span><span class="badge">误差 = 公式 − 公布 (bp)</span></div>
+                    <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetBacktestTable"></table></div>
+                    <div class="footnote">回溯各已公布季度：本平台公式在季末测算的 N，与监管公布研究值对照。</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -4010,6 +4114,18 @@
             currentMainView = v;
             document.querySelectorAll('#mainNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
             const bt = document.getElementById('bondToggle');
+            if (v === 'preset') {
+                document.querySelector('.container').classList.remove('overview-mode');
+                document.getElementById('viewOverview').style.display = 'none';
+                document.getElementById('viewDetail').style.display = 'none';
+                document.getElementById('viewDiscount').style.display = 'none';
+                document.getElementById('viewBonds').style.display = 'none';
+                bt.style.display = 'none';
+                document.getElementById('viewPreset').style.display = '';
+                renderPreset();
+                setTimeout(() => { for (const k in presetCharts) if (presetCharts[k]) presetCharts[k].resize(); }, 60);
+                return;
+            }
             if (v === 'bonds') {
                 document.querySelector('.container').classList.remove('overview-mode');
                 document.getElementById('viewOverview').style.display = 'none';
@@ -4921,6 +5037,375 @@
                     if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
                 }
             }
+        }
+
+        // ═══════════════════════════════════════════════
+        // 预定利率动态追踪（依据金寿险函〔2025〕10号）
+        // 纯前端实时计算；复用现有 generateForecastDates / businessDaysBetween / isTradingDay
+        // ═══════════════════════════════════════════════
+        const PRESET_FILES = {
+            govYtm: 'data_gov_ytm.json',
+            cdbYtm: 'data_cdb_ytm.json',
+            lpr5y: 'data_lpr5y.json',
+            deposit5y: 'data_deposit5y.json',
+            regN: 'data_regulator_n.json'
+        };
+        let presetData = null;
+        let presetComputed = null;
+        let presetForecastRows = null;
+        let presetCharts = {};
+
+        const PRESET_N_SEGMENTS = [
+            {hi:Infinity, lo:4.0, coef:0.20, base:null, threshold:4.0, label:'4%以上'},
+            {hi:4.0, lo:3.5, coef:0.30, base:null, threshold:3.5, label:'(3.5%,4%]'},
+            {hi:3.5, lo:3.0, coef:0.50, base:2.95, threshold:3.0, label:'(3%,3.5%]'},
+            {hi:3.0, lo:2.5, coef:0.95, base:2.475, threshold:2.5, label:'(2.5%,3%]'},
+            {hi:2.5, lo:2.0, coef:0.95, base:2.0, threshold:2.0, label:'(2%,2.5%]'},
+            {hi:2.0, lo:1.0, coef:1.00, base:1.0, threshold:1.0, label:'(1%,2%]'},
+            {hi:1.0, lo:0, coef:1.00, base:0, threshold:0, label:'1%以下'}
+        ];
+        function presetAdjN(M) {
+            if (M == null) return null;
+            for (const s of PRESET_N_SEGMENTS) {
+                if (M > s.lo && M <= s.hi) {
+                    if (s.base == null) return M * s.coef;
+                    return s.base + (M - s.threshold) * s.coef;
+                }
+            }
+            return M;
+        }
+        function presetRollingMean(arr, window) {
+            const out = new Array(arr.length).fill(null);
+            let sum = 0, cnt = 0;
+            for (let i = 0; i < arr.length; i++) {
+                if (arr[i] != null) { sum += arr[i]; cnt++; }
+                if (i >= window && arr[i - window] != null) { sum -= arr[i - window]; cnt--; }
+                if (cnt > 0) out[i] = +(sum / cnt).toFixed(6);
+            }
+            return out;
+        }
+        function presetFfill(dailyDates, sparseDates, sparseVals) {
+            const out = new Array(dailyDates.length).fill(null);
+            let last = null, j = 0;
+            for (let i = 0; i < dailyDates.length; i++) {
+                while (j < sparseDates.length && sparseDates[j] <= dailyDates[i]) {
+                    if (sparseVals[j] != null) last = sparseVals[j];
+                    j++;
+                }
+                out[i] = last;
+            }
+            return out;
+        }
+        function _idxAt(dates, d) {
+            let lo = 0, hi = dates.length - 1, ans = -1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (dates[mid] <= d) { ans = mid; lo = mid + 1; }
+                else hi = mid - 1;
+            }
+            return ans;
+        }
+        async function ensurePresetData() {
+            if (presetData) return presetData;
+            const load = async (f) => {
+                const resp = await fetch(f + '?' + Date.now(), { cache: 'no-store' });
+                if (!resp.ok) throw new Error('无法加载 ' + f);
+                return resp.json();
+            };
+            const [govYtm, cdbYtm, lpr, deposit, regN] = await Promise.all([
+                load(PRESET_FILES.govYtm), load(PRESET_FILES.cdbYtm),
+                load(PRESET_FILES.lpr5y), load(PRESET_FILES.deposit5y), load(PRESET_FILES.regN)
+            ]);
+            presetData = { govYtm, cdbYtm, lpr, deposit, regN };
+            return presetData;
+        }
+        function computePreset() {
+            const { govYtm, cdbYtm, lpr, deposit } = presetData;
+            const dates = govYtm.dates, n = dates.length;
+            const g9 = govYtm.terms.indexOf('9Y'), g10 = govYtm.terms.indexOf('10Y');
+            const c9 = cdbYtm.terms.indexOf('9Y');
+            const gDateIdx = {};
+            for (let i = 0; i < dates.length; i++) gDateIdx[dates[i]] = i;
+            const tax = new Array(n).fill(null);
+            const baseReturn = new Array(n).fill(null);
+            const cgb10y = new Array(n).fill(null);
+            for (let i = 0; i < cdbYtm.dates.length; i++) {
+                const d = cdbYtm.dates[i];
+                const gi = gDateIdx[d];
+                if (gi == null) continue;
+                const cv = cdbYtm.rows[i][c9], gv = govYtm.rows[gi][g9], gv10 = govYtm.rows[gi][g10];
+                if (cv != null && gv != null) tax[gi] = +((cv - gv) * 100).toFixed(2);
+                if (tax[gi] != null && gv10 != null) baseReturn[gi] = +(gv10 + tax[gi] / 100).toFixed(6);
+                cgb10y[gi] = gv10;
+            }
+            const br250 = presetRollingMean(baseReturn, 250);
+            const br750 = presetRollingMean(baseReturn, 750);
+            const baseLevel = br250.map((v, i) => (v != null && br750[i] != null) ? Math.min(v, br750[i]) : null);
+            const lprFF = presetFfill(dates, lpr.dates, lpr.values);
+            const depFF = presetFfill(dates, deposit.dates, deposit.values);
+            const corridorMid = lprFF.map((l, i) => (l != null && depFF[i] != null) ? +(l + depFF[i]) / 2 : null);
+            const corridor6MMA = presetRollingMean(corridorMid, 126);
+            const Mvals = corridor6MMA.map((c, i) => (c != null && baseLevel[i] != null) ? Math.min(c, baseLevel[i]) : null);
+            const Nvals = Mvals.map(m => m != null ? +presetAdjN(m).toFixed(6) : null);
+            const last = { corridor:null, baseLevel:null, M:null, N:null, tax:null, baseReturn:null, cgb10y:null };
+            for (let i = n - 1; i >= 0; i--) {
+                if (last.corridor == null && corridor6MMA[i] != null) last.corridor = corridor6MMA[i];
+                if (last.baseLevel == null && baseLevel[i] != null) last.baseLevel = baseLevel[i];
+                if (last.M == null && Mvals[i] != null) last.M = Mvals[i];
+                if (last.N == null && Nvals[i] != null) last.N = Nvals[i];
+                if (last.tax == null && tax[i] != null) last.tax = tax[i];
+                if (last.baseReturn == null && baseReturn[i] != null) last.baseReturn = baseReturn[i];
+                if (last.cgb10y == null && cgb10y[i] != null) last.cgb10y = cgb10y[i];
+                if (last.corridor != null && last.baseLevel != null && last.M != null && last.N != null
+                    && last.tax != null && last.baseReturn != null && last.cgb10y != null) break;
+            }
+            return { dates, n, tax, baseReturn, cgb10y, br250, br750, baseLevel,
+                     lprFF, depFF, corridorMid, corridor6MMA, Mvals, Nvals, last,
+                     refIdx: n - 1, refDate: dates[n - 1] };
+        }
+        // 平推法：底层冻结最新值，MA 窗口继续滚动（复用 calcForecastMA 思路）
+        function presetForecastMA(dailyArr, refIdx, period, forecastDates, refDate) {
+            const result = {};
+            const refVal = dailyArr[refIdx];
+            if (refVal == null) return result;
+            for (const fDate of forecastDates) {
+                const d = businessDaysBetween(refDate, fDate);
+                let histCount = period - d;
+                if (histCount < 0) histCount = 0;
+                const actualHistCount = Math.min(histCount, refIdx + 1);
+                let sum = 0, cnt = 0;
+                for (let k = 0; k < actualHistCount; k++) {
+                    const v = dailyArr[refIdx - k];
+                    if (v != null) { sum += v; cnt++; }
+                }
+                const predCount = period - cnt;
+                result[fDate] = (sum + predCount * refVal) / period;
+            }
+            return result;
+        }
+        function forecastPreset(c) {
+            const refDate = c.refDate, refIdx = c.refIdx;
+            const forecastDates = generateForecastDates(refDate, 750); // 覆盖 ~3 年
+            const qLast = {};
+            for (const d of forecastDates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                const key = dt.getUTCFullYear() + 'Q' + (Math.floor(dt.getUTCMonth() / 3) + 1);
+                qLast[key] = d; // 覆盖 -> 该季最后交易日
+            }
+            const qKeys = Object.keys(qLast).sort();
+            const rdt = new Date(refDate + 'T00:00:00Z');
+            const rQ = rdt.getUTCFullYear() + 'Q' + (Math.floor(rdt.getUTCMonth() / 3) + 1);
+            let startIdx = qKeys.indexOf(rQ);
+            if (startIdx < 0) startIdx = 0;
+            // 含当前季度末（若已过时则下一季），共 8 季；前 4 季（至 2027-06-30）高亮
+            const futureQ = qKeys.slice(startIdx, startIdx + 8);
+            const cMAs = presetForecastMA(c.corridorMid, refIdx, 126, forecastDates, refDate);
+            const b250 = presetForecastMA(c.baseReturn, refIdx, 250, forecastDates, refDate);
+            const b750 = presetForecastMA(c.baseReturn, refIdx, 750, forecastDates, refDate);
+            return futureQ.map((key, i) => {
+                const d = qLast[key];
+                const c6 = cMAs[d], a250 = b250[d], a750 = b750[d];
+                const bl = (a250 != null && a750 != null) ? Math.min(a250, a750) : null;
+                const M = (c6 != null && bl != null) ? Math.min(c6, bl) : null;
+                const N = (M != null) ? +presetAdjN(M).toFixed(6) : null;
+                return { quarter: key, date: d, corridor6MMA: c6, br250: a250, br750: a750, baseLevel: bl, M, N, hl: i < 4 };
+            });
+        }
+        async function renderPreset() {
+            const statusEl = document.getElementById('presetStatus');
+            if (!presetComputed) {
+                try {
+                    await ensurePresetData();
+                    presetComputed = computePreset();
+                    presetForecastRows = forecastPreset(presetComputed);
+                    statusEl.style.display = 'none';
+                } catch (e) {
+                    statusEl.textContent = '数据加载失败：' + e.message + '（请确认 data_lpr5y.json / data_deposit5y.json / data_regulator_n.json 已部署）';
+                    statusEl.style.color = '#c0392b';
+                    console.error(e);
+                    return;
+                }
+            }
+            renderPresetSummary();
+            renderPresetCharts();
+            renderPresetTables();
+        }
+        function renderPresetSummary() {
+            const c = presetComputed;
+            const reg = (presetData.regN.records || []);
+            const latestReg = reg.length ? reg[reg.length - 1] : null;
+            const cards = [
+                {cls:'c-m', k:'参考利率 M', v: c.last.M, sub:'走廊6MMA 与 基础回报水平 之较小值'},
+                {cls:'', k:'预定利率 N', v: c.last.N, sub:'对 M 分段调节后的研究值'},
+                {cls:'c-cor', k:'走廊中值(6MMA)', v: c.last.corridor, sub:'((LPR5Y+定存5Y)/2) 126日MA'},
+                {cls:'c-base', k:'基础回报水平', v: c.last.baseLevel, sub:'MIN(基础回报 250MA, 750MA)'},
+                {cls:'c-reg', k:'监管公布研究值', v: latestReg ? latestReg.published_N : null,
+                 sub: latestReg ? (latestReg.quarter + ' · ' + latestReg.published_at) : '暂无公布'}
+            ];
+            document.getElementById('presetSummary').innerHTML = cards.map(x => {
+                const val = (x.v != null && typeof x.v === 'number') ? x.v.toFixed(2) + '%' : '—';
+                return `<div class="pcard ${x.cls}"><div class="pk">${x.k}</div><div class="pv">${val}</div><div class="psub">${x.sub}</div></div>`;
+            }).join('');
+        }
+        function _presetDispStart(c) {
+            let s = c.dates.findIndex(d => d >= '2019-01-01');
+            return s < 0 ? 0 : s;
+        }
+        function renderPresetCharts() {
+            const c = presetComputed;
+            const start = _presetDispStart(c);
+            const len = c.n - start;
+            const x = c.dates.slice(start).map(d => d.slice(0, 7));
+            const intv = Math.max(1, Math.floor(len / 6));
+            const slc = (arr) => arr.slice(start).map(v => v != null ? +v.toFixed(6) : null);
+            const mk = (id) => {
+                const dom = document.getElementById(id);
+                if (presetCharts[id]) presetCharts[id].dispose();
+                presetCharts[id] = echarts.init(dom);
+                return presetCharts[id];
+            };
+            const reg = (presetData.regN.records || []).filter(r => r.published_N != null);
+            const regScatter = reg.map(r => ({ value: [r.quarter_end.slice(0, 7), r.published_N], rec: r }));
+
+            mk('presetChartCorridor').setOption({
+                tooltip:{trigger:'axis'}, legend:{data:['LPR 5Y','定存 5Y','走廊中值','走廊中值6MMA'], top:5},
+                grid:{left:55,right:20,top:40,bottom:40},
+                xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
+                yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
+                series:[
+                    {name:'LPR 5Y',type:'line',data:slc(c.lprFF),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
+                    {name:'定存 5Y',type:'line',data:slc(c.depFF),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5}},
+                    {name:'走廊中值',type:'line',data:slc(c.corridorMid),symbol:'none',lineStyle:{color:'#999',width:1,type:'dashed'}},
+                    {name:'走廊中值6MMA',type:'line',data:slc(c.corridor6MMA),symbol:'none',lineStyle:{color:'#27ae60',width:2}}
+                ]
+            });
+            mk('presetChartBaseReturn').setOption({
+                tooltip:{trigger:'axis'}, legend:{data:['10Y国债到期','税收溢价(bp,右轴)','基础回报'], top:5},
+                grid:{left:55,right:60,top:40,bottom:40},
+                xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
+                yAxis:[{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},{type:'value',name:'bp'}],
+                series:[
+                    {name:'10Y国债到期',type:'line',data:slc(c.cgb10y),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
+                    {name:'税收溢价(bp,右轴)',type:'line',yAxisIndex:1,data:slc(c.tax),symbol:'none',lineStyle:{color:'#e74c3c',width:1},areaStyle:{color:'rgba(231,76,60,0.06)'}},
+                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#8e44ad',width:2}}
+                ]
+            });
+            mk('presetChartMALevel').setOption({
+                tooltip:{trigger:'axis'}, legend:{data:['基础回报','250MA','750MA','基础回报水平(MIN)'], top:5},
+                grid:{left:55,right:20,top:40,bottom:40},
+                xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
+                yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
+                series:[
+                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#ccc',width:0.5}},
+                    {name:'250MA',type:'line',data:slc(c.br250),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5}},
+                    {name:'750MA',type:'line',data:slc(c.br750),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
+                    {name:'基础回报水平(MIN)',type:'line',data:slc(c.baseLevel),symbol:'none',lineStyle:{color:'#8e44ad',width:2.5}}
+                ]
+            });
+            const markLines = PRESET_N_SEGMENTS.filter(s => s.threshold > 0.5).map(s => ({
+                yAxis: s.threshold, lineStyle:{color:'#999',type:'dashed',width:0.8},
+                label:{formatter:s.label,fontSize:9,position:'end'}
+            }));
+            mk('presetChartMN').setOption({
+                tooltip:{trigger:'axis'}, legend:{data:['参考利率 M','预定利率 N','监管公布值'], top:5},
+                grid:{left:55,right:20,top:40,bottom:40},
+                xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
+                yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)},
+                    max: val => Math.max(4.5, (val.max||0)*1.05), min: val => Math.min(0, (val.min||0)-0.2)},
+                series:[
+                    {name:'参考利率 M',type:'line',data:slc(c.Mvals),symbol:'none',lineStyle:{color:'#2e75b6',width:2}},
+                    {name:'预定利率 N',type:'line',data:slc(c.Nvals),symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
+                    {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:9,itemStyle:{color:'#d4a017'},
+                        markLine:{silent:true,symbol:'none',data:markLines},
+                        tooltip:{formatter:p=>`${p.data.rec.quarter} 公布 ${p.data.rec.published_N.toFixed(2)}%`}}
+                ]
+            });
+            // 预测图：历史实线 + 未来虚线（扩展 x 轴到季末）
+            const histX = c.dates.map(d => d.slice(0, 7));
+            const histN = c.Nvals.map(v => v != null ? +v.toFixed(6) : null);
+            const fc = presetForecastRows;
+            const fcX = fc.map(r => r.date.slice(0, 7));
+            const fcN = fc.map(r => r.N != null ? +r.N.toFixed(6) : null);
+            const combX = histX.concat(fcX);
+            const histSeries = histN.concat(fcX.map(() => null));
+            const futSeries = histX.map(() => null);
+            futSeries[histX.length - 1] = histN[histN.length - 1];
+            const futSeriesFull = futSeries.concat(fcN);
+            const eventLines = [
+                {xAxis:'2025-07', lineStyle:{color:'#c0392b',type:'dashed',width:1}, label:{formatter:'25-07公告',fontSize:9,position:'insideEndTop'}},
+                {xAxis:'2025-09', lineStyle:{color:'#c0392b',type:'dashed',width:1}, label:{formatter:'25-09起2.0%',fontSize:9,position:'insideEndTop'}}
+            ];
+            mk('presetChartForecast').setOption({
+                tooltip:{trigger:'axis'}, legend:{data:['历史 N','预测 N(基准)','监管公布值'], top:5},
+                grid:{left:55,right:20,top:40,bottom:40},
+                xAxis:{type:'category',data:combX,axisLabel:{rotate:45,fontSize:9,interval:Math.max(1,Math.floor(combX.length/10))}},
+                yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)},
+                    max: val => Math.max(4.5, (val.max||0)*1.05), min: val => Math.min(0, (val.min||0)-0.2)},
+                series:[
+                    {name:'历史 N',type:'line',data:histSeries,symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
+                    {name:'预测 N(基准)',type:'line',data:futSeriesFull,symbol:'circle',symbolSize:6,
+                        lineStyle:{color:'#27ae60',width:2,type:'dashed'}},
+                    {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:9,itemStyle:{color:'#d4a017'},
+                        markLine:{silent:true,symbol:'none',data:eventLines},
+                        tooltip:{formatter:p=>`${p.data.rec.quarter} 公布 ${p.data.rec.published_N.toFixed(2)}%`}}
+                ]
+            });
+        }
+        function renderPresetTables() {
+            const c = presetComputed;
+            // 表1：输入数据源（LPR/定存 调整历史 + 衍生走廊）
+            const lprD = presetData.lpr.dates, depD = presetData.deposit.dates;
+            const union = Array.from(new Set(lprD.concat(depD))).sort().reverse();
+            let html = '<thead><tr><th>日期</th><th>LPR5Y(%)</th><th>定存5Y(%)</th><th>走廊中值(%)</th><th>走廊6MMA(%)</th></tr></thead><tbody>';
+            for (const d of union) {
+                const idx = _idxAt(c.dates, d);
+                if (idx < 0) continue;
+                const lprV = c.lprFF[idx], depV = c.depFF[idx], mid = c.corridorMid[idx], ma6 = c.corridor6MMA[idx];
+                const f = v => v != null ? v.toFixed(2) : '—';
+                html += `<tr><td class="lft">${d}</td><td>${f(lprV)}</td><td>${f(depV)}</td><td>${f(mid)}</td><td>${f(ma6)}</td></tr>`;
+            }
+            html += '</tbody>';
+            document.getElementById('presetInputTable').innerHTML = html;
+
+            // 表2：M→N 分段调节对照
+            const curM = c.last.M;
+            let curSeg = PRESET_N_SEGMENTS.find(s => curM != null && curM > s.lo && curM <= s.hi);
+            let html2 = '<thead><tr><th>区间</th><th>调节系数</th><th>阈值</th><th>公式</th><th>当前 M 落入</th></tr></thead><tbody>';
+            for (const s of PRESET_N_SEGMENTS) {
+                const formula = s.base == null ? `N = M × ${(s.coef*100).toFixed(0)}%` : `N = ${s.base.toFixed(2)}% + (M − ${s.threshold.toFixed(1)}%) × ${(s.coef*100).toFixed(0)}%`;
+                const hit = (curSeg && curSeg.label === s.label) ? ' ✅' : '';
+                const hl = (curSeg && curSeg.label === s.label) ? ' style="background:#fff7e6;font-weight:700;"' : '';
+                html2 += `<tr${hl}><td class="lft">${s.label}</td><td>${(s.coef*100).toFixed(0)}%</td><td>${s.threshold.toFixed(1)}%</td><td class="lft">${formula}</td><td>${hit||'—'}</td></tr>`;
+            }
+            if (curM != null) {
+                html2 += `<tr style="background:#eef4fb;font-weight:700;"><td class="lft">当前</td><td colspan="3" class="lft">参考利率 M = ${curM.toFixed(2)}% → 预定利率 N = ${c.last.N.toFixed(2)}%</td><td>✅</td></tr>`;
+            }
+            html2 += '</tbody>';
+            document.getElementById('presetMNTable').innerHTML = html2;
+
+            // 表3：未来季度末预测
+            let html3 = '<thead><tr><th>季度</th><th>季末日</th><th>走廊6MMA(%)</th><th>250MA(%)</th><th>750MA(%)</th><th>基础回报水平(%)</th><th>参考利率M(%)</th><th>预定利率N(%)</th></tr></thead><tbody>';
+            for (const r of presetForecastRows) {
+                const f2 = v => v != null ? v.toFixed(2) : '—';
+                const f3 = v => v != null ? v.toFixed(3) : '—';
+                html3 += `<tr class="${r.hl ? 'q-hl' : ''}"><td class="lft">${r.quarter}${r.hl ? ' ★' : ''}</td><td class="lft">${r.date}</td><td>${f3(r.corridor6MMA)}</td><td>${f3(r.br250)}</td><td>${f3(r.br750)}</td><td>${f3(r.baseLevel)}</td><td>${f2(r.M)}</td><td>${f2(r.N)}</td></tr>`;
+            }
+            html3 += '</tbody>';
+            document.getElementById('presetForecastTable').innerHTML = html3;
+
+            // 回溯：公式值 vs 监管公布值
+            const reg = (presetData.regN.records || []).filter(r => r.published_N != null);
+            let html4 = '<thead><tr><th>季度</th><th>公布值(%)</th><th>公式值(季末)(%)</th><th>误差(bp)</th></tr></thead><tbody>';
+            for (const r of reg) {
+                const idx = _idxAt(c.dates, r.quarter_end);
+                const formulaN = (idx >= 0 && c.Nvals[idx] != null) ? c.Nvals[idx] : null;
+                const err = (formulaN != null) ? Math.round((formulaN - r.published_N) * 100) : null;
+                const f2 = v => v != null ? v.toFixed(2) : '—';
+                const errCls = err == null ? '' : (Math.abs(err) <= 10 ? ' style="color:#1f6d4a;font-weight:600;"' : ' style="color:#c0392b;font-weight:600;"');
+                html4 += `<tr><td class="lft">${r.quarter}</td><td>${f2(r.published_N)}</td><td>${f2(formulaN)}</td><td${errCls}>${err == null ? '—' : (err>0?'+':'') + err}</td></tr>`;
+            }
+            html4 += '</tbody>';
+            document.getElementById('presetBacktestTable').innerHTML = html4;
         }
 
         async function init() {
