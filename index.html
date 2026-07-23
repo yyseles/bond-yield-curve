@@ -29,7 +29,7 @@
         .btn-download:hover { background: #12345a; }
         .btn-reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 20px; padding: 2px 14px; cursor: pointer; transition: 0.2s; }
         .btn-reset:hover { background: #f0f0f0; color: #555; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; align-items: stretch; }
         .grid-2 > * { min-width: 0; }
         .card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 18px 20px 20px; border: 1px solid #e6edf5; }
         .card-title { font-size: 16px; font-weight: 600; color: #1a2b44; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -443,7 +443,7 @@
                 <div class="chart-box" id="curveChart"></div>
                 <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
             </div>
-            <div class="card" style="display:flex;flex-direction:column;">
+            <div class="card" style="display:flex;flex-direction:column;min-height:0;">
                 <div class="card-title">
                     <span>📋 关键期限利率</span>
                     <span class="badge">所选日期 / 750日平均 · 变动比较</span>
@@ -456,7 +456,7 @@
                         </span>
                     </div>
                 </div>
-                <div class="table-wrap" id="keyTermsTableWrap" style="flex:1;min-height:0;">
+                <div class="table-wrap" id="keyTermsTableWrap" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;">
                     <table>
                         <thead>
                             <tr>
