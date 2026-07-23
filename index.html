@@ -5334,10 +5334,11 @@
         }
         function renderPresetSummary() {
             const c = presetComputed;
-            const reg = (presetData.regN.records || []).slice().sort((a, b) => (a.published_at || '').localeCompare(b.published_at || ''));
-            // 截至 baseDate 之前最后一个已公布的"已知"研究值
+            const reg = (presetData.regN.records || []).slice().sort((a, b) => (a.quarter_end || '').localeCompare(b.quarter_end || ''));
+            // 截至 baseDate 之前最后一个已结束的季度对应的研究值
+            // （注：用 quarter_end 而非 published_at —— 1月公布去年12月的研究值，搜 251231 即可看到 2024Q4）
             const refYM = (c.refDate || '').slice(0, 7);
-            const known = reg.filter(r => r.published_at && r.published_at <= refYM && r.published_N != null);
+            const known = reg.filter(r => r.quarter_end && r.quarter_end.slice(0, 7) <= refYM && r.published_N != null);
             const curReg = known.length ? known[known.length - 1] : null;
             const cards = [
                 {cls:'c-m', k:'参考利率 M', v: c.last.M, sub:'走廊6MMA 与 基础回报水平 之较小值'},
@@ -5370,10 +5371,11 @@
                 return presetCharts[id];
             };
             const reg = (presetData.regN.records || []).slice()
-                .sort((a, b) => (a.published_at || '').localeCompare(b.published_at || ''));
+                .sort((a, b) => (a.quarter_end || '').localeCompare(b.quarter_end || ''));
             const refYM = (c.refDate || '').slice(0, 7);
-            // 散点/竖线均按基准日过滤：仅保留 published_at <= refDate(YYYY-MM) 的"已知"公告
-            const regKnown = reg.filter(r => r.published_at && r.published_at <= refYM && r.published_N != null);
+            // 散点：按 quarter_end <= baseDate 过滤（季度已结束即"研究值可用"，无需等公布日）
+            // 竖线：按 published_at 真实公布日标（标"这天发布"，不受基准日影响）
+            const regKnown = reg.filter(r => r.quarter_end && r.quarter_end.slice(0, 7) <= refYM && r.published_N != null);
             const regScatter = regKnown.map(r => ({ value: [r.quarter_end.slice(0, 7), r.published_N], rec: r }));
 
             mk('presetChartCorridor').setOption({
@@ -5461,8 +5463,13 @@
             // 事件竖线（基于参考日 refDate 动态定位；用月份精度匹配）
             const eventLines = [{xAxis:refYM, lineStyle:{color:'#1f4a7a',type:'dashed',width:1.2},
                 label:{formatter:'基准日',fontSize:10,position:'insideEndTop',color:'#1f4a7a'}}];
-            // 监管公告事件（红竖线）：取截至基准日已公布的所有公告（不再限制 2 条）
-            for (const r of regKnown) {
+            // 监管公告事件（红竖线）：所有已公布公告都画（不受基准日影响，因为红竖线标"这天发布"是历史事实）
+            // 同步按 published_at 去重，避免多季度同日发布造成重叠
+            const allReg = (presetData.regN.records || []).filter(r => r.published_at && r.published_N != null);
+            const seenPub = new Set();
+            for (const r of allReg) {
+                if (seenPub.has(r.published_at)) continue;
+                seenPub.add(r.published_at);
                 eventLines.push({xAxis:r.published_at, lineStyle:{color:'#c0392b',type:'dashed',width:0.8},
                     label:{formatter:r.published_at + ' 公告',fontSize:9,position:'insideEndTop',color:'#c0392b'}});
             }
