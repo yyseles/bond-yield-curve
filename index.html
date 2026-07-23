@@ -377,11 +377,6 @@
         @media (max-width: 900px) { .sw-params-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 760px) { .discount-rules .rules-grid { grid-template-columns: 1fr; } .sw-params-grid { grid-template-columns: repeat(2, 1fr); } .sw-params-cols { grid-template-columns: 1fr; } .sw-params-right .sw-liquid-grid { grid-template-columns: repeat(10, 1fr); } }
     /* 预定利率动态追踪 */
-    .preset-intro { background: linear-gradient(135deg,#f4f8fd,#eef4fb); border-left:4px solid #1f4a7a; }
-    .preset-intro p { margin:6px 0; font-size:13px; color:#41506a; line-height:1.6; }
-    .preset-intro .formula { background:#fff; border:1px solid #e1e8f0; border-radius:8px; padding:8px 12px; font-size:12.5px; color:#1f3a5f; margin-top:8px; }
-    .preset-intro .formula code { color:#b8651b; font-weight:600; }
-    .preset-intro .src-note { font-size:11.5px; color:#7a8aa0; margin-top:8px; }
     .preset-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin:16px 0; }
     .pcard { background:#fff; border:1px solid #e4e9f0; border-radius:12px; padding:14px 16px; box-shadow:0 2px 10px rgba(31,74,122,.06); position:relative; overflow:hidden; min-width:0; }
     .pcard::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,#3b7dd8,#1f4a7a); }
@@ -392,6 +387,18 @@
     .pcard.c-cor::before { background:linear-gradient(90deg,#27ae60,#1e8449); }
     .pcard.c-base::before { background:linear-gradient(90deg,#8e44ad,#6c3483); }
     .pcard.c-reg::before { background:linear-gradient(90deg,#d4a017,#b8860b); }
+    .preset-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px; background:#fff; border:1px solid #e4e9f0; border-radius:10px; padding:8px 14px; margin:14px 0 4px; box-shadow:0 1px 4px rgba(31,74,122,.04); }
+    .preset-toolbar label { font-size:13px; color:#3e5a7a; font-weight:600; display:flex; align-items:center; gap:6px; }
+    .preset-toolbar input[type=date] { font-size:13px; padding:3px 8px; border:1px solid #cdd8e6; border-radius:6px; color:#1a2b44; background:#fff; font-family:inherit; }
+    .preset-toolbar .btn-today { font-size:12px; background:#eef3fa; color:#1f4a7a; border:1px solid #c9d7e8; border-radius:14px; padding:2px 12px; cursor:pointer; transition:0.15s; }
+    .preset-toolbar .btn-today:hover { background:#1f4a7a; color:#fff; }
+    .preset-toolbar .toolbar-hint { font-size:11.5px; color:#7a8aa0; margin-left:auto; }
+    .preset-toolbar.is-historical { background:linear-gradient(135deg,#fff8ec,#fff3dc); border-color:#f0d9a8; }
+    .preset-toolbar.is-historical .toolbar-hint { color:#b8651b; font-weight:600; }
+    .input-table-compact table { font-size:11.5px; }
+    .input-table-compact th { padding:5px 8px !important; font-size:11px; }
+    .input-table-compact td { padding:5px 8px !important; font-size:11.5px; }
+    .input-table-compact .table-wrap.scrollable-y { max-height:300px; }
     .preset-forecast-area { background:linear-gradient(135deg,#f0faf3,#e8f6ee); border:1px solid #cfe9d8; border-radius:14px; padding:0 0 10px; margin-top:16px; }
     .preset-forecast-area .area-title { font-size:13px; font-weight:700; color:#1f6d4a; padding:12px 18px 0; display:flex; align-items:center; gap:8px; }
     .preset-forecast-area .grid-2 { padding:14px 14px 0; margin-bottom:0; }
@@ -959,20 +966,13 @@
          预定利率动态追踪（依据金寿险函〔2025〕10号）
          ═══════════════════════════════════════════════ -->
     <div class="view-preset" id="viewPreset" style="display:none;">
-        <div class="card preset-intro">
-            <div class="card-title"><span>📉 预定利率动态追踪</span><span class="badge">依据 金寿险函〔2025〕10号</span></div>
-            <p>本板块按监管规则，将市场利率挂钩为<b>预定利率研究值（参考口径）</b>，并对未来 8 个季度做基准情景（利率冻结）平推预测。纯前端实时计算，数据自 2019 年起展示。</p>
-            <div class="formula">
-                ① 利率走廊 = ((5Y LPR + 5Y定存) / 2) 的 <code>126日</code>移动平均（6个月）<br>
-                ② 基础回报 = <code>10Y国债到期</code> + 税收溢价（9Y国开 − 9Y国债）<br>
-                ③ 基础回报水平 = MIN(基础回报的 <code>250日</code>MA, <code>750日</code>MA)<br>
-                ④ 参考利率 <code>M</code> = MIN(走廊6MMA, 基础回报水平)<br>
-                ⑤ 预定利率 <code>N</code> = 对 M 的分段调节（监管调节系数表，高区反向压低）
-            </div>
-            <div class="src-note">数据来源：中债到期收益率（国债/国开，本平台已有）· 中国货币网 5Y LPR · 工商银行 5年定存（=六大行均值）· 中保协季度公布的监管研究值（仅监测，不计算）。</div>
-        </div>
 
         <div class="preset-status" id="presetStatus">正在加载数据…</div>
+        <div class="preset-toolbar" id="presetToolbar">
+            <label>基准日：<input type="date" id="presetBaseDate" onchange="onPresetBaseDateChange()" /></label>
+            <button class="btn-today" onclick="resetPresetBaseDate()">回到最新</button>
+            <span class="toolbar-hint" id="presetBaseHint">展示该日数据快照（含当时的前瞻预测）</span>
+        </div>
         <div class="preset-cards" id="presetSummary"></div>
 
         <div class="grid-2">
@@ -995,21 +995,16 @@
                 <div class="footnote">利率单位：% ｜ 取两者较小值</div>
             </div>
             <div class="card">
-                <div class="card-title"><span>④⑤ 参考利率 M vs 预定利率 N</span><span class="badge">含调节突变带</span></div>
+                <div class="card-title"><span>④⑤ 参考利率 M vs 预定利率 N（含预测）</span><span class="badge">历史实线 · 未来虚线 · 自首次公布起</span></div>
                 <div class="chart-box" id="presetChartMN"></div>
-                <div class="footnote">利率单位：% ｜ 竖线为监管调节阈值（3.5%/4.0% 处 N 突降）</div>
+                <div class="footnote">利率单位：% ｜ 蓝线 M / 红线 N / 绿虚线预测 N / 金点监管公布 ｜ 蓝竖线=基准日，红竖线=监管公告</div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-title"><span>📋 输入数据源（LPR / 定存 调整历史 + 衍生走廊）</span><span class="badge">行政利率 · 仅调整日变动</span></div>
-            <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetInputTable"></table></div>
-        </div>
-
         <div class="grid-2">
-            <div class="card">
-                <div class="card-title"><span>📋 M → N 分段调节对照</span><span class="badge">当前 M 落入区间高亮</span></div>
-                <div class="table-wrap"><table id="presetMNTable"></table></div>
+            <div class="card input-table-compact">
+                <div class="card-title"><span>📋 输入数据源（LPR / 定存 调整历史 + 衍生走廊）</span><span class="badge">行政利率 · 仅调整日变动</span></div>
+                <div class="table-wrap scrollable-y" style="max-height:300px;"><table id="presetInputTable"></table></div>
             </div>
             <div class="card">
                 <div class="card-title"><span>📋 未来季度末预测（基准情景·平推）</span><span class="badge">前4季高亮 · 共8季</span></div>
@@ -1018,19 +1013,17 @@
             </div>
         </div>
 
+        <div class="card">
+            <div class="card-title"><span>📋 M → N 分段调节对照</span><span class="badge">当前 M 落入区间高亮</span></div>
+            <div class="table-wrap"><table id="presetMNTable"></table></div>
+        </div>
+
         <div class="preset-forecast-area">
-            <div class="area-title">🟢 预测与监管对照（基准情景）</div>
-            <div class="grid-2">
-                <div class="card" style="background:#fff;">
-                    <div class="card-title"><span>预定利率 N 走势与预测</span><span class="badge">历史实线 · 未来虚线</span></div>
-                    <div class="chart-box" id="presetChartForecast" style="height:420px;"></div>
-                    <div class="footnote">散点为中保协公布的监管研究值；竖线为监管下调事件。</div>
-                </div>
-                <div class="card" style="background:#fff;">
-                    <div class="card-title"><span>公式值 vs 监管公布值（回溯）</span><span class="badge">误差 = 公式 − 公布 (bp)</span></div>
-                    <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetBacktestTable"></table></div>
-                    <div class="footnote">回溯各已公布季度：本平台公式在季末测算的 N，与监管公布研究值对照。</div>
-                </div>
+            <div class="area-title">🟢 公式值 vs 监管公布值（回溯）</div>
+            <div class="card" style="background:#fff; margin:14px;">
+                <div class="card-title"><span>公式值 vs 监管公布值（回溯）</span><span class="badge">误差 = 公式 − 公布 (bp)</span></div>
+                <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetBacktestTable"></table></div>
+                <div class="footnote">回溯各已公布季度：本平台公式在季末测算的 N，与监管公布研究值对照。</div>
             </div>
         </div>
     </div>
@@ -5052,6 +5045,8 @@
         };
         let presetData = null;
         let presetComputed = null;
+        let presetComputedFull = null; // 全量算（不截断），用于切换基准日
+        let presetBaseDate = null; // YYYY-MM-DD；null = 最新
         let presetForecastRows = null;
         let presetCharts = {};
 
@@ -5213,11 +5208,10 @@
         }
         async function renderPreset() {
             const statusEl = document.getElementById('presetStatus');
-            if (!presetComputed) {
+            if (!presetComputedFull) {
                 try {
                     await ensurePresetData();
-                    presetComputed = computePreset();
-                    presetForecastRows = forecastPreset(presetComputed);
+                    presetComputedFull = computePreset();
                     statusEl.style.display = 'none';
                 } catch (e) {
                     statusEl.textContent = '数据加载失败：' + e.message + '（请确认 data_lpr5y.json / data_deposit5y.json / data_regulator_n.json 已部署）';
@@ -5226,9 +5220,92 @@
                     return;
                 }
             }
+            // 初始化日期选择器（首次进入时设最新；用户切换后保留）
+            const dateInput = document.getElementById('presetBaseDate');
+            const full = presetComputedFull;
+            if (!dateInput.value && presetBaseDate == null) {
+                presetBaseDate = full.refDate;
+            }
+            dateInput.min = full.dates[0];
+            dateInput.max = full.refDate;
+            dateInput.value = presetBaseDate || full.refDate;
+            const isLatest = (dateInput.value === full.refDate);
+            const tb = document.getElementById('presetToolbar');
+            tb.classList.toggle('is-historical', !isLatest);
+            document.getElementById('presetBaseHint').textContent = isLatest
+                ? '最新快照 · 基准日为最新交易日'
+                : `历史快照 · ${dateInput.value}（含当时的前瞻预测）`;
+
+            // 按基准日截断，重算 last / 预测
+            presetComputed = applyPresetBaseDate(presetComputedFull, presetBaseDate);
+            presetForecastRows = forecastPreset(presetComputed);
+
             renderPresetSummary();
             renderPresetCharts();
             renderPresetTables();
+        }
+        function applyPresetBaseDate(c, baseDate) {
+            const idx = _idxAt(c.dates, baseDate);
+            const refIdx = idx < 0 ? (c.n - 1) : idx;
+            const slc = arr => arr.slice(0, refIdx + 1);
+            const nc = {
+                ...c,
+                n: refIdx + 1,
+                dates: slc(c.dates),
+                tax: slc(c.tax),
+                baseReturn: slc(c.baseReturn),
+                cgb10y: slc(c.cgb10y),
+                br250: slc(c.br250),
+                br750: slc(c.br750),
+                baseLevel: slc(c.baseLevel),
+                lprFF: slc(c.lprFF),
+                depFF: slc(c.depFF),
+                corridorMid: slc(c.corridorMid),
+                corridor6MMA: slc(c.corridor6MMA),
+                Mvals: slc(c.Mvals),
+                Nvals: slc(c.Nvals),
+                refIdx,
+                refDate: c.dates[refIdx]
+            };
+            // 从 refIdx 向后找最后一个非 null 值
+            const last = { corridor:null, baseLevel:null, M:null, N:null, tax:null, baseReturn:null, cgb10y:null };
+            for (let i = refIdx; i >= 0; i--) {
+                if (last.corridor == null && nc.corridor6MMA[i] != null) last.corridor = nc.corridor6MMA[i];
+                if (last.baseLevel == null && nc.baseLevel[i] != null) last.baseLevel = nc.baseLevel[i];
+                if (last.M == null && nc.Mvals[i] != null) last.M = nc.Mvals[i];
+                if (last.N == null && nc.Nvals[i] != null) last.N = nc.Nvals[i];
+                if (last.tax == null && nc.tax[i] != null) last.tax = nc.tax[i];
+                if (last.baseReturn == null && nc.baseReturn[i] != null) last.baseReturn = nc.baseReturn[i];
+                if (last.cgb10y == null && nc.cgb10y[i] != null) last.cgb10y = nc.cgb10y[i];
+                if (last.corridor != null && last.baseLevel != null && last.M != null && last.N != null
+                    && last.tax != null && last.baseReturn != null && last.cgb10y != null) break;
+            }
+            nc.last = last;
+            return nc;
+        }
+        function onPresetBaseDateChange() {
+            const v = document.getElementById('presetBaseDate').value;
+            if (!v) return;
+            presetBaseDate = v;
+            // 重新计算并渲染（不重新加载数据）
+            presetComputed = applyPresetBaseDate(presetComputedFull, presetBaseDate);
+            presetForecastRows = forecastPreset(presetComputed);
+            const full = presetComputedFull;
+            const isLatest = (v === full.refDate);
+            const tb = document.getElementById('presetToolbar');
+            tb.classList.toggle('is-historical', !isLatest);
+            document.getElementById('presetBaseHint').textContent = isLatest
+                ? '最新快照 · 基准日为最新交易日'
+                : `历史快照 · ${v}（含当时的前瞻预测）`;
+            renderPresetSummary();
+            renderPresetCharts();
+            renderPresetTables();
+        }
+        function resetPresetBaseDate() {
+            presetBaseDate = null;
+            const dateInput = document.getElementById('presetBaseDate');
+            dateInput.value = presetComputedFull.refDate;
+            onPresetBaseDateChange();
         }
         function renderPresetSummary() {
             const c = presetComputed;
@@ -5306,47 +5383,76 @@
                 yAxis: s.threshold, lineStyle:{color:'#999',type:'dashed',width:0.8},
                 label:{formatter:s.label,fontSize:9,position:'end'}
             }));
-            mk('presetChartMN').setOption({
-                tooltip:{trigger:'axis'}, legend:{data:['参考利率 M','预定利率 N','监管公布值'], top:5},
-                grid:{left:55,right:20,top:40,bottom:40},
-                xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
-                yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)},
-                    max: val => Math.max(4.5, (val.max||0)*1.05), min: val => Math.min(0, (val.min||0)-0.2)},
-                series:[
-                    {name:'参考利率 M',type:'line',data:slc(c.Mvals),symbol:'none',lineStyle:{color:'#2e75b6',width:2}},
-                    {name:'预定利率 N',type:'line',data:slc(c.Nvals),symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
-                    {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:9,itemStyle:{color:'#d4a017'},
-                        markLine:{silent:true,symbol:'none',data:markLines},
-                        tooltip:{formatter:p=>`${p.data.rec.quarter} 公布 ${p.data.rec.published_N.toFixed(2)}%`}}
-                ]
-            });
-            // 预测图：历史实线 + 未来虚线（扩展 x 轴到季末）
-            const histX = c.dates.map(d => d.slice(0, 7));
-            const histN = c.Nvals.map(v => v != null ? +v.toFixed(6) : null);
+            // MN 图表：从首次公布（2024Q4）开始，并合并预测 N（虚线）至未来 8 季末
+            const firstRegDate = (presetData.regN.records && presetData.regN.records.length)
+                ? presetData.regN.records[0].quarter_end : '2024-12-31';
+            // 起点：首次公布前一季度初（YYYY-MM 精度），留出上下文
+            const startYM = firstRegDate.slice(0, 7);
+            const startDt = new Date(startYM + '-01T00:00:00Z');
+            startDt.setUTCMonth(startDt.getUTCMonth() - 3);
+            const startYMAdj = startDt.toISOString().slice(0, 7);
+            const mnStartIdx = Math.max(0, c.dates.findIndex(d => d.slice(0, 7) >= startYMAdj));
             const fc = presetForecastRows;
             const fcX = fc.map(r => r.date.slice(0, 7));
             const fcN = fc.map(r => r.N != null ? +r.N.toFixed(6) : null);
-            const combX = histX.concat(fcX);
-            const histSeries = histN.concat(fcX.map(() => null));
-            const futSeries = histX.map(() => null);
-            futSeries[histX.length - 1] = histN[histN.length - 1];
-            const futSeriesFull = futSeries.concat(fcN);
-            const eventLines = [
-                {xAxis:'2025-07', lineStyle:{color:'#c0392b',type:'dashed',width:1}, label:{formatter:'25-07公告',fontSize:9,position:'insideEndTop'}},
-                {xAxis:'2025-09', lineStyle:{color:'#c0392b',type:'dashed',width:1}, label:{formatter:'25-09起2.0%',fontSize:9,position:'insideEndTop'}}
-            ];
-            mk('presetChartForecast').setOption({
-                tooltip:{trigger:'axis'}, legend:{data:['历史 N','预测 N(基准)','监管公布值'], top:5},
+            // 历史 x 与数据：使用月份精度 YYYY-MM（与其它图表一致）
+            const histXAll = c.dates.slice(mnStartIdx).map(d => d.slice(0, 7));
+            const histXUniq = (function () {
+                const out = []; const seen = new Set();
+                for (const v of histXAll) { if (!seen.has(v)) { seen.add(v); out.push(v); } }
+                return out;
+            })();
+            // 把日频 M/N 序列按"每月最后一日"压缩为月频点（便于 x 轴对齐）
+            const compressMonthly = (arr) => {
+                const out = []; let i = mnStartIdx;
+                for (const ym of histXUniq) {
+                    while (i + 1 < c.dates.length && c.dates[i + 1].slice(0, 7) === ym) i++;
+                    out.push(arr[i] != null ? +arr[i].toFixed(6) : null);
+                    i++;
+                }
+                return out;
+            };
+            const histM = compressMonthly(c.Mvals);
+            const histN = compressMonthly(c.Nvals);
+            // 合并 x：历史 + 预测；首月重叠时合并（fc 起始月常与历史末月相同）
+            const overlap = (histXUniq.length > 0 && fcX.length > 0 && histXUniq[histXUniq.length - 1] === fcX[0]) ? 1 : 0;
+            const fcPadLen = fcX.length - overlap;
+            const combX = overlap ? histXUniq.concat(fcX.slice(1)) : histXUniq.concat(fcX);
+            const lastHistN = histN[histN.length - 1];
+            // M 仅历史；N 历史段
+            const histMFull = histM.concat(new Array(fcPadLen).fill(null));
+            const histSeriesFull = histN.concat(new Array(fcPadLen).fill(null));
+            // N 预测段：历史段全 null；最后一个月用 lastHistN 衔接；后接 fcN（去掉重叠的首月）
+            const fcNullPart = histXUniq.map(() => null);
+            if (lastHistN != null) fcNullPart[fcNullPart.length - 1] = lastHistN;
+            const fcSeriesFinal = fcNullPart.concat(fcN.slice(overlap));
+            // 事件竖线（基于参考日 refDate 动态定位；用月份精度匹配）
+            const refYM = c.refDate.slice(0, 7);
+            const eventLines = [{xAxis:refYM, lineStyle:{color:'#1f4a7a',type:'dashed',width:1.2},
+                label:{formatter:'基准日',fontSize:10,position:'insideEndTop',color:'#1f4a7a'}}];
+            // 监管公告事件（取已发生且不晚于基准日同年的最多 2 条）
+            const evRecords = (presetData.regN.records || []).filter(r => r.published_at && r.published_at <= (c.refDate.slice(0,4)+'-12'));
+            for (const r of evRecords.slice(0, 2)) {
+                eventLines.push({xAxis:r.published_at.slice(0, 7), lineStyle:{color:'#c0392b',type:'dashed',width:0.8},
+                    label:{formatter:r.published_at + '公告',fontSize:9,position:'insideEndTop'}});
+            }
+            mk('presetChartMN').setOption({
+                tooltip:{trigger:'axis'},
+                legend:{data:['参考利率 M','预定利率 N(历史实线)','预测 N(基准·虚线)','监管公布值'], top:5},
                 grid:{left:55,right:20,top:40,bottom:40},
-                xAxis:{type:'category',data:combX,axisLabel:{rotate:45,fontSize:9,interval:Math.max(1,Math.floor(combX.length/10))}},
+                xAxis:{type:'category',data:combX,
+                    axisLabel:{rotate:45,fontSize:9,interval:Math.max(1,Math.floor(combX.length/10))}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)},
                     max: val => Math.max(4.5, (val.max||0)*1.05), min: val => Math.min(0, (val.min||0)-0.2)},
                 series:[
-                    {name:'历史 N',type:'line',data:histSeries,symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
-                    {name:'预测 N(基准)',type:'line',data:futSeriesFull,symbol:'circle',symbolSize:6,
+                    {name:'参考利率 M',type:'line',data:histMFull,
+                        symbol:'none',lineStyle:{color:'#2e75b6',width:2}},
+                    {name:'预定利率 N(历史实线)',type:'line',data:histSeriesFull,
+                        symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
+                    {name:'预测 N(基准·虚线)',type:'line',data:fcSeriesFinal,symbol:'circle',symbolSize:6,
                         lineStyle:{color:'#27ae60',width:2,type:'dashed'}},
-                    {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:9,itemStyle:{color:'#d4a017'},
-                        markLine:{silent:true,symbol:'none',data:eventLines},
+                    {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:10,itemStyle:{color:'#d4a017'},
+                        markLine:{silent:true,symbol:'none',data:markLines.concat(eventLines)},
                         tooltip:{formatter:p=>`${p.data.rec.quarter} 公布 ${p.data.rec.published_N.toFixed(2)}%`}}
                 ]
             });
