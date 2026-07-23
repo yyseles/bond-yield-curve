@@ -5333,15 +5333,18 @@
         }
         function renderPresetSummary() {
             const c = presetComputed;
-            const reg = (presetData.regN.records || []);
-            const latestReg = reg.length ? reg[reg.length - 1] : null;
+            const reg = (presetData.regN.records || []).slice().sort((a, b) => (a.published_at || '').localeCompare(b.published_at || ''));
+            // 截至 baseDate 之前最后一个已公布的"已知"研究值
+            const refYM = (c.refDate || '').slice(0, 7);
+            const known = reg.filter(r => r.published_at && r.published_at <= refYM && r.published_N != null);
+            const curReg = known.length ? known[known.length - 1] : null;
             const cards = [
                 {cls:'c-m', k:'参考利率 M', v: c.last.M, sub:'走廊6MMA 与 基础回报水平 之较小值'},
                 {cls:'', k:'预定利率 N', v: c.last.N, sub:'对 M 分段调节后的研究值'},
                 {cls:'c-cor', k:'走廊中值(6MMA)', v: c.last.corridor, sub:'((LPR5Y+定存5Y)/2) 126日MA'},
                 {cls:'c-base', k:'基础回报水平', v: c.last.baseLevel, sub:'MIN(基础回报 250MA, 750MA)'},
-                {cls:'c-reg', k:'监管公布研究值', v: latestReg ? latestReg.published_N : null,
-                 sub: latestReg ? (latestReg.quarter + ' · ' + latestReg.published_at) : '暂无公布'}
+                {cls:'c-reg', k:'监管公布研究值', v: curReg ? curReg.published_N : null,
+                 sub: curReg ? `截至 ${refYM} 已知 · ${curReg.quarter} 公布 ${curReg.published_N.toFixed(2)}%` : '尚未公布'}
             ];
             document.getElementById('presetSummary').innerHTML = cards.map(x => {
                 const val = (x.v != null && typeof x.v === 'number') ? x.v.toFixed(2) + '%' : '—';
@@ -5365,8 +5368,12 @@
                 presetCharts[id] = echarts.init(dom);
                 return presetCharts[id];
             };
-            const reg = (presetData.regN.records || []).filter(r => r.published_N != null);
-            const regScatter = reg.map(r => ({ value: [r.quarter_end.slice(0, 7), r.published_N], rec: r }));
+            const reg = (presetData.regN.records || []).slice()
+                .sort((a, b) => (a.published_at || '').localeCompare(b.published_at || ''));
+            const refYM = (c.refDate || '').slice(0, 7);
+            // 散点/竖线均按基准日过滤：仅保留 published_at <= refDate(YYYY-MM) 的"已知"公告
+            const regKnown = reg.filter(r => r.published_at && r.published_at <= refYM && r.published_N != null);
+            const regScatter = regKnown.map(r => ({ value: [r.quarter_end.slice(0, 7), r.published_N], rec: r }));
 
             mk('presetChartCorridor').setOption({
                 tooltip:{trigger:'axis'}, legend:{data:['LPR 5Y','定存 5Y','走廊中值','走廊中值6MMA'], top:5},
@@ -5397,7 +5404,7 @@
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
                 series:[
-                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#ccc',width:0.5}},
+                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#94a3b8',width:1,type:'dotted'}},
                     {name:'250MA',type:'line',data:slc(c.br250),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5}},
                     {name:'750MA',type:'line',data:slc(c.br750),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
                     {name:'基础回报水平(MIN)',type:'line',data:slc(c.baseLevel),symbol:'none',lineStyle:{color:'#8e44ad',width:2.5}}
@@ -5451,14 +5458,12 @@
             if (lastHistN != null) fcNullPart[fcNullPart.length - 1] = lastHistN;
             const fcSeriesFinal = fcNullPart.concat(fcN.slice(overlap));
             // 事件竖线（基于参考日 refDate 动态定位；用月份精度匹配）
-            const refYM = c.refDate.slice(0, 7);
             const eventLines = [{xAxis:refYM, lineStyle:{color:'#1f4a7a',type:'dashed',width:1.2},
                 label:{formatter:'基准日',fontSize:10,position:'insideEndTop',color:'#1f4a7a'}}];
-            // 监管公告事件（取已发生且不晚于基准日同年的最多 2 条）
-            const evRecords = (presetData.regN.records || []).filter(r => r.published_at && r.published_at <= (c.refDate.slice(0,4)+'-12'));
-            for (const r of evRecords.slice(0, 2)) {
-                eventLines.push({xAxis:r.published_at.slice(0, 7), lineStyle:{color:'#c0392b',type:'dashed',width:0.8},
-                    label:{formatter:r.published_at + '公告',fontSize:9,position:'insideEndTop'}});
+            // 监管公告事件（红竖线）：取截至基准日已公布的所有公告（不再限制 2 条）
+            for (const r of regKnown) {
+                eventLines.push({xAxis:r.published_at, lineStyle:{color:'#c0392b',type:'dashed',width:0.8},
+                    label:{formatter:r.published_at + ' 公告',fontSize:9,position:'insideEndTop',color:'#c0392b'}});
             }
             mk('presetChartMN').setOption({
                 tooltip:{trigger:'axis'},
@@ -5523,8 +5528,9 @@
             html3 += '</tbody>';
             document.getElementById('presetForecastTable').innerHTML = html3;
 
-            // 回溯：公式值 vs 监管公布值
-            const reg = (presetData.regN.records || []).filter(r => r.published_N != null);
+            // 回溯：公式值 vs 监管公布值（按 baseDate 之前已结束的季度过滤）
+            const regAll = (presetData.regN.records || []).filter(r => r.published_N != null);
+            const reg = regAll.filter(r => r.quarter_end <= c.refDate);
             let html4 = '<thead><tr><th>季度</th><th>公布值(%)</th><th>公式值(季末)(%)</th><th>误差(bp)</th></tr></thead><tbody>';
             for (const r of reg) {
                 const idx = _idxAt(c.dates, r.quarter_end);
