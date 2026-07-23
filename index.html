@@ -854,10 +854,9 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- 保险公司资本补充债发行信息 视图 -->
-    <div class="view-bonds" id="viewBonds" style="display:none;">
+        <!-- 保险公司资本补充债发行信息 视图 -->
+        <div class="view-bonds" id="viewBonds" style="display:none;">
         <div class="bonds-toolbar">
             <div class="bonds-range" id="bondRangeNote"></div>
             <div class="bonds-filters">
@@ -929,6 +928,7 @@
             </div>
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -4011,6 +4011,7 @@
             document.querySelectorAll('#mainNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
             const bt = document.getElementById('bondToggle');
             if (v === 'bonds') {
+                document.querySelector('.container').classList.remove('overview-mode');
                 document.getElementById('viewOverview').style.display = 'none';
                 document.getElementById('viewDetail').style.display = 'none';
                 document.getElementById('viewDiscount').style.display = 'none';
