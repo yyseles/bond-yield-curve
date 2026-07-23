@@ -5085,15 +5085,20 @@
             {hi:2.0, lo:1.0, coef:1.00, base:1.0, threshold:1.0, label:'(1%,2%]'},
             {hi:1.0, lo:0, coef:1.00, base:0, threshold:0, label:'1%以下'}
         ];
+        // 超额累进计算：每段只对超出区间下限的部分按对应系数调节，再累加
+        // 例：M=2.4% → 1%×100% + (2.4%-1%)×100% + (2.4%-2%)×95% = 1% + 1.4% + 0.38% = 2.78%
         function presetAdjN(M) {
             if (M == null) return null;
-            for (const s of PRESET_N_SEGMENTS) {
-                if (M > s.lo && M <= s.hi) {
-                    if (s.base == null) return M * s.coef;
-                    return s.base + (M - s.threshold) * s.coef;
-                }
+            // 区间按下限从低到高排序
+            const sorted = [...PRESET_N_SEGMENTS].sort((a, b) => a.lo - b.lo);
+            let N = 0;
+            for (const s of sorted) {
+                if (M <= s.lo) break;  // M 还没到这段下限
+                const effective = Math.min(M, s.hi);  // 这段用到的上界
+                const width = effective - s.lo;        // 这段实际贡献的宽度
+                if (width > 0) N += width * s.coef;
             }
-            return M;
+            return N;
         }
         function presetRollingMean(arr, window) {
             const out = new Array(arr.length).fill(null);
@@ -5511,15 +5516,27 @@
             html += '</tbody>';
             document.getElementById('presetInputTable').innerHTML = html;
 
-            // 表2：M→N 分段调节对照
+            // 表2：M→N 分段调节对照（超额累进）
             const curM = c.last.M;
             let curSeg = PRESET_N_SEGMENTS.find(s => curM != null && curM > s.lo && curM <= s.hi);
-            let html2 = '<thead><tr><th>区间</th><th>调节系数</th><th>阈值</th><th>公式</th><th>当前 M 落入</th></tr></thead><tbody>';
+            // 预计算每段"累进到该段下限的基础值"
+            const sortedByLo = [...PRESET_N_SEGMENTS].sort((a, b) => a.lo - b.lo);
+            const baseAccum = new Map();  // s.label → 从最低段到该段下限的累进和
+            let acc = 0;
+            let lastLo = 0;
+            for (const s of sortedByLo) {
+                acc += (s.lo - lastLo) * s.coef;  // 上段上限到本段下限之间的累进
+                baseAccum.set(s.label, acc);
+                lastLo = s.lo;
+            }
+            let html2 = '<thead><tr><th>区间</th><th>调节系数</th><th>阈值</th><th>公式（超额累进）</th><th>当前 M 落入</th></tr></thead><tbody>';
             for (const s of PRESET_N_SEGMENTS) {
-                const formula = s.base == null ? `N = M × ${(s.coef*100).toFixed(0)}%` : `N = ${s.base.toFixed(2)}% + (M − ${s.threshold.toFixed(1)}%) × ${(s.coef*100).toFixed(0)}%`;
+                const baseVal = baseAccum.get(s.label) || 0;
+                const coefPct = (s.coef * 100).toFixed(0);
+                const formula = `N = ${baseVal.toFixed(4)}% + (M − ${s.threshold.toFixed(1)}%) × ${coefPct}%`;
                 const hit = (curSeg && curSeg.label === s.label) ? ' ✅' : '';
                 const hl = (curSeg && curSeg.label === s.label) ? ' style="background:#fff7e6;font-weight:700;"' : '';
-                html2 += `<tr${hl}><td class="lft">${s.label}</td><td>${(s.coef*100).toFixed(0)}%</td><td>${s.threshold.toFixed(1)}%</td><td class="lft">${formula}</td><td>${hit||'—'}</td></tr>`;
+                html2 += `<tr${hl}><td class="lft">${s.label}</td><td>${coefPct}%</td><td>${s.threshold.toFixed(1)}%</td><td class="lft">${formula}</td><td>${hit||'—'}</td></tr>`;
             }
             if (curM != null) {
                 html2 += `<tr style="background:#eef4fb;font-weight:700;"><td class="lft">当前</td><td colspan="3" class="lft">参考利率 M = ${curM.toFixed(2)}% → 预定利率 N = ${c.last.N.toFixed(2)}%</td><td>✅</td></tr>`;
