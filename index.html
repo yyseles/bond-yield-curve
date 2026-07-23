@@ -4074,8 +4074,12 @@
             const comboWin = winRows(comboEndYear);
             const scatterWin = winRows(scatterEndYear);
             const rangeNote = insBonds.note || '';
+            const minYear = rows.reduce((m, b) => {
+                const y = parseInt((b.issueDate || '').slice(0, 4), 10);
+                return (y && (!m || y < m)) ? y : m;
+            }, null);
             document.getElementById('bondRangeNote').textContent =
-                (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}`;
+                (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}` + (minYear ? `（统计自${minYear}年起）` : '');
             // 顶部汇总卡 / 公司×年表：全量
             renderBondSummaryCards(rows);
             renderBondCompanyYear(rows);
