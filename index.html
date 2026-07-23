@@ -273,6 +273,13 @@
         /* 公司×年明细：发行人列固定较窄宽度并省略超长名称，年份列均分剩余空间 */
         #bondCompanyYearTable { table-layout: fixed; }
         #bondCompanyYearTable .col-issuer { width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #bondCompanyYearTable .col-idx { width: 5%; color: #8a99ad; font-size: 12px; }
+        #bondCompanyYearTable .col-total { width: 8%; }
+        #bondCompanyYearTable td.t-num { font-weight: 700; }
+        #bondCompanyYearTable .dot { display: inline-block; border-radius: 50%; vertical-align: -2px; margin-right: 5px; box-shadow: 0 0 0 1px rgba(0,0,0,0.04); }
+        #bondCompanyYearTable .dot-legend { font-size: 12px; color: #8a99ad; display: inline-flex; align-items: center; gap: 6px; }
+        #bondCompanyYearTable .dot-legend .lg-dot { display: inline-block; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.04); }
+        #bondCompanyYearTable .col-coverage { color: #5a6e8a; font-weight: 400; }
         .bonds-panel .grow { flex: 1; }
         .cell-hi { background: #fdecea !important; color: #c0392b; font-weight: 700; }
         .cell-lo { background: #e8f5e9 !important; color: #2e9e5b; font-weight: 700; }
@@ -907,7 +914,14 @@
 
         <!-- 下部：公司 × 年 发行总额明细 -->
         <div class="bonds-panel">
-            <h4><span class="accent"></span>公司 × 年 发行总额明细（亿元）</h4>
+            <div class="panel-head">
+                <h4><span class="accent"></span>公司 × 年 发行总额明细（亿元）</h4>
+                <span class="dot-legend">圆点大小 / 颜色深浅代表发行额
+                    <span class="lg-dot" style="width:6px;height:6px;background:hsl(0,0%,80%)"></span>
+                    <span class="lg-dot" style="width:9px;height:9px;background:hsl(0,40%,60%)"></span>
+                    <span class="lg-dot" style="width:12px;height:12px;background:hsl(0,75%,42%)"></span>
+                </span>
+            </div>
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
         </div>
     </div>
@@ -4245,27 +4259,51 @@
         }
 
         function renderBondCompanyYear(rows) {
-            const comps = {}, years = new Set();
+            const comps = {}, years = new Set(), allVals = [];
             rows.forEach(b => {
                 const c = b.issuer || '未知';
                 const y = (b.issueDate || '').slice(0, 4);
                 if (!y) return;
                 years.add(y);
                 if (!comps[c]) comps[c] = {};
-                comps[c][y] = (comps[c][y] || 0) + (b.issueAmnt || 0);
+                const v = (b.issueAmnt || 0);
+                comps[c][y] = (comps[c][y] || 0) + v;
+                allVals.push(v);
             });
             // 年份倒序：合计列在第一位
             const yArr = [...years].sort((a, b) => b - a);
-            let html = '<thead><tr><th class="lft col-issuer">发行人</th><th>合计</th>' + yArr.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>';
-            // 按发行人名称拼音排序
-            Object.keys(comps).sort((a, b) => zhCollator.compare(a, b)).forEach(c => {
+            // 全局发行额范围（用于圆点大小 / 颜色深浅）
+            const vMin = allVals.length ? Math.min(...allVals) : 0;
+            const vMax = allVals.length ? Math.max(...allVals) : 1;
+            // 单格圆点样式：尺寸 5~13px，颜色由浅灰渐变到红色（HSL 连续过渡）
+            const dotStyle = v => {
+                if (vMax === vMin) return 'width:9px;height:9px;background:hsl(0,75%,42%)';
+                const t = Math.max(0, Math.min(1, (v - vMin) / (vMax - vMin)));
+                const size = 5 + 8 * t;
+                const sat = Math.round(75 * t);
+                const light = Math.round(82 - 40 * t);
+                return `width:${size}px;height:${size}px;background:hsl(0,${sat}%,${light}%)`;
+            };
+            // colgroup：序号 5% / 发行人 22% / 合计 8% / 9 个年份 auto 均分剩余 65%
+            const yrCols = yArr.map(() => '<col>').join('');
+            let html = `<colgroup><col class="col-idx"><col class="col-issuer"><col class="col-total">${yrCols}</colgroup>`
+                + '<thead><tr><th class="lft col-idx">#</th><th class="lft col-issuer">发行人</th><th>合计</th>'
+                + yArr.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>';
+            // 按合计降序，同额按拼音
+            const sorted = Object.keys(comps).sort((a, b) => {
+                const ta = Object.values(comps[a]).reduce((s, v) => s + v, 0);
+                const tb = Object.values(comps[b]).reduce((s, v) => s + v, 0);
+                if (tb !== ta) return tb - ta;
+                return zhCollator.compare(a, b);
+            });
+            sorted.forEach((c, idx) => {
                 let tot = 0;
                 const tds = yArr.map(y => {
                     const v = comps[c][y];
-                    if (v) { tot += v; return `<td>${fmtAmnt(v)}</td>`; }
+                    if (v) { tot += v; return `<td class="t-num"><span class="dot" style="${dotStyle(v)}"></span>${fmtAmnt(v)}</td>`; }
                     return '<td>—</td>';
                 }).join('');
-                html += `<tr><td class="lft col-issuer" title="${c}">${c}</td><td><b>${fmtAmnt(tot)}</b></td>${tds}</tr>`;
+                html += `<tr><td class="lft col-idx">${idx + 1}</td><td class="lft col-issuer" title="${c}">${c}</td><td class="t-num"><b>${fmtAmnt(tot)}</b></td>${tds}</tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondCompanyYearTable').innerHTML = html;
