@@ -6,7 +6,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>利率曲线分析与精算监测平台</title>
+    <title>精算利率监测与利率曲线分析平台</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
@@ -436,11 +436,11 @@
 <body>
     <div class="container">
         <div class="header-card">
-            <h1 id="mainTitle">📈 利率曲线分析与精算监测平台</h1>
+            <h1 id="mainTitle">📊 精算利率监测与利率曲线分析平台</h1>
             <div class="main-nav" id="mainNav">
                 <div class="nav-group nav-group-primary">
-                    <button class="active" data-view="analysis">📈 利率曲线分析</button>
-                    <button data-view="monitor">📊 精算利率监测</button>
+                    <button class="active" data-view="monitor">📊 精算利率监测</button>
+                    <button data-view="analysis">📈 利率曲线分析</button>
                     <button data-view="discount">💱 折现率曲线</button>
                     <button data-view="preset">📉 预定利率追踪</button>
                 </div>
@@ -4687,7 +4687,7 @@
                 showMainView('monitor');
                 showDetail(hash);
             } else {
-                showMainView(currentMainView || 'analysis');
+                showMainView(currentMainView || 'monitor');
             }
         }
 
@@ -5688,7 +5688,7 @@
                 forecastRefDate = null;
                 recalcForecastData();
                 renderAll();
-                showMainView('analysis');
+                showMainView('monitor');
                 const el = document.getElementById('uploadStatus');
                 if (el) { el.textContent = label + ' (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')'; el.style.color = color; }
             };
@@ -5739,7 +5739,7 @@
                 forecastRefDate = null;
                 recalcForecastData();
                 renderAll();
-                showMainView('analysis');
+                showMainView('monitor');
                 const el = document.getElementById('uploadStatus');
                 if (el) { el.textContent = '从浏览器缓存加载 (' + dataStore.dates.length + ' 条)'; el.style.color = '#888'; }
                 return;
