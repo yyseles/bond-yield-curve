@@ -899,7 +899,7 @@
                 <div class="card">
                     <div class="card-title">
                         <span id="discountOutputTitle">假设表（DISC_PC）</span>
-                        <span class="badge">产品序号 × 情景曲线 · 年1-50 · 远期折现率</span>
+                        <span class="badge" id="discountOutputBadge">产品序号 × 情景曲线 · 年1-50 · 远期折现率</span>
                     </div>
                     <div class="table-wrap" id="discountOutputTableWrap" style="overflow:auto;max-height:640px;">
                         <table>
@@ -907,7 +907,7 @@
                             <tbody id="discountOutputBody"></tbody>
                         </table>
                     </div>
-                    <div class="footnote">假设折现率（与 Excel 监管底稿一致）；切「即期」可看即期口径。DISC_PC_CR 取负债远期中/低档，DISC_PC_UP/DW 取利率远期上/下。</div>
+                    <div class="footnote">假设折现率（与 Excel 监管底稿一致）；切「即期」可看即期口径。DISC_PC_CR 取负债远期中/低档，DISC_PC_UP/DW 取利率远期上/下，DISC_PC_BASE 取利率远期基础（二期下利率风险基本情景）。全部为远期折现率。</div>
                 </div>
             </div>
         </div>
@@ -4122,26 +4122,31 @@
             const years = d.years;
             const liabSpot = d.liab.spot, liabFwd = d.liab.fwd;
             const rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
-            const rows = [];
-            for (const p of DISCOUNT_PRODUCTS) {
-                const crArr = (mode === 'fwd' ? liabFwd : liabSpot)[p.cr];
-                rows.push({ curve:'DISC_PC_CR', cat:p.cat, seq:p.seq, level: p.cr === 'mid' ? 'middle' : 'low', arr: crArr });
-                const upArr = (mode === 'fwd' ? rateFwd.up : rateSpot.up);
-                rows.push({ curve:'DISC_PC_UP', cat:p.cat, seq:p.seq, level: p.up === 'mid' ? 'middle+' : 'low+', arr: upArr });
-                const dwArr = (mode === 'fwd' ? rateFwd.down : rateSpot.down);
-                rows.push({ curve:'DISC_PC_DW', cat:p.cat, seq:p.seq, level: p.dw === 'mid' ? 'middle-' : 'low-', arr: dwArr });
-            }
+            // 四个板块（DISC_PC_CR / UP / DW / BASE），与 Excel「输出」表一致；cr 档='midle' 沿用监管底稿写法
+            const blocks = [
+                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (mode==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'利率风险向上曲线 DISC_PC_UP 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:2, cat:false, get:p => (mode==='fwd'?rateFwd.up:rateSpot.up),    lvl:p => p.up==='mid' ? 'middle+' : 'low+' },
+                { name:'利率风险向下曲线 DISC_PC_DW 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:3, cat:false, get:p => (mode==='fwd'?rateFwd.down:rateSpot.down), lvl:p => p.dw==='mid' ? 'middle-' : 'low-' },
+                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (mode==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+            ];
             const thead = document.getElementById('discountOutputHead');
             const tbody = document.getElementById('discountOutputBody');
-            let h = '<tr><th>曲线类型</th><th>产品类别</th><th>产品序号</th><th>情景档</th>';
+            const badge = document.getElementById('discountOutputBadge');
+            if (badge) badge.textContent = '产品序号 × 情景曲线 · 年1-' + years.length + ' · 远期折现率';
+            let h = '<tr><th>曲线类型</th><th>情景序号</th><th>产品类别</th><th>产品序号</th><th>情景档</th>';
             years.forEach(t => h += '<th>' + t + '</th>');
             h += '</tr>';
             thead.innerHTML = h;
             let b = '';
-            for (const r of rows) {
-                b += '<tr><td>' + r.curve + '</td><td>' + r.cat + '</td><td>' + r.seq + '</td><td>' + r.level + '</td>';
-                years.forEach(t => { const v = r.arr[t]; b += '<td>' + (v == null ? '—' : (v * 100).toFixed(4)) + '</td>'; });
-                b += '</tr>';
+            for (const blk of blocks) {
+                DISCOUNT_PRODUCTS.forEach((p, i) => {
+                    const arr = blk.get(p);
+                    const curveCell = i === 0 ? blk.name : '';
+                    const catCell = blk.cat ? p.cat : '';
+                    b += '<tr><td>' + curveCell + '</td><td>' + blk.idx + '</td><td>' + catCell + '</td><td>' + p.seq + '</td><td>' + blk.lvl(p) + '</td>';
+                    years.forEach(t => { const v = arr[t]; b += '<td>' + (v == null ? '—' : (v * 100).toFixed(4)) + '</td>'; });
+                    b += '</tr>';
+                });
             }
             tbody.innerHTML = b;
         }
@@ -4174,14 +4179,18 @@
             const d = ensureDiscountData(); if (!d) return;
             const years = d.years;
             const liabSpot = d.liab.spot, liabFwd = d.liab.fwd, rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
-            const aoa = [['曲线类型', '产品类别', '产品序号', '情景档'].concat(years.map(String))];
-            for (const p of DISCOUNT_PRODUCTS) {
-                const cr = (discountSF === 'fwd' ? liabFwd : liabSpot)[p.cr];
-                aoa.push(['DISC_PC_CR', p.cat, p.seq, p.cr === 'mid' ? 'middle' : 'low'].concat(years.map(t => cr[t] == null ? null : +(cr[t] * 100).toFixed(4))));
-                const up = (discountSF === 'fwd' ? rateFwd.up : rateSpot.up);
-                aoa.push(['DISC_PC_UP', p.cat, p.seq, p.up === 'mid' ? 'middle+' : 'low+'].concat(years.map(t => up[t] == null ? null : +(up[t] * 100).toFixed(4))));
-                const dw = (discountSF === 'fwd' ? rateFwd.down : rateSpot.down);
-                aoa.push(['DISC_PC_DW', p.cat, p.seq, p.dw === 'mid' ? 'middle-' : 'low-'].concat(years.map(t => dw[t] == null ? null : +(dw[t] * 100).toFixed(4))));
+            const blocks = [
+                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (discountSF==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'利率风险向上曲线 DISC_PC_UP 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:2, cat:false, get:p => (discountSF==='fwd'?rateFwd.up:rateSpot.up),    lvl:p => p.up==='mid' ? 'middle+' : 'low+' },
+                { name:'利率风险向下曲线 DISC_PC_DW 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:3, cat:false, get:p => (discountSF==='fwd'?rateFwd.down:rateSpot.down), lvl:p => p.dw==='mid' ? 'middle-' : 'low-' },
+                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (discountSF==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+            ];
+            const aoa = [['曲线类型', '情景序号', '产品类别', '产品序号', '情景档'].concat(years.map(String))];
+            for (const blk of blocks) {
+                DISCOUNT_PRODUCTS.forEach((p, i) => {
+                    const arr = blk.get(p);
+                    aoa.push([i === 0 ? blk.name : '', blk.idx, blk.cat ? p.cat : '', p.seq, blk.lvl(p)].concat(years.map(t => arr[t] == null ? null : +(arr[t] * 100).toFixed(4))));
+                });
             }
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '输出');
