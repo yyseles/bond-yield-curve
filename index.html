@@ -5520,13 +5520,19 @@
             const curM = c.last.M;
             let curSeg = PRESET_N_SEGMENTS.find(s => curM != null && curM > s.lo && curM <= s.hi);
             // 预计算每段"累进到该段下限的基础值"
+            // N(M=s.lo) = sum_{k=1..i} (s.lo_k - s.lo_{k-1}) * coef_{k-1}
+            // 注意：(s.lo_{k-1}, s.lo_k] 这段 M 还在前一区间内，贡献按"前一段"的 coef 计算
             const sortedByLo = [...PRESET_N_SEGMENTS].sort((a, b) => a.lo - b.lo);
             const baseAccum = new Map();  // s.label → 从最低段到该段下限的累进和
             let acc = 0;
             let lastLo = 0;
+            let prevCoef = sortedByLo[0].coef;  // 最低段 [0, s0.lo] 的系数
             for (const s of sortedByLo) {
-                acc += (s.lo - lastLo) * s.coef;  // 上段上限到本段下限之间的累进
+                if (s.lo > lastLo) {
+                    acc += (s.lo - lastLo) * prevCoef;  // 用前一段 coef
+                }
                 baseAccum.set(s.label, acc);
+                prevCoef = s.coef;  // 本段系数留给下一段用
                 lastLo = s.lo;
             }
             let html2 = '<thead><tr><th>区间</th><th>调节系数</th><th>阈值</th><th>公式（超额累进）</th><th>当前 M 落入</th></tr></thead><tbody>';
