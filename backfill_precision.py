@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""一次性回填脚本：对中债网 bxjDownload 返回的高精度（8 位小数百分比）国债即期 +
-MA750/MA60 重新抓取并覆盖 data.json 的低精度行，使全序列达到源精度。
+"""一次性回填脚本：对中债网 bxjDownload 返回的高精度（8 位小数百分比）国债即期
+重新抓取并覆盖 data.json 的低精度行，使全序列达到源精度。
 
 背景：实测证明 bxjDownload 源本身即带 8 位小数精度，之前 data.json 只存 4 位是历史
 陈旧数据。日常 CI（update_gov_bond）已保留源精度，新增日期自动高精度。
 
 本脚本「智能回填」：仅对 2024-01-01 起、当前仍为低精度（≤4 位）的日期重抓覆盖，
 已高精度的（如 2026 全量、2025-12-31）直接跳过，省时且安全。不参与每日 CI。
+
+注意：MA750/MA60 字段已于 2026-07-24 砍掉，不再下发；折现率所需移动平均由前端
+用即期 rows 现场计算，故本脚本只回填即期行精度。
 
 用法：python backfill_precision.py
 """
@@ -53,8 +56,6 @@ def main():
             continue
         try:
             g = ci.fetch_spot_rates_chinabond(d, csz="1")
-            m750 = ci.fetch_spot_rates_chinabond(d, csz="750")
-            m60 = ci.fetch_spot_rates_chinabond(d, csz="60")
         except Exception as e:
             print(f"  ⚠ {d}: 异常 {type(e).__name__}: {e}")
             time.sleep(1)
@@ -63,10 +64,6 @@ def main():
             print(f"  ⚠ {d}: 国债即期为空，跳过")
             continue
         data["rows"][i] = [g.get(t) for t in ci.ALL_TERMS]
-        if m750:
-            data["websiteMA750"][i] = [m750.get(t) for t in ci.ALL_TERMS]
-        if m60:
-            data["websiteMA60"][i] = [m60.get(t) for t in ci.ALL_TERMS]
         upd += 1
         if upd % 20 == 0:
             print(f"  …已更新 {upd} 个日期（至 {d}）")

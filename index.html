@@ -1226,27 +1226,6 @@
                     }
                     if (hasAny) ratesArr.push(rowObj);
                 }
-                const ma750Arr = [];
-                for (const row of (json.websiteMA750 || [])) {
-                    if (!row) { ma750Arr.push(null); continue; }
-                    const rowObj = {}; let hasAny = false;
-                    for (let i = 0; i < terms.length; i++) {
-                        const cleaned = sanitizeRate(row[i]);
-                        if (cleaned !== null) { rowObj[terms[i]] = cleaned; hasAny = true; }
-                    }
-                    ma750Arr.push(hasAny ? rowObj : null);
-                }
-                const ma60Arr = [];
-                for (const row of (json.websiteMA60 || [])) {
-                    if (!row) { ma60Arr.push(null); continue; }
-                    const rowObj = {}; let hasAny = false;
-                    for (let i = 0; i < terms.length; i++) {
-                        const cleaned = sanitizeRate(row[i]);
-                        if (cleaned !== null) { rowObj[terms[i]] = cleaned; hasAny = true; }
-                    }
-                    ma60Arr.push(hasAny ? rowObj : null);
-                }
-
                 const latestDate = dates[dates.length - 1];
                 const latestRates = ratesArr[ratesArr.length - 1];
                 const allTermsLocal = getAllTerms(latestRates);
@@ -1254,8 +1233,6 @@
                 dataStore = {
                     dates: dates,
                     rates: ratesArr,
-                    ma750: ma750Arr,
-                    ma60: ma60Arr,
                     latestDate: latestDate,
                     latestRates: latestRates,
                     allTerms: allTermsLocal
@@ -1313,23 +1290,9 @@
                 ed.terms.forEach(function(t, i) { if (row[i] !== null) obj[t] = row[i]; });
                 return obj;
             });
-            const ma750Arr = (ed.websiteMA750 || []).map(function(row) {
-                if (!row) return null;
-                const obj = {};
-                ed.terms.forEach(function(t, i) { if (row[i] !== null && row[i] !== undefined) obj[t] = row[i]; });
-                return obj;
-            });
-            const ma60Arr = (ed.websiteMA60 || []).map(function(row) {
-                if (!row) return null;
-                const obj = {};
-                ed.terms.forEach(function(t, i) { if (row[i] !== null && row[i] !== undefined) obj[t] = row[i]; });
-                return obj;
-            });
             dataStore = {
                 dates: ed.dates,
                 rates: ratesArr,
-                ma750: ma750Arr,
-                ma60: ma60Arr,
                 latestDate: ed.dates[ed.dates.length - 1],
                 latestRates: ratesArr[ratesArr.length - 1],
                 allTerms: ed.terms
@@ -3781,22 +3744,6 @@
             const refDate = (refOverride && dateSet.has(refOverride)) ? refOverride : actualDates[actualDates.length - 1];
             const refRates = gov.rates[actualDates.indexOf(refDate)];
             const endIdx = actualDates.indexOf(endDateStr);
-
-            // 优先使用网站直接下发的精确 MA（实际日期且数据存在）
-            const exactKey = period === 750 ? 'ma750' : (period === 60 ? 'ma60' : null);
-            if (exactKey && endIdx >= 0) {
-                const exactRow = gov[exactKey] && gov[exactKey][endIdx];
-                if (exactRow && typeof exactRow === 'object') {
-                    const out = {};
-                    let hasAny = false;
-                    for (let t = 1; t <= 50; t++) {
-                        const v = exactRow[t + 'Y'];
-                        out[String(t)] = (v != null && isFinite(v)) ? v : null;
-                        if (out[String(t)] != null) hasAny = true;
-                    }
-                    if (hasAny) return out;
-                }
-            }
 
             let rows;
             if (endIdx >= 0) {
