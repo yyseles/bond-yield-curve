@@ -6,7 +6,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>利率曲线监测及分析报告</title>
+    <title>利率曲线分析与精算监测平台</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
@@ -421,15 +421,26 @@
     .q-hl td:first-child { font-weight:700; color:#b8651b; }
     .preset-status { font-size:12px; color:#f57c00; padding:8px 16px; }
     @media (max-width:1200px){ .preset-cards{ grid-template-columns:repeat(2,1fr);} }
+        /* 利率曲线分析 视图 */
+        .view-analysis { padding-top: 6px; }
+        .ana-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .ana-curves { display: flex; gap: 16px; flex-wrap: wrap; }
+        .ana-curves label { font-size: 13px; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
+        .ana-controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 13px; }
+        .ana-controls label { display: inline-flex; align-items: center; gap: 6px; }
+        .ana-controls select { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; }
+        .ana-controls .toolbar-hint { font-size: 12px; color: #94a3b8; }
+        .ana-panel .card { margin-bottom: 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-card">
-            <h1 id="mainTitle">📈 利率曲线监测及精算分析平台</h1>
+            <h1 id="mainTitle">📈 利率曲线分析与精算监测平台</h1>
             <div class="main-nav" id="mainNav">
                 <div class="nav-group nav-group-primary">
-                    <button class="active" data-view="monitor">📊 利率曲线监测</button>
+                    <button class="active" data-view="analysis">📈 利率曲线分析</button>
+                    <button data-view="monitor">📊 精算利率监测</button>
                     <button data-view="discount">💱 折现率曲线</button>
                     <button data-view="preset">📉 预定利率追踪</button>
                 </div>
@@ -975,6 +986,90 @@
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
         </div>
     </div>
+        <!-- ═══════════════════════════════════════════════
+             利率曲线分析（当日 / 横截面分析）
+             ═══════════════════════════════════════════════ -->
+        <div class="view-analysis" id="viewAnalysis" style="display:none;">
+            <div class="ana-toolbar">
+                <div class="ana-curves" id="anaCurveChecks">
+                    <label><input type="checkbox" value="gov_spot" checked> 国债即期</label>
+                    <label><input type="checkbox" value="gov_ytm" checked> 国债到期</label>
+                    <label><input type="checkbox" value="cdb_spot" checked> 国开即期</label>
+                    <label><input type="checkbox" value="cdb_ytm" checked> 国开到期</label>
+                </div>
+                <div class="btn-group" id="anaViewBtnGroup">
+                    <button class="active" data-aview="overview">📊 当日总览</button>
+                    <button data-aview="timeseries">📈 单期限走势</button>
+                    <button data-aview="structure">🔀 期限结构对比</button>
+                    <button data-aview="spread">💠 利差分析</button>
+                </div>
+            </div>
+
+            <!-- 当日总览 / 多曲线同日对比 -->
+            <div class="ana-panel" id="anaOverview">
+                <div class="ana-controls">
+                    <label>查看日期：<select id="anaDateSel"></select></label>
+                    <span class="toolbar-hint">所选日期下，各曲线收益率曲线与关键期限利率</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span>收益率曲线（同日多曲线）</span><span class="badge">所选日期</span></div>
+                        <div class="chart-box" id="anaCurveChart"></div>
+                        <div class="footnote">横轴期限（年）｜ 纵轴利率（%）｜ 早期长端（&gt;30Y）可能缺失</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span>关键期限利率（%）</span><span class="badge">所选日期</span></div>
+                        <div class="table-wrap"><table id="anaOverviewTable"></table></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 单期限时间序列 -->
+            <div class="ana-panel" id="anaTimeseries" style="display:none;">
+                <div class="ana-controls">
+                    <label>期限：<select id="anaTenorSel"></select></label>
+                    <span class="toolbar-hint">同一期限、不同曲线的历史走势（横轴为日期）</span>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>单期限利率时间序列</span><span class="badge" id="anaTsBadge"></span></div>
+                    <div class="chart-box tall" id="anaTsChart"></div>
+                </div>
+            </div>
+
+            <!-- 同曲线不同日期期限结构 -->
+            <div class="ana-panel" id="anaStructure" style="display:none;">
+                <div class="ana-controls">
+                    <label>曲线：<select id="anaStructCurveSel"></select></label>
+                    <label>日期 A：<select id="anaDateASel"></select></label>
+                    <label>日期 B：<select id="anaDateBSel"></select></label>
+                    <span class="toolbar-hint">同一曲线在 A / B 两日的期限结构差异（A 实线 · B 虚线）</span>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>同曲线不同日期期限结构</span><span class="badge">A 实线 / B 虚线</span></div>
+                    <div class="chart-box tall" id="anaStructChart"></div>
+                </div>
+            </div>
+
+            <!-- 利差分析 -->
+            <div class="ana-panel" id="anaSpread" style="display:none;">
+                <div class="ana-controls">
+                    <label>税收溢价期限：<select id="anaSpreadTenorSel"></select></label>
+                    <span class="toolbar-hint">税收溢价 = 国开即期 − 国债即期（bp）；期限利差 = 10Y − 1Y 国债即期（bp）</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span>税收溢价（国开即期 − 国债即期）</span><span class="badge" id="anaTaxBadge"></span></div>
+                        <div class="chart-box" id="anaTaxChart"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span>期限利差（10Y − 1Y，国债即期）</span><span class="badge">bp</span></div>
+                        <div class="chart-box" id="anaTermChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footnote">税收溢价反映免税优势；期限利差反映收益率曲线陡平。数据自 2016 起，回填后延伸至 2008（早期长端可能缺失）。</div>
+        </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════
@@ -4154,6 +4249,12 @@
                 setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); if (bondIndustryChart) bondIndustryChart.resize(); }, 60);
                 return;
             }
+            if (v === 'analysis') {
+                document.getElementById('viewAnalysis').style.display = '';
+                renderAnalysis();
+                setTimeout(() => { for (const k in anaCharts) if (anaCharts[k]) anaCharts[k].resize(); }, 60);
+                return;
+            }
             if (v === 'discount') {
                 document.getElementById('viewDiscount').style.display = '';
                 if (!discountDate) discountDate = dataStore.latestDate;
@@ -4582,9 +4683,11 @@
             const hash = location.hash.replace('#', '');
             const validTypes = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
             if (validTypes.includes(hash)) {
+                currentMainView = 'monitor';
+                showMainView('monitor');
                 showDetail(hash);
             } else {
-                showOverview();
+                showMainView(currentMainView || 'analysis');
             }
         }
 
@@ -5585,6 +5688,7 @@
                 forecastRefDate = null;
                 recalcForecastData();
                 renderAll();
+                showMainView('analysis');
                 const el = document.getElementById('uploadStatus');
                 if (el) { el.textContent = label + ' (' + dataStore.dates.length + ' 条, ' + dataStore.dates[0] + ' ~ ' + dataStore.latestDate + ')'; el.style.color = color; }
             };
@@ -5635,6 +5739,7 @@
                 forecastRefDate = null;
                 recalcForecastData();
                 renderAll();
+                showMainView('analysis');
                 const el = document.getElementById('uploadStatus');
                 if (el) { el.textContent = '从浏览器缓存加载 (' + dataStore.dates.length + ' 条)'; el.style.color = '#888'; }
                 return;
@@ -5679,6 +5784,196 @@
             if (maTimeSeriesChart) { maTimeSeriesChart.dispose(); maTimeSeriesChart = null; }
             if (maCurveChartEcharts) { maCurveChartEcharts.dispose(); maCurveChartEcharts = null; }
             maInitialized = false;
+        }
+
+        // ================================================================
+        // 利率曲线分析（当日 / 横截面分析）
+        // ================================================================
+        const ANA_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
+        const ANA_LABELS = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开即期', cdb_ytm: '国开到期' };
+        const ANA_COLORS = { gov_spot: '#1f4a7a', gov_ytm: '#2e7d32', cdb_spot: '#c0392b', cdb_ytm: '#e67e22' };
+        let currentAnalysisView = 'overview';
+        let anaCharts = {};
+        let anaListenersBound = false;
+
+        function getCheckedCurves() {
+            return [...document.querySelectorAll('#anaCurveChecks input:checked')].map(c => c.value);
+        }
+        function anaValueAt(type, date, term) {
+            const s = dataStores[type];
+            if (!s) return null;
+            const di = s.dates.indexOf(date);
+            if (di < 0) return null;
+            const ti = s.terms.indexOf(term);
+            if (ti < 0) return null;
+            const v = s.rates[di][ti];
+            return (v === null || v === undefined) ? null : v;
+        }
+        async function loadAnaCurve(type) {
+            if (dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
+            try {
+                const resp = await fetch(bondFiles[type] + '?' + Date.now(), { cache: 'no-store' });
+                if (!resp.ok) return null;
+                const d = await resp.json();
+                if (!d || !d.dates || !d.dates.length) return null;
+                const store = { dates: d.dates, terms: d.terms, rates: d.rows, latestDate: d.dates[d.dates.length - 1], latestRates: d.rows[d.rows.length - 1], allTerms: d.terms };
+                dataStores[type] = store;
+                return store;
+            } catch (e) { console.error('加载' + ANA_LABELS[type] + '失败', e); return null; }
+        }
+        async function ensureAnaData() {
+            const r = await Promise.all(ANA_TYPES.map(loadAnaCurve));
+            return r.every(x => x);
+        }
+        function drawAnaChart(id, option) {
+            let c = anaCharts[id];
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (!c) { c = echarts.init(el); anaCharts[id] = c; }
+            c.setOption(option, true);
+        }
+        function populateAnaSelectors() {
+            const gs = dataStores.gov_spot;
+            if (!gs) return;
+            const dates = gs.dates.slice().reverse(); // 最新在前
+            const fill = (id, opts, def) => {
+                const el = document.getElementById(id);
+                if (!el || el.options.length) return;
+                el.innerHTML = opts.map(o => `<option value="${o.v}"${o.v === def ? ' selected' : ''}>${o.t}</option>`).join('');
+            };
+            fill('anaDateSel', dates.map(d => ({ v: d, t: d })), gs.latestDate);
+            fill('anaDateASel', dates.map(d => ({ v: d, t: d })), gs.latestDate);
+            const bDef = dates[Math.min(250, dates.length - 1)] || dates[dates.length - 1];
+            fill('anaDateBSel', dates.map(d => ({ v: d, t: d })), bDef);
+            fill('anaTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
+            fill('anaSpreadTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
+            fill('anaStructCurveSel', ANA_TYPES.map(t => ({ v: t, t: ANA_LABELS[t] })), 'gov_spot');
+        }
+        function showAnaPanel(v) {
+            ['overview', 'timeseries', 'structure', 'spread'].forEach(p => {
+                const el = document.getElementById('ana' + p.charAt(0).toUpperCase() + p.slice(1));
+                if (el) el.style.display = (p === v) ? '' : 'none';
+            });
+        }
+        function renderAnaCurrent() {
+            if (currentAnalysisView === 'overview') renderAnaOverview();
+            else if (currentAnalysisView === 'timeseries') renderAnaTimeseries();
+            else if (currentAnalysisView === 'structure') renderAnaStructure();
+            else renderAnaSpread();
+        }
+        function renderAnaOverview() {
+            const date = document.getElementById('anaDateSel').value || (dataStores.gov_spot && dataStores.gov_spot.latestDate);
+            const curves = getCheckedCurves();
+            const gs = dataStores.gov_spot;
+            const terms = gs ? gs.terms : [];
+            const series = curves.map(t => {
+                const s = dataStores[t];
+                if (!s) return null;
+                const di = s.dates.indexOf(date);
+                const data = s.terms.map((tm, i) => (s.rates[di] ? s.rates[di][i] : null));
+                return { name: ANA_LABELS[t], type: 'line', data, showSymbol: false, connectNulls: false, lineStyle: { width: 2 }, itemStyle: { color: ANA_COLORS[t] } };
+            }).filter(Boolean);
+            drawAnaChart('anaCurveChart', {
+                xAxis: { type: 'category', data: terms, name: '期限(年)' },
+                yAxis: { type: 'value', name: '%', scale: true },
+                series, tooltip: { trigger: 'axis' }, legend: { data: series.map(x => x.name), top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
+            });
+            const keyTerms = ['1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '15Y', '20Y', '30Y'];
+            let html = '<thead><tr><th>期限</th>' + curves.map(c => `<th>${ANA_LABELS[c]}</th>`).join('') + '</tr></thead><tbody>';
+            for (const tm of keyTerms) {
+                html += `<tr><td>${tm}</td>` + curves.map(c => {
+                    const v = anaValueAt(c, date, tm);
+                    return `<td>${v == null ? '—' : v.toFixed(4)}</td>`;
+                }).join('') + '</tr>';
+            }
+            html += '</tbody>';
+            document.getElementById('anaOverviewTable').innerHTML = html;
+        }
+        function renderAnaTimeseries() {
+            const tenor = document.getElementById('anaTenorSel').value || '10Y';
+            const curves = getCheckedCurves();
+            const series = curves.map(t => {
+                const s = dataStores[t];
+                if (!s) return null;
+                const ti = s.terms.indexOf(tenor);
+                if (ti < 0) return null;
+                const data = s.dates.map((d, i) => { const v = s.rates[i][ti]; return v == null ? null : [d, v]; });
+                return { name: ANA_LABELS[t], type: 'line', data, showSymbol: false, lineStyle: { width: 1.5 }, itemStyle: { color: ANA_COLORS[t] } };
+            }).filter(Boolean);
+            drawAnaChart('anaTsChart', {
+                xAxis: { type: 'time' }, yAxis: { type: 'value', name: '%', scale: true },
+                series, tooltip: { trigger: 'axis' }, legend: { data: series.map(x => x.name), top: 0 },
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
+            });
+            document.getElementById('anaTsBadge').textContent = '期限 ' + tenor;
+        }
+        function renderAnaStructure() {
+            const t = document.getElementById('anaStructCurveSel').value;
+            const dA = document.getElementById('anaDateASel').value;
+            const dB = document.getElementById('anaDateBSel').value;
+            const s = dataStores[t];
+            if (!s) return;
+            const iA = s.dates.indexOf(dA), iB = s.dates.indexOf(dB);
+            if (iA < 0 || iB < 0) return;
+            const mk = (idx, dash) => ({ name: (dash ? dB : dA) + (dash ? ' (B)' : ' (A)'), type: 'line', data: s.terms.map((tm, i) => s.rates[idx][i]), showSymbol: false, connectNulls: false, lineStyle: { width: 2, type: dash ? 'dashed' : 'solid', color: ANA_COLORS[t] }, itemStyle: { color: ANA_COLORS[t] } });
+            drawAnaChart('anaStructChart', {
+                xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
+                series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
+            });
+        }
+        function renderAnaSpread() {
+            const tenor = document.getElementById('anaSpreadTenorSel').value || '10Y';
+            const gs = dataStores.gov_spot, cs = dataStores.cdb_spot;
+            if (!gs || !cs) return;
+            const ti = gs.terms.indexOf(tenor), tiC = cs.terms.indexOf(tenor);
+            const ti10 = gs.terms.indexOf('10Y'), ti1 = gs.terms.indexOf('1Y');
+            const taxData = [], termData = [];
+            for (let i = 0; i < gs.dates.length; i++) {
+                const gv = gs.rates[i][ti], cv = cs.rates[i][tiC];
+                if (gv != null && cv != null) taxData.push([gs.dates[i], +((cv - gv) * 100).toFixed(2)]);
+                const g10 = gs.rates[i][ti10], g1 = gs.rates[i][ti1];
+                if (g10 != null && g1 != null) termData.push([gs.dates[i], +((g10 - g1) * 100).toFixed(2)]);
+            }
+            drawAnaChart('anaTaxChart', {
+                xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
+                series: [{ name: '税收溢价', type: 'line', data: taxData, showSymbol: false, lineStyle: { width: 1.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } }],
+                tooltip: { trigger: 'axis' }, dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 30, bottom: 50, left: 48, right: 16 }
+            });
+            drawAnaChart('anaTermChart', {
+                xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
+                series: [{ name: '10Y−1Y', type: 'line', data: termData, showSymbol: false, lineStyle: { width: 1.5, color: '#1f4a7a' }, itemStyle: { color: '#1f4a7a' } }],
+                tooltip: { trigger: 'axis' }, dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 30, bottom: 50, left: 48, right: 16 }
+            });
+            document.getElementById('anaTaxBadge').textContent = '期限 ' + tenor;
+        }
+        function bindAnaListeners() {
+            if (anaListenersBound) return;
+            anaListenersBound = true;
+            document.querySelectorAll('#anaViewBtnGroup button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#anaViewBtnGroup button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentAnalysisView = btn.dataset.aview;
+                    showAnaPanel(currentAnalysisView);
+                    renderAnaCurrent();
+                });
+            });
+            document.querySelectorAll('#anaCurveChecks input').forEach(cb => {
+                cb.addEventListener('change', renderAnaCurrent);
+            });
+            ['anaDateSel', 'anaTenorSel', 'anaStructCurveSel', 'anaDateASel', 'anaDateBSel', 'anaSpreadTenorSel'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', renderAnaCurrent);
+            });
+        }
+        function renderAnalysis() {
+            bindAnaListeners();
+            ensureAnaData().then(ok => {
+                if (!ok) { console.warn('利率曲线分析：部分数据未加载'); return; }
+                populateAnaSelectors();
+                showAnaPanel(currentAnalysisView);
+                renderAnaCurrent();
+            });
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
