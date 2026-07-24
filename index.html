@@ -431,6 +431,8 @@
         .ana-controls select { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; }
         .ana-controls .toolbar-hint { font-size: 12px; color: #94a3b8; }
         .ana-panel .card { margin-bottom: 0; }
+        .ana-subtitle { font-size: 15px; font-weight: 600; color: #1a2b44; margin: 18px 0 10px; padding-left: 10px; border-left: 4px solid #2a5f8a; }
+        .ana-panel .ana-chart { height: 320px; }
     </style>
 </head>
 <body>
@@ -1046,25 +1048,42 @@
                 </div>
             </div>
 
-            <!-- 利差分析 -->
+            <!-- 利差分析（四条曲线基础） -->
             <div class="ana-panel" id="anaSpread" style="display:none;">
                 <div class="ana-controls">
-                    <label>税收溢价期限：<select id="anaSpreadTenorSel"></select></label>
-                    <span class="toolbar-hint">税收溢价 = 国开即期 − 国债即期（bp）；期限利差 = 10Y − 1Y 国债即期（bp）</span>
+                    <span class="toolbar-hint">税收溢价 = 国开即期 − 国债即期（bp）｜ 期限利差 = 国债即期两期限之差（bp）｜ MA2500≈全周期(约10年)，MA750≈近3年（均基于最新交易日）</span>
                 </div>
+
+                <h3 class="ana-subtitle">① 税收溢价（国开即期 − 国债即期，bp）</h3>
                 <div class="grid-2">
                     <div class="card">
-                        <div class="card-title"><span>税收溢价（国开即期 − 国债即期）</span><span class="badge" id="anaTaxBadge"></span></div>
-                        <div class="chart-box" id="anaTaxChart"></div>
+                        <div class="card-title"><span>税收溢价时间序列</span><span class="badge">bp</span></div>
+                        <div class="chart-box ana-chart" id="anaTaxChart"></div>
+                        <div class="footnote">10Y 与 9Y 税收溢价（国开即期 − 国债即期）</div>
                     </div>
                     <div class="card">
-                        <div class="card-title"><span>期限利差（10Y − 1Y，国债即期）</span><span class="badge">bp</span></div>
-                        <div class="chart-box" id="anaTermChart"></div>
+                        <div class="card-title"><span>平均税收溢价水平</span><span class="badge">最新日 MA2500 / MA750</span></div>
+                        <div class="table-wrap"><table id="anaTaxTable"></table></div>
+                        <div class="footnote">MA2500=全周期(约10年)均值；MA750=近3年均值；均基于最新交易日</div>
+                    </div>
+                </div>
+
+                <h3 class="ana-subtitle">② 期限利差（国债即期，bp）</h3>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span>期限利差时间序列</span><span class="badge">bp</span></div>
+                        <div class="chart-box ana-chart" id="anaTermChart"></div>
+                        <div class="footnote">10Y−1Y / 30Y−10Y / 5Y−1Y（国债即期）</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span>期限利差最新值与全周期特征</span><span class="badge">bp</span></div>
+                        <div class="table-wrap"><table id="anaTermTable"></table></div>
+                        <div class="footnote">最新交易日各利差；区间=全周期（自数据起点）</div>
                     </div>
                 </div>
             </div>
 
-            <div class="footnote">税收溢价反映免税优势；期限利差反映收益率曲线陡平。数据自 2016 起，回填后延伸至 2008（早期长端可能缺失）。</div>
+            <div class="footnote">税收溢价反映国开债相对国债的免税溢价；期限利差反映国债收益率曲线陡平。数据自 2008 起（早期长端可能缺失）。</div>
         </div>
     </div>
 
@@ -5785,7 +5804,6 @@
             const bDef = dates[Math.min(250, dates.length - 1)] || dates[dates.length - 1];
             fill('anaDateBSel', dates.map(d => ({ v: d, t: d })), bDef);
             fill('anaTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
-            fill('anaSpreadTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
             fill('anaStructCurveSel', ANA_TYPES.map(t => ({ v: t, t: ANA_LABELS[t] })), 'gov_spot');
         }
         function showAnaPanel(v) {
@@ -5861,29 +5879,81 @@
             });
         }
         function renderAnaSpread() {
-            const tenor = document.getElementById('anaSpreadTenorSel').value || '10Y';
             const gs = dataStores.gov_spot, cs = dataStores.cdb_spot;
             if (!gs || !cs) return;
-            const ti = gs.terms.indexOf(tenor), tiC = cs.terms.indexOf(tenor);
-            const ti10 = gs.terms.indexOf('10Y'), ti1 = gs.terms.indexOf('1Y');
-            const taxData = [], termData = [];
+            const tiG = t => gs.terms.indexOf(t);
+            const tiC = t => cs.terms.indexOf(t);
+            const t10G = tiG('10Y'), t9G = tiG('9Y'), t1G = tiG('1Y'), t5G = tiG('5Y'), t30G = tiG('30Y');
+            const t10C = tiC('10Y'), t9C = tiC('9Y');
+            // 对齐 cdb 日期索引（两序列交易日不完全重合：gov 4730 / cdb 4580）
+            const cdbIdx = {};
+            cs.dates.forEach((d, i) => { cdbIdx[d] = i; });
+
+            // ---- 税收溢价序列（国开即期 − 国债即期，bp）----
+            const tax10 = [], tax9 = [];
             for (let i = 0; i < gs.dates.length; i++) {
-                const gv = gs.rates[i][ti], cv = cs.rates[i][tiC];
-                if (gv != null && cv != null) taxData.push([gs.dates[i], +((cv - gv) * 100).toFixed(2)]);
-                const g10 = gs.rates[i][ti10], g1 = gs.rates[i][ti1];
-                if (g10 != null && g1 != null) termData.push([gs.dates[i], +((g10 - g1) * 100).toFixed(2)]);
+                const d = gs.dates[i], ci = cdbIdx[d];
+                if (ci == null) continue;
+                const g10 = gs.rates[i][t10G], c10 = cs.rates[ci][t10C];
+                if (g10 != null && c10 != null) tax10.push([d, +((c10 - g10) * 100).toFixed(2)]);
+                const g9 = gs.rates[i][t9G], c9 = cs.rates[ci][t9C];
+                if (g9 != null && c9 != null) tax9.push([d, +((c9 - g9) * 100).toFixed(2)]);
             }
             drawAnaChart('anaTaxChart', {
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
-                series: [{ name: '税收溢价', type: 'line', data: taxData, showSymbol: false, lineStyle: { width: 1.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } }],
-                tooltip: { trigger: 'axis' }, dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 30, bottom: 50, left: 48, right: 16 }
+                series: [
+                    { name: '10Y 税收溢价', type: 'line', data: tax10, showSymbol: false, lineStyle: { width: 1.5, color: '#c0392b' }, itemStyle: { color: '#c0392b' } },
+                    { name: '9Y 税收溢价', type: 'line', data: tax9, showSymbol: false, lineStyle: { width: 1.5, color: '#e67e22' }, itemStyle: { color: '#e67e22' } }
+                ],
+                tooltip: { trigger: 'axis' }, legend: { data: ['10Y 税收溢价', '9Y 税收溢价'], top: 0 },
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
             });
+            // 平均税收溢价水平：MA2500 / MA750 基于最新日
+            const maOf = (arr, n) => {
+                const slice = arr.slice(Math.max(0, arr.length - n)).map(p => p[1]).filter(v => v != null && isFinite(v));
+                return slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : null;
+            };
+            const fmtBp = v => (v == null ? '—' : v.toFixed(1) + ' bp');
+            const latest10 = tax10.length ? tax10[tax10.length - 1][1] : null;
+            const latest9 = tax9.length ? tax9[tax9.length - 1][1] : null;
+            const ma2500_10 = maOf(tax10, 2500), ma750_10 = maOf(tax10, 750);
+            const ma2500_9 = maOf(tax9, 2500), ma750_9 = maOf(tax9, 750);
+            let th = '<thead><tr><th>指标</th><th>10Y</th><th>9Y</th></tr></thead><tbody>';
+            th += `<tr><td>最新税收溢价</td><td>${fmtBp(latest10)}</td><td>${fmtBp(latest9)}</td></tr>`;
+            th += `<tr><td>平均税收溢价水平（MA2500，全周期≈10年）</td><td>${fmtBp(ma2500_10)}</td><td>${fmtBp(ma2500_9)}</td></tr>`;
+            th += `<tr><td>平均税收溢价水平（MA750，近3年）</td><td>${fmtBp(ma750_10)}</td><td>${fmtBp(ma750_9)}</td></tr>`;
+            th += '</tbody>';
+            document.getElementById('anaTaxTable').innerHTML = th;
+
+            // ---- 期限利差（国债即期，bp）----
+            const s101 = [], s3010 = [], s51 = [];
+            for (let i = 0; i < gs.dates.length; i++) {
+                const g10 = gs.rates[i][t10G], g1 = gs.rates[i][t1G], g30 = gs.rates[i][t30G], g5 = gs.rates[i][t5G];
+                if (g10 != null && g1 != null) s101.push([gs.dates[i], +((g10 - g1) * 100).toFixed(2)]);
+                if (g30 != null && g10 != null) s3010.push([gs.dates[i], +((g30 - g10) * 100).toFixed(2)]);
+                if (g5 != null && g1 != null) s51.push([gs.dates[i], +((g5 - g1) * 100).toFixed(2)]);
+            }
             drawAnaChart('anaTermChart', {
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
-                series: [{ name: '10Y−1Y', type: 'line', data: termData, showSymbol: false, lineStyle: { width: 1.5, color: '#1f4a7a' }, itemStyle: { color: '#1f4a7a' } }],
-                tooltip: { trigger: 'axis' }, dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 30, bottom: 50, left: 48, right: 16 }
+                series: [
+                    { name: '10Y−1Y', type: 'line', data: s101, showSymbol: false, lineStyle: { width: 1.5, color: '#1f4a7a' }, itemStyle: { color: '#1f4a7a' } },
+                    { name: '30Y−10Y', type: 'line', data: s3010, showSymbol: false, lineStyle: { width: 1.5, color: '#2e7d32' }, itemStyle: { color: '#2e7d32' } },
+                    { name: '5Y−1Y', type: 'line', data: s51, showSymbol: false, lineStyle: { width: 1.5, color: '#8e44ad' }, itemStyle: { color: '#8e44ad' } }
+                ],
+                tooltip: { trigger: 'axis' }, legend: { data: ['10Y−1Y', '30Y−10Y', '5Y−1Y'], top: 0 },
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
             });
-            document.getElementById('anaTaxBadge').textContent = '期限 ' + tenor;
+            const latestOf = arr => arr.length ? arr[arr.length - 1][1] : null;
+            const minOf = arr => arr.length ? Math.min(...arr.map(p => p[1])) : null;
+            const maxOf = arr => arr.length ? Math.max(...arr.map(p => p[1])) : null;
+            const avgOf = arr => { const v = arr.map(p => p[1]).filter(x => x != null && isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+            let tt = '<thead><tr><th>指标</th><th>10Y−1Y</th><th>30Y−10Y</th><th>5Y−1Y</th></tr></thead><tbody>';
+            tt += `<tr><td>最新利差</td><td>${fmtBp(latestOf(s101))}</td><td>${fmtBp(latestOf(s3010))}</td><td>${fmtBp(latestOf(s51))}</td></tr>`;
+            tt += `<tr><td>全周期均值</td><td>${fmtBp(avgOf(s101))}</td><td>${fmtBp(avgOf(s3010))}</td><td>${fmtBp(avgOf(s51))}</td></tr>`;
+            tt += `<tr><td>全周期最小</td><td>${fmtBp(minOf(s101))}</td><td>${fmtBp(minOf(s3010))}</td><td>${fmtBp(minOf(s51))}</td></tr>`;
+            tt += `<tr><td>全周期最大</td><td>${fmtBp(maxOf(s101))}</td><td>${fmtBp(maxOf(s3010))}</td><td>${fmtBp(maxOf(s51))}</td></tr>`;
+            tt += '</tbody>';
+            document.getElementById('anaTermTable').innerHTML = tt;
         }
         function bindAnaListeners() {
             if (anaListenersBound) return;
@@ -5900,7 +5970,7 @@
             document.querySelectorAll('#anaCurveChecks input').forEach(cb => {
                 cb.addEventListener('change', renderAnaCurrent);
             });
-            ['anaDateSel', 'anaTenorSel', 'anaStructCurveSel', 'anaDateASel', 'anaDateBSel', 'anaSpreadTenorSel'].forEach(id => {
+            ['anaDateSel', 'anaTenorSel', 'anaStructCurveSel', 'anaDateASel', 'anaDateBSel'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', renderAnaCurrent);
             });
