@@ -4133,13 +4133,15 @@
             currentMainView = v;
             document.querySelectorAll('#mainNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
             const bt = document.getElementById('bondToggle');
+            // 先隐藏所有主视图，避免切换时互相叠加（如资本补充债视图底部残留预定利率追踪内容）
+            document.getElementById('viewOverview').style.display = 'none';
+            document.getElementById('viewDetail').style.display = 'none';
+            document.getElementById('viewDiscount').style.display = 'none';
+            document.getElementById('viewBonds').style.display = 'none';
+            document.getElementById('viewPreset').style.display = 'none';
+            bt.style.display = 'none';
             if (v === 'preset') {
                 document.querySelector('.container').classList.remove('overview-mode');
-                document.getElementById('viewOverview').style.display = 'none';
-                document.getElementById('viewDetail').style.display = 'none';
-                document.getElementById('viewDiscount').style.display = 'none';
-                document.getElementById('viewBonds').style.display = 'none';
-                bt.style.display = 'none';
                 document.getElementById('viewPreset').style.display = '';
                 renderPreset();
                 setTimeout(() => { for (const k in presetCharts) if (presetCharts[k]) presetCharts[k].resize(); }, 60);
@@ -4147,21 +4149,13 @@
             }
             if (v === 'bonds') {
                 document.querySelector('.container').classList.remove('overview-mode');
-                document.getElementById('viewOverview').style.display = 'none';
-                document.getElementById('viewDetail').style.display = 'none';
-                document.getElementById('viewDiscount').style.display = 'none';
-                bt.style.display = 'none';
                 document.getElementById('viewBonds').style.display = '';
                 renderBondsView();
                 setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); if (bondIndustryChart) bondIndustryChart.resize(); }, 60);
                 return;
             }
             if (v === 'discount') {
-                document.getElementById('viewOverview').style.display = 'none';
-                document.getElementById('viewDetail').style.display = 'none';
-                document.getElementById('viewBonds').style.display = 'none';
                 document.getElementById('viewDiscount').style.display = '';
-                bt.style.display = 'none';
                 if (!discountDate) discountDate = dataStore.latestDate;
                 if (!discountDatePopulated) populateDiscountDateSelect();
                 else syncDiscountDatePickerMode(discGetGov());
@@ -4169,8 +4163,6 @@
                 renderDiscount();
                 setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); }, 60);
             } else {
-                document.getElementById('viewDiscount').style.display = 'none';
-                document.getElementById('viewBonds').style.display = 'none';
                 bt.style.display = '';
                 if (currentMonitorSubview === 'detail') showDetail(currentBondType);
                 else showOverview();
