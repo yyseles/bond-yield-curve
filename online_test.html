@@ -488,10 +488,6 @@
                         <select id="discountForecastRefSelect"></select>
                     </span>
                 </div>
-                <div class="sub-view-toggle" id="discountSubToggle">
-                    <button class="active" data-sub="summary">汇总</button>
-                    <button data-sub="output">输出</button>
-                </div>
                 <div class="spot-fwd-toggle" id="discountSFBtnGroup">
                     <button class="active" data-sf="fwd">远期</button>
                     <button data-sf="spot">即期</button>
@@ -2761,7 +2757,6 @@
         let currentMainView = 'monitor';
         let currentMonitorSubview = 'overview';
         let discountRule = 'c2_2';
-        let discountSub = 'summary';
         let discountSF = 'fwd';
         let discountDate = null;          // 基准日（实际或预测日期）
         let discountDatePopulated = false;
@@ -3379,8 +3374,7 @@
             // 切换汇总/输出标题的基准日标注
             const outTitleEl = document.getElementById('discountOutputTitle');
             if (outTitleEl) outTitleEl.textContent = '假设表（DISC_PC）· 基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt;
-            if (discountSub === 'summary') renderDiscountSummary(discountSF);
-            else renderDiscountOutput(discountSF);
+            renderDiscountSummary(discountSF);
         }
 
         function populateDiscountForecastRefSelect(gov) {
@@ -3834,15 +3828,6 @@
                     syncSWParamsFromInputs();
                     if (id === 'swLlp') { onLlpChange(); updateSwExplanation(); }
                     discountDataCache = null;
-                    renderDiscount();
-                });
-            });
-            document.querySelectorAll('#discountSubToggle button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    discountSub = this.dataset.sub;
-                    document.querySelectorAll('#discountSubToggle button').forEach(b => b.classList.toggle('active', b === this));
-                    document.getElementById('discountSummaryView').style.display = (discountSub === 'summary') ? '' : 'none';
-                    document.getElementById('discountOutputView').style.display = (discountSub === 'output') ? '' : 'none';
                     renderDiscount();
                 });
             });
