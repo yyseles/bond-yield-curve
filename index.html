@@ -901,13 +901,13 @@
                         <span id="discountOutputTitle">假设表（DISC_PC）</span>
                         <span class="badge" id="discountOutputBadge">产品序号 × 情景曲线 · 年1-50 · 远期折现率</span>
                     </div>
-                    <div class="table-wrap" id="discountOutputTableWrap" style="overflow:auto;max-height:640px;">
+                    <div class="table-wrap" id="discountOutputTableWrap" style="display:none;overflow:auto;max-height:640px;">
                         <table>
                             <thead id="discountOutputHead"></thead>
                             <tbody id="discountOutputBody"></tbody>
                         </table>
                     </div>
-                    <div class="footnote">假设折现率（与 Excel 监管底稿一致）；切「即期」可看即期口径。DISC_PC_CR 取负债远期中/低档，DISC_PC_UP/DW 取利率远期上/下，DISC_PC_BASE 取利率远期基础（二期下利率风险基本情景）。全部为远期折现率。</div>
+                    <div class="footnote">输出表（DISC_PC 四板块 × 产品序号 × 年1-120，全部为远期折现率）不在此页展示。请使用上方「📥 输出」按钮下载 Excel 文件。</div>
                 </div>
             </div>
         </div>
@@ -4122,12 +4122,12 @@
             const years = d.years;
             const liabSpot = d.liab.spot, liabFwd = d.liab.fwd;
             const rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
-            // 四个板块（DISC_PC_CR / UP / DW / BASE），与 Excel「输出」表一致；cr 档='midle' 沿用监管底稿写法
+            // 四个板块（DISC_PC_CR / UP / DW / BASE），与 Excel「输出」表一致；cr 档='middle'
             const blocks = [
-                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (mode==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (mode==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'middle' : 'low' },
                 { name:'利率风险向上曲线 DISC_PC_UP 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:2, cat:false, get:p => (mode==='fwd'?rateFwd.up:rateSpot.up),    lvl:p => p.up==='mid' ? 'middle+' : 'low+' },
                 { name:'利率风险向下曲线 DISC_PC_DW 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:3, cat:false, get:p => (mode==='fwd'?rateFwd.down:rateSpot.down), lvl:p => p.dw==='mid' ? 'middle-' : 'low-' },
-                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (mode==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (mode==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'middle' : 'low' },
             ];
             const thead = document.getElementById('discountOutputHead');
             const tbody = document.getElementById('discountOutputBody');
@@ -4180,10 +4180,10 @@
             const years = d.years;
             const liabSpot = d.liab.spot, liabFwd = d.liab.fwd, rateSpot = d.rate.spot, rateFwd = d.rate.fwd;
             const blocks = [
-                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (discountSF==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'负债基本情景曲线DISC_PC_CR', idx:1, cat:true,  get:p => (discountSF==='fwd'?liabFwd:liabSpot)[p.cr],            lvl:p => p.cr==='mid' ? 'middle' : 'low' },
                 { name:'利率风险向上曲线 DISC_PC_UP 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:2, cat:false, get:p => (discountSF==='fwd'?rateFwd.up:rateSpot.up),    lvl:p => p.up==='mid' ? 'middle+' : 'low+' },
                 { name:'利率风险向下曲线 DISC_PC_DW 当CRS_IND=2时为60日曲线，否则为750日曲线', idx:3, cat:false, get:p => (discountSF==='fwd'?rateFwd.down:rateSpot.down), lvl:p => p.dw==='mid' ? 'middle-' : 'low-' },
-                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (discountSF==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'midle' : 'low' },
+                { name:'二期下计算利率风险基本情景曲线DISC_PC_BASE', idx:4, cat:true, get:p => (discountSF==='fwd'?rateFwd.base:rateSpot.base), lvl:p => p.cr==='mid' ? 'middle' : 'low' },
             ];
             const aoa = [['曲线类型', '情景序号', '产品类别', '产品序号', '情景档'].concat(years.map(String))];
             for (const blk of blocks) {
