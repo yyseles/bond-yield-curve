@@ -1279,6 +1279,33 @@
             }
         }
         // 共享的数据加载器：从 { dates, terms, rows } JSON 格式加载到 dataStore
+        // 数据加载：恢复浏览器 HTTP 缓存（条件请求/304），仅在响应为空或校验失败时才用 cache-buster 绕过缓存重试。
+        // 兼防 2026-07-14「GitHub Pages 偶发返回空文件被浏览器缓存」的坑——空/损坏响应会落到缓存绕过重试，而非一直拉空文件。
+        async function fetchJsonCached(url, validate) {
+            const tryOne = async (u, opts) => {
+                try {
+                    const resp = await fetch(u, opts);
+                    if (!resp.ok) return undefined;
+                    const txt = await resp.text();
+                    if (!txt || txt.trim().length <= 2) return undefined; // 空文件
+                    const obj = JSON.parse(txt);
+                    if (validate && !validate(obj)) return undefined;
+                    return obj;
+                } catch (e) { return undefined; }
+            };
+            // 1) 浏览器缓存优先（内容未变则 304，几乎不下载、不重解析）
+            const a = await tryOne(url);
+            if (a) return a;
+            // 2) 仅在空/损坏时绕过缓存重试（最多 3 次，轻微退避）
+            for (let i = 0; i < 3; i++) {
+                const sep = url.includes('?') ? '&' : '?';
+                const b = await tryOne(url + sep + 't=' + Date.now() + '_' + i, { cache: 'no-store' });
+                if (b) return b;
+                if (i < 2) await new Promise(r => setTimeout(r, 400));
+            }
+            return null;
+        }
+
         function loadFromRawData(rawData) {
             const ed = rawData;
             const ratesArr = ed.rows.map(function(row) {
@@ -5015,13 +5042,10 @@
                 statusEl.style.color = '#f57c00';
                 document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = true);
                 try {
-                    const resp = await fetch(bondFiles[type] + '?' + Date.now(), { cache: 'no-store' });
-                    if (resp.ok) {
-                        const rawData = await resp.json();
-                        if (rawData && rawData.dates && rawData.dates.length > 0) {
-                            loadFromRawData(rawData);
-                            dataStores[type] = dataStore;
-                        }
+                    const rawData = await fetchJsonCached(bondFiles[type], d => d && d.dates && d.dates.length > 0);
+                    if (rawData) {
+                        loadFromRawData(rawData);
+                        dataStores[type] = dataStore;
                     }
                 } catch (e) {
                     console.error('加载' + bondNames[type] + '数据失败:', e);
@@ -5069,10 +5093,8 @@
 
         async function loadDashboard() {
             try {
-                const resp = await fetch('summary.json?' + Date.now(), { cache: 'no-store' });
-                if (!resp.ok) return;
-                const summary = await resp.json();
-                if (!summary || !summary.curves) return;
+                const summary = await fetchJsonCached('summary.json', s => s && s.curves);
+                if (!summary) return;
 
                 const order = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
                 const grid = document.getElementById('dashGrid');
@@ -5140,25 +5162,15 @@
                 'https://raw.githubusercontent.com/yyseles/bond-yield-curve/main/ins_bonds.json'
             ];
             for (const src of sources) {
-                for (let attempt = 0; attempt < 3; attempt++) {
-                    try {
-                        const sep = src.includes('?') ? '&' : '?';
-                        const resp = await fetch(src + sep + 't=' + Date.now() + '_' + attempt, { cache: 'no-store' });
-                        if (!resp.ok) continue;
-                        const txt = await resp.text();
-                        if (!txt || txt.trim().length <= 2) continue;
-                        const parsed = JSON.parse(txt);
-                        if (parsed && parsed.bonds && parsed.bonds.length > 0) {
-                            insBonds = parsed;
-                            populateIndustryYear();
-                            populateEndYearSelect('bondComboEndYear', v => comboEndYear = v);
-                            populateEndYearSelect('bondScatterEndYear', v => scatterEndYear = v);
-                            populateSummaryYearSelect();
-                            if (currentMainView === 'bonds') renderBondsView();
-                            return;
-                        }
-                    } catch (e) {}
-                    if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                const parsed = await fetchJsonCached(src, o => o && o.bonds && o.bonds.length > 0);
+                if (parsed) {
+                    insBonds = parsed;
+                    populateIndustryYear();
+                    populateEndYearSelect('bondComboEndYear', v => comboEndYear = v);
+                    populateEndYearSelect('bondScatterEndYear', v => scatterEndYear = v);
+                    populateSummaryYearSelect();
+                    if (currentMainView === 'bonds') renderBondsView();
+                    return;
                 }
             }
         }
@@ -5239,9 +5251,9 @@
         async function ensurePresetData() {
             if (presetData) return presetData;
             const load = async (f) => {
-                const resp = await fetch(f + '?' + Date.now(), { cache: 'no-store' });
-                if (!resp.ok) throw new Error('无法加载 ' + f);
-                return resp.json();
+                const d = await fetchJsonCached(f);
+                if (!d) throw new Error('无法加载 ' + f);
+                return d;
             };
             const [govYtm, cdbYtm, lpr, deposit, regN] = await Promise.all([
                 load(PRESET_FILES.govYtm), load(PRESET_FILES.cdbYtm),
@@ -5704,21 +5716,8 @@
             };
 
             // 数据加载优先级：raw.githubusercontent（备用稳定源，规避 GitHub Pages CDN 偶发截断）→ GitHub Pages data.json → 浏览器缓存
-            const tryLoad = async (url) => {
-                for (let attempt = 0; attempt < 3; attempt++) {
-                    try {
-                        const sep = url.includes('?') ? '&' : '?';
-                        const resp = await fetch(url + sep + 't=' + Date.now() + '_' + attempt, { cache: 'no-store' });
-                        if (!resp.ok) continue;
-                        const txt = await resp.text();
-                        if (!txt || txt.trim().length <= 2) continue;
-                        const parsed = JSON.parse(txt);
-                        if (parsed && parsed.dates && parsed.dates.length > 100) return parsed;
-                    } catch (e) {}
-                    if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
-                }
-                return null;
-            };
+            // tryLoad 走 fetchJsonCached：浏览器缓存优先（条件请求/304），空/损坏才绕过缓存重试
+            const tryLoad = (url) => fetchJsonCached(url, o => o && o.dates && o.dates.length > 100);
             const statusEl = document.getElementById('uploadStatus');
             if (statusEl) { statusEl.textContent = '正在加载最新数据...'; statusEl.style.color = '#f57c00'; }
 
@@ -5822,10 +5821,8 @@
         async function loadAnaCurve(type) {
             if (dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
             try {
-                const resp = await fetch(bondFiles[type] + '?' + Date.now(), { cache: 'no-store' });
-                if (!resp.ok) return null;
-                const d = await resp.json();
-                if (!d || !d.dates || !d.dates.length) return null;
+                const d = await fetchJsonCached(bondFiles[type], o => o && o.dates && o.dates.length > 0);
+                if (!d) return null;
                 const store = { dates: d.dates, terms: d.terms, rates: d.rows, latestDate: d.dates[d.dates.length - 1], latestRates: d.rows[d.rows.length - 1], allTerms: d.terms };
                 dataStores[type] = store;
                 return store;
