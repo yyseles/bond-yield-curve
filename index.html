@@ -434,8 +434,7 @@
     .preset-status { font-size:12px; color:#f57c00; padding:8px 16px; }
     @media (max-width:1200px){ .preset-cards{ grid-template-columns:repeat(2,1fr);} }
         /* 利率曲线分析 视图 */
-        .view-analysis { padding-top: 6px; position: relative; }
-        .ana-loading { position: absolute; inset: 0; background: rgba(255,255,255,0.82); display: flex; align-items: center; justify-content: center; z-index: 20; }
+        .view-analysis { padding-top: 6px; }
         .ana-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
         .ana-curves { display: flex; gap: 16px; flex-wrap: wrap; }
         .ana-curves label { font-size: 13px; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
@@ -1002,7 +1001,6 @@
              利率曲线分析（当日 / 横截面分析）
              ═══════════════════════════════════════════════ -->
         <div class="view-analysis" id="viewAnalysis" style="display:none;">
-            <div id="anaLoading" class="ana-loading" style="display:none;"><div class="loading-overlay"><div class="spinner"></div><p>利率曲线数据加载中…</p></div></div>
             <div class="ana-toolbar">
                 <div class="ana-curves" id="anaCurveChecks">
                     <label><input type="checkbox" value="gov_spot" checked> 国债即期</label>
@@ -6054,19 +6052,12 @@
         }
         function renderAnalysis() {
             bindAnaListeners();
-            // 仅当数据尚未载入时才显示加载层（已缓存则瞬间完成，避免闪烁）
-            if (!(dataStores.gov_spot && dataStores.gov_spot.dates && dataStores.gov_spot.dates.length)) showAnaLoading(true);
             ensureAnaData().then(ok => {
-                showAnaLoading(false);
                 if (!ok) { console.warn('利率曲线分析：部分数据未加载'); return; }
                 populateAnaSelectors();
                 showAnaPanel(currentAnalysisView);
                 renderAnaCurrent();
             });
-        }
-        function showAnaLoading(on) {
-            const el = document.getElementById('anaLoading');
-            if (el) el.style.display = on ? 'flex' : 'none';
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
