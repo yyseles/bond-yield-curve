@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   update-and-deploy:
@@ -45,40 +45,16 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests openpyxl akshare
+        run: pip install requests openpyxl
 
-      - name: 抓取最新利率数据（四曲线）
-        # 仅定时/手动触发时抓数据回填；普通代码推送直接走部署，避免慢速回填拖住上线
-        # continue-on-error：抓取失败也不阻断后续 Pages 部署，保证站点始终能上线
-        if: github.event_name != 'push'
-        continue-on-error: true
+      - name: 抓取最新国债利率数据
         run: python ci_update.py
 
-      # 注：保险公司资本补充债/永续债数据改由独立的 update-bonds.yml 以周频（每周一）更新，
-      # 不再在此每日 workflow 中重复抓取，避免对 chinamoney 接口造成频率压力与限流（421）。
-      # 下方校验步骤仍会检查 ins_bonds.json 是否存在且大小正常。
-
-      - name: 校验数据文件
-        continue-on-error: true
-        run: |
-          for f in data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json ins_bonds.json; do
-            if [ -f "$f" ]; then
-              SIZE=$(wc -c < "$f")
-              echo "$f 大小: $SIZE bytes"
-              if [ "$SIZE" -lt 100 ] && [ "$f" != "summary.json" ]; then
-                echo "⚠ $f 异常（<100B），不提交"
-                exit 1
-              fi
-            fi
-          done
-
       - name: 提交并推送更新（含 keepalive 保活）
-        if: github.event_name != 'push'
-        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json summary.json ins_bonds.json 2>/dev/null || git add data.json || echo "No data files to add"
+          git add data.json data_gov_ytm_recent.json data_cdb_recent.json data_cdb_ytm_recent.json || echo "No changes to commit"
           # 检查 data.json 是否有实质变化
           if git diff --cached --quiet; then
             echo "数据无变化，检查是否需要 keepalive 保活..."

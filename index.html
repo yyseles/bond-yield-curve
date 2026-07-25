@@ -1365,6 +1365,10 @@
         let bondLoading = {};
         const bondNames = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开债即期', cdb_ytm: '国开债到期' };
         const bondFiles = { gov_spot: 'data.json', gov_ytm: 'data_gov_ytm.json', cdb_spot: 'data_cdb.json', cdb_ytm: 'data_cdb_ytm.json' };
+        // 近期 12 个月滚动切片（体积恒定 ~100KB/个，不随时间增长）：先快速渲染，再后台加载全量
+        const bondFilesRecent = { gov_ytm: 'data_gov_ytm_recent.json', cdb_spot: 'data_cdb_recent.json', cdb_ytm: 'data_cdb_ytm_recent.json' };
+        const ANA_RECENT_TYPES = ['gov_ytm', 'cdb_spot', 'cdb_ytm'];
+        let anaFullLoaded = false; // 全量是否已加载（避免重复后台拉取）
         const bondShortNames = { gov_spot: '国债', gov_ytm: '国债', cdb_spot: '国开债', cdb_ytm: '国开债' };
         function bondName() { return bondNames[currentBondType]; }
         function bondShortName() { return bondShortNames[currentBondType]; }
@@ -5384,9 +5388,17 @@
             presetComputed = applyPresetBaseDate(presetComputedFull, presetBaseDate);
             presetForecastRows = forecastPreset(presetComputed);
 
-            renderPresetSummary();
-            renderPresetCharts();
-            renderPresetTables();
+            // 渲染（含兜底：任何渲染异常都显式提示，避免出现"白屏/什么都不显示"）
+            try {
+                renderPresetSummary();
+                renderPresetCharts();
+                renderPresetTables();
+            } catch (e) {
+                statusEl.style.display = '';
+                statusEl.textContent = '渲染失败：' + e.message + '（请刷新重试，或反馈该错误）';
+                statusEl.style.color = '#c0392b';
+                console.error('renderPreset 渲染异常:', e);
+            }
         }
         function applyPresetBaseDate(c, baseDate) {
             const idx = _idxAt(c.dates, baseDate);
@@ -5814,8 +5826,8 @@
             const v = s.rates[di][ti];
             return (v === null || v === undefined) ? null : v;
         }
-        async function loadAnaCurve(type) {
-            if (dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
+        async function loadAnaCurve(type, force) {
+            if (!force && dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
             try {
                 const d = await fetchJsonCached(bondFiles[type], o => o && o.dates && o.dates.length > 0);
                 if (!d) return null;
@@ -5823,6 +5835,20 @@
                 dataStores[type] = store;
                 return store;
             } catch (e) { console.error('加载' + ANA_LABELS[type] + '失败', e); return null; }
+        }
+        // 先加载近期切片（~300KB，秒开），立即出图；全量在后台加载
+        async function loadAnaRecent() {
+            const r = await Promise.all(ANA_RECENT_TYPES.map(async (type) => {
+                if (dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
+                try {
+                    const d = await fetchJsonCached(bondFilesRecent[type], o => o && o.dates && o.dates.length > 0);
+                    if (!d) return null;
+                    const store = { dates: d.dates, terms: d.terms, rates: d.rows, latestDate: d.dates[d.dates.length - 1], latestRates: d.rows[d.rows.length - 1], allTerms: d.terms };
+                    dataStores[type] = store;
+                    return store;
+                } catch (e) { console.error('加载近期' + ANA_LABELS[type] + '失败', e); return null; }
+            }));
+            return r.every(x => x);
         }
         async function ensureAnaData() {
             const r = await Promise.all(ANA_TYPES.map(loadAnaCurve));
@@ -6052,11 +6078,28 @@
         }
         function renderAnalysis() {
             bindAnaListeners();
-            ensureAnaData().then(ok => {
-                if (!ok) { console.warn('利率曲线分析：部分数据未加载'); return; }
-                populateAnaSelectors();
-                showAnaPanel(currentAnalysisView);
-                renderAnaCurrent();
+            // 渐进式加载：先加载近期切片（~300KB）即时渲染，再后台加载全量（Worker 解析）并静默替换
+            loadAnaRecent().then(okRecent => {
+                if (okRecent) {
+                    populateAnaSelectors();
+                    showAnaPanel(currentAnalysisView);
+                    renderAnaCurrent();
+                }
+                if (!anaFullLoaded) {
+                    Promise.all(ANA_RECENT_TYPES.map(t => loadAnaCurve(t, true))).then(okFull => {
+                        if (okFull) {
+                            anaFullLoaded = true;
+                            // 全量就绪：若仍在分析视图，用完整数据重绘
+                            if (document.getElementById('viewAnalysis').style.display !== 'none') {
+                                populateAnaSelectors();
+                                showAnaPanel(currentAnalysisView);
+                                renderAnaCurrent();
+                            }
+                        } else {
+                            console.warn('利率曲线分析：部分全量数据未加载，已展示近期数据');
+                        }
+                    });
+                }
             });
         }
 
