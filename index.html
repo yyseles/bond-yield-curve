@@ -1290,11 +1290,20 @@
         // Web Worker 解析 JSON：把大文件(分析板块约7.7MB)的 JSON.parse 移到后台线程，
         // 避免主线程被阻塞导致界面卡死/白屏。主线程 postMessage 传文本，worker 回传解析后的对象。
         let _jsonWorker = null;
+        let _jsonReqId = 0;
+        const _jsonPending = {};   // id -> callback，按请求关联避免并发串台
         function getJsonWorker() {
             if (_jsonWorker) return _jsonWorker;
-            const src = "self.onmessage=function(e){try{var o=JSON.parse(e.data);self.postMessage({ok:true,obj:o});}catch(err){self.postMessage({ok:false});}};";
+            // 回传必须带 id：分析板/预定利率板会并发解析多个文件，若不带 id 则先到响应会
+            // 用同一个对象 resolve 掉所有并发 Promise（串台），导致拿到错误对象进而 reading '0'。
+            const src = "self.onmessage=function(e){var id=e.data.id;try{var o=JSON.parse(e.data.text);self.postMessage({id:id,ok:true,obj:o});}catch(err){self.postMessage({id:id,ok:false});}};";
             const blob = new Blob([src], { type: 'application/javascript' });
             _jsonWorker = new Worker(URL.createObjectURL(blob));
+            _jsonWorker.onmessage = (ev) => {
+                const r = ev.data;
+                const cb = _jsonPending[r.id];
+                if (cb) { delete _jsonPending[r.id]; cb(r); }
+            };
             return _jsonWorker;
         }
         function safeParseJSON(t) { try { return JSON.parse(t); } catch (e) { return undefined; } }
@@ -1302,12 +1311,12 @@
             return new Promise((resolve) => {
                 let w;
                 try { w = getJsonWorker(); } catch (e) { return resolve(safeParseJSON(text)); }
-                const done = (v) => { try { w.removeEventListener('message', onMsg); } catch (e) {} resolve(v); };
-                const onMsg = (e) => done(e.data && e.data.ok ? e.data.obj : safeParseJSON(text));
-                w.addEventListener('message', onMsg);
-                w.postMessage(text);
+                const done = (v) => resolve(v);
+                const id = (++_jsonReqId);
+                _jsonPending[id] = (r) => done(r && r.ok ? r.obj : safeParseJSON(text));
+                w.postMessage({ id: id, text: text });
                 // 兜底：worker 异常未回包时，主线程补解析（不抛错，维持原 undefined 契约）
-                setTimeout(() => done(safeParseJSON(text)), 15000);
+                setTimeout(() => { if (_jsonPending[id]) { delete _jsonPending[id]; done(safeParseJSON(text)); } }, 15000);
             });
         }
 
@@ -1332,6 +1341,18 @@
                 const b = await tryOne(url + sep + 't=' + Date.now() + '_' + i, { cache: 'no-store' });
                 if (b) return b;
                 if (i < 2) await new Promise(r => setTimeout(r, 400));
+            }
+            return null;
+        }
+
+        // GitHub Pages CDN 偶发返回截断/被缓存的坏文件（仅含 dates、缺 rows/terms）。
+        // 统一加 raw.githubusercontent 作为稳定兜底源：任一源通过校验即采用，规避「白屏/reading '0'」。
+        const RAW_BASE = 'https://raw.githubusercontent.com/yyseles/bond-yield-curve/main/';
+        const rawUrl = (f) => RAW_BASE + f;
+        async function tryLoadAny(urls, validate) {
+            for (const u of urls) {
+                const d = await fetchJsonCached(u, validate);
+                if (d) return d;
             }
             return null;
         }
@@ -1362,12 +1383,16 @@
         let maPrefixStoreRef = null; // 记录当前 dataStore 引用，变化时重建前缀和
         let currentBondType = 'gov_spot';
         let dataStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
+        // 分析板独立 store：结构为 { dates, terms, rates(二维) }，与 monitor 板 loadFromRawData
+        // 的对象数组 / allTerms 结构不同，必须隔离，否则复用 monitor 错误结构会导致 reading 'map'
+        let anaStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
         let bondLoading = {};
         const bondNames = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开债即期', cdb_ytm: '国开债到期' };
         const bondFiles = { gov_spot: 'data.json', gov_ytm: 'data_gov_ytm.json', cdb_spot: 'data_cdb.json', cdb_ytm: 'data_cdb_ytm.json' };
         // 近期 12 个月滚动切片（体积恒定 ~100KB/个，不随时间增长）：先快速渲染，再后台加载全量
-        const bondFilesRecent = { gov_ytm: 'data_gov_ytm_recent.json', cdb_spot: 'data_cdb_recent.json', cdb_ytm: 'data_cdb_ytm_recent.json' };
-        const ANA_RECENT_TYPES = ['gov_ytm', 'cdb_spot', 'cdb_ytm'];
+        // gov_spot 也需近期切片，否则默认 overview/利差视图会因 dataStores.gov_spot 缺失而空白（"不会秒出"）
+        const bondFilesRecent = { gov_spot: 'data_gov_spot_recent.json', gov_ytm: 'data_gov_ytm_recent.json', cdb_spot: 'data_cdb_recent.json', cdb_ytm: 'data_cdb_ytm_recent.json' };
+        const ANA_RECENT_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
         let anaFullLoaded = false; // 全量是否已加载（避免重复后台拉取）
         const bondShortNames = { gov_spot: '国债', gov_ytm: '国债', cdb_spot: '国开债', cdb_ytm: '国开债' };
         function bondName() { return bondNames[currentBondType]; }
@@ -5042,7 +5067,7 @@
                 statusEl.style.color = '#f57c00';
                 document.querySelectorAll('#bondToggle button').forEach(b => b.disabled = true);
                 try {
-                    const rawData = await fetchJsonCached(bondFiles[type], d => d && d.dates && d.dates.length > 0);
+                    const rawData = await tryLoadAny([bondFiles[type], rawUrl(bondFiles[type])], d => d && d.dates && d.dates.length > 0 && d.terms && d.terms.length > 0 && d.rows && d.rows.length > 0);
                     if (rawData) {
                         loadFromRawData(rawData);
                         dataStores[type] = dataStore;
@@ -5250,20 +5275,30 @@
         }
         async function ensurePresetData() {
             if (presetData) return presetData;
-            const load = async (f) => {
-                const d = await fetchJsonCached(f);
-                if (!d) throw new Error('无法加载 ' + f);
+            // 各文件结构不同，分别校验：ytm 需 rows/terms；lpr/deposit 需 values；regN 需 records
+            const vYtm = o => o && o.dates && o.dates.length > 0 && o.terms && o.terms.length > 0 && o.rows && o.rows.length > 0;
+            const vSeries = o => o && o.dates && o.dates.length > 0 && o.values && o.values.length > 0;
+            const vReg = o => o && o.records && o.records.length > 0;
+            const load = async (f, validate) => {
+                // Pages 优先，raw.githubusercontent 兜底：截断/缓存坏文件会被判为非空并自动回退
+                const d = await tryLoadAny([f, rawUrl(f)], validate);
+                if (!d) throw new Error('无法加载 ' + f + '（文件缺失或不完整，已尝试备用源）');
                 return d;
             };
             const [govYtm, cdbYtm, lpr, deposit, regN] = await Promise.all([
-                load(PRESET_FILES.govYtm), load(PRESET_FILES.cdbYtm),
-                load(PRESET_FILES.lpr5y), load(PRESET_FILES.deposit5y), load(PRESET_FILES.regN)
+                load(PRESET_FILES.govYtm, vYtm), load(PRESET_FILES.cdbYtm, vYtm),
+                load(PRESET_FILES.lpr5y, vSeries), load(PRESET_FILES.deposit5y, vSeries), load(PRESET_FILES.regN, vReg)
             ]);
             presetData = { govYtm, cdbYtm, lpr, deposit, regN };
             return presetData;
         }
         function computePreset() {
             const { govYtm, cdbYtm, lpr, deposit } = presetData;
+            // 前置守卫：明确报错，避免晦涩的 "Cannot read properties of undefined (reading '0')"
+            if (!govYtm || !govYtm.dates || !govYtm.terms || !govYtm.rows) throw new Error('国债到期收益率数据不完整（缺少 dates/terms/rows）');
+            if (!cdbYtm || !cdbYtm.dates || !cdbYtm.terms || !cdbYtm.rows) throw new Error('国开债到期收益率数据不完整（缺少 dates/terms/rows）');
+            if (!lpr || !lpr.dates || !lpr.values) throw new Error('LPR 数据不完整（缺少 dates/values）');
+            if (!deposit || !deposit.dates || !deposit.values) throw new Error('定存利率数据不完整（缺少 dates/values）');
             const dates = govYtm.dates, n = dates.length;
             const g9 = govYtm.terms.indexOf('9Y'), g10 = govYtm.terms.indexOf('10Y');
             const c9 = cdbYtm.terms.indexOf('9Y');
@@ -5276,7 +5311,9 @@
                 const d = cdbYtm.dates[i];
                 const gi = gDateIdx[d];
                 if (gi == null) continue;
-                const cv = cdbYtm.rows[i][c9], gv = govYtm.rows[gi][g9], gv10 = govYtm.rows[gi][g10];
+                const cr = cdbYtm.rows[i], gr = govYtm.rows[gi];
+                if (!cr || !gr) continue; // 防御：跳过损坏/缺失行，杜绝 reading '0'
+                const cv = cr[c9], gv = gr[g9], gv10 = gr[g10];
                 if (cv != null && gv != null) tax[gi] = +((cv - gv) * 100).toFixed(2);
                 if (tax[gi] != null && gv10 != null) baseReturn[gi] = +(gv10 + tax[gi] / 100).toFixed(6);
                 cgb10y[gi] = gv10;
@@ -5725,7 +5762,7 @@
 
             // 数据加载优先级：raw.githubusercontent（备用稳定源，规避 GitHub Pages CDN 偶发截断）→ GitHub Pages data.json → 浏览器缓存
             // tryLoad 走 fetchJsonCached：浏览器缓存优先（条件请求/304），空/损坏才绕过缓存重试
-            const tryLoad = (url) => fetchJsonCached(url, o => o && o.dates && o.dates.length > 100);
+            const tryLoad = (url) => fetchJsonCached(url, o => o && o.dates && o.dates.length > 100 && o.terms && o.terms.length > 0 && o.rows && o.rows.length > 0);
             const statusEl = document.getElementById('uploadStatus');
             if (statusEl) { statusEl.textContent = '正在加载最新数据...'; statusEl.style.color = '#f57c00'; }
 
@@ -5817,7 +5854,7 @@
             return [...document.querySelectorAll('#anaCurveChecks input:checked')].map(c => c.value);
         }
         function anaValueAt(type, date, term) {
-            const s = dataStores[type];
+            const s = anaStores[type];
             if (!s) return null;
             const di = s.dates.indexOf(date);
             if (di < 0) return null;
@@ -5827,28 +5864,32 @@
             return (v === null || v === undefined) ? null : v;
         }
         async function loadAnaCurve(type, force) {
-            if (!force && dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
+            if (!force && anaStores[type] && anaStores[type].dates && anaStores[type].dates.length) return anaStores[type];
+            // 必须含 dates/terms/rows：截断的坏文件（仅 dates）会被判为非空、在 d.rows[...] 处崩溃
+            const validate = o => o && o.dates && o.dates.length > 0 && o.terms && o.terms.length > 0 && o.rows && o.rows.length > 0;
             try {
-                const d = await fetchJsonCached(bondFiles[type], o => o && o.dates && o.dates.length > 0);
+                const d = await tryLoadAny([bondFiles[type], rawUrl(bondFiles[type])], validate);
                 if (!d) return null;
                 const store = { dates: d.dates, terms: d.terms, rates: d.rows, latestDate: d.dates[d.dates.length - 1], latestRates: d.rows[d.rows.length - 1], allTerms: d.terms };
-                dataStores[type] = store;
+                anaStores[type] = store;
                 return store;
             } catch (e) { console.error('加载' + ANA_LABELS[type] + '失败', e); return null; }
         }
-        // 先加载近期切片（~300KB，秒开），立即出图；全量在后台加载
+        // 先加载近期切片（~400KB/4 个，秒开），立即出图；全量在后台加载
         async function loadAnaRecent() {
+            const validate = o => o && o.dates && o.dates.length > 0 && o.terms && o.terms.length > 0 && o.rows && o.rows.length > 0;
             const r = await Promise.all(ANA_RECENT_TYPES.map(async (type) => {
-                if (dataStores[type] && dataStores[type].dates && dataStores[type].dates.length) return dataStores[type];
+                if (anaStores[type] && anaStores[type].dates && anaStores[type].dates.length) return anaStores[type];
                 try {
-                    const d = await fetchJsonCached(bondFilesRecent[type], o => o && o.dates && o.dates.length > 0);
+                    const d = await tryLoadAny([bondFilesRecent[type], rawUrl(bondFilesRecent[type])], validate);
                     if (!d) return null;
                     const store = { dates: d.dates, terms: d.terms, rates: d.rows, latestDate: d.dates[d.dates.length - 1], latestRates: d.rows[d.rows.length - 1], allTerms: d.terms };
-                    dataStores[type] = store;
+                    anaStores[type] = store;
                     return store;
                 } catch (e) { console.error('加载近期' + ANA_LABELS[type] + '失败', e); return null; }
             }));
-            return r.every(x => x);
+            // 返回结果数组（不要求全部成功）：renderAnalysis 会按「是否有可用数据」决定首屏渲染
+            return r;
         }
         async function ensureAnaData() {
             const r = await Promise.all(ANA_TYPES.map(loadAnaCurve));
@@ -5862,19 +5903,20 @@
             c.setOption(option, true);
         }
         function populateAnaSelectors() {
-            const gs = dataStores.gov_spot;
-            if (!gs) return;
-            const dates = gs.dates.slice().reverse(); // 最新在前
+            // gov_spot 优先；缺失时退而用任一已加载曲线（近期切片未齐时也能填充选择器）
+            const primary = anaStores.gov_spot || Object.values(anaStores).find(s => s && s.dates && s.dates.length);
+            if (!primary) return;
+            const dates = primary.dates.slice().reverse(); // 最新在前
             const fill = (id, opts, def) => {
                 const el = document.getElementById(id);
                 if (!el || el.options.length) return;
                 el.innerHTML = opts.map(o => `<option value="${o.v}"${o.v === def ? ' selected' : ''}>${o.t}</option>`).join('');
             };
-            fill('anaDateSel', dates.map(d => ({ v: d, t: d })), gs.latestDate);
-            fill('anaDateASel', dates.map(d => ({ v: d, t: d })), gs.latestDate);
+            fill('anaDateSel', dates.map(d => ({ v: d, t: d })), primary.latestDate);
+            fill('anaDateASel', dates.map(d => ({ v: d, t: d })), primary.latestDate);
             const bDef = dates[Math.min(250, dates.length - 1)] || dates[dates.length - 1];
             fill('anaDateBSel', dates.map(d => ({ v: d, t: d })), bDef);
-            fill('anaTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
+            fill('anaTenorSel', primary.terms.map(t => ({ v: t, t })), '10Y');
             fill('anaStructCurveSel', ANA_TYPES.map(t => ({ v: t, t: ANA_LABELS[t] })), 'gov_spot');
         }
         function showAnaPanel(v) {
@@ -5890,12 +5932,13 @@
             else renderAnaSpread();
         }
         function renderAnaOverview() {
-            const date = document.getElementById('anaDateSel').value || (dataStores.gov_spot && dataStores.gov_spot.latestDate);
+            const gsRef = anaStores.gov_spot || Object.values(anaStores).find(s => s && s.dates && s.dates.length);
+            const date = document.getElementById('anaDateSel').value || (gsRef && gsRef.latestDate);
             const curves = getCheckedCurves();
-            const gs = dataStores.gov_spot;
+            const gs = gsRef;
             const terms = gs ? gs.terms : [];
             const series = curves.map(t => {
-                const s = dataStores[t];
+                const s = anaStores[t];
                 if (!s) return null;
                 const di = s.dates.indexOf(date);
                 const data = s.terms.map((tm, i) => (s.rates[di] ? s.rates[di][i] : null));
@@ -5921,7 +5964,7 @@
             const tenor = document.getElementById('anaTenorSel').value || '10Y';
             const curves = getCheckedCurves();
             const series = curves.map(t => {
-                const s = dataStores[t];
+                const s = anaStores[t];
                 if (!s) return null;
                 const ti = s.terms.indexOf(tenor);
                 if (ti < 0) return null;
@@ -5939,7 +5982,7 @@
             const t = document.getElementById('anaStructCurveSel').value;
             const dA = document.getElementById('anaDateASel').value;
             const dB = document.getElementById('anaDateBSel').value;
-            const s = dataStores[t];
+            const s = anaStores[t];
             if (!s) return;
             const iA = s.dates.indexOf(dA), iB = s.dates.indexOf(dB);
             if (iA < 0 || iB < 0) return;
@@ -5950,7 +5993,7 @@
             });
         }
         function renderAnaSpread() {
-            const gs = dataStores.gov_spot, cs = dataStores.cdb_spot;
+            const gs = anaStores.gov_spot, cs = anaStores.cdb_spot;
             if (!gs || !cs) return;
             const tiG = t => gs.terms.indexOf(t);
             const tiC = t => cs.terms.indexOf(t);
@@ -6076,29 +6119,30 @@
                 if (el) el.addEventListener('change', renderAnaCurrent);
             });
         }
+        // 任一曲线已加载（dates/terms/rows 齐备）即视为有可用数据
+        function hasAnyAnaData() {
+            return Object.values(anaStores).some(s => s && s.dates && s.dates.length > 0 && s.terms && s.terms.length > 0 && s.rates && s.rates.length > 0);
+        }
         function renderAnalysis() {
             bindAnaListeners();
-            // 渐进式加载：先加载近期切片（~300KB）即时渲染，再后台加载全量（Worker 解析）并静默替换
-            loadAnaRecent().then(okRecent => {
-                if (okRecent) {
+            // 渐进式加载：先加载近期切片（~400KB）即时渲染，再后台加载全量（Worker 解析）并静默替换
+            loadAnaRecent().then(() => {
+                // 只要有数据就先首屏渲染（近期切片优先），不要求全部曲线都成功
+                if (hasAnyAnaData()) {
                     populateAnaSelectors();
                     showAnaPanel(currentAnalysisView);
                     renderAnaCurrent();
                 }
+                // 仅触发一次后台全量加载（含 gov_spot/data.json），完成后静默重绘
                 if (!anaFullLoaded) {
-                    Promise.all(ANA_RECENT_TYPES.map(t => loadAnaCurve(t, true))).then(okFull => {
-                        if (okFull) {
-                            anaFullLoaded = true;
-                            // 全量就绪：若仍在分析视图，用完整数据重绘
-                            if (document.getElementById('viewAnalysis').style.display !== 'none') {
-                                populateAnaSelectors();
-                                showAnaPanel(currentAnalysisView);
-                                renderAnaCurrent();
-                            }
-                        } else {
-                            console.warn('利率曲线分析：部分全量数据未加载，已展示近期数据');
+                    anaFullLoaded = true;
+                    Promise.all(ANA_RECENT_TYPES.map(t => loadAnaCurve(t, true))).then(() => {
+                        if (hasAnyAnaData() && document.getElementById('viewAnalysis').style.display !== 'none') {
+                            populateAnaSelectors();
+                            showAnaPanel(currentAnalysisView);
+                            renderAnaCurrent();
                         }
-                    });
+                    }).catch(e => console.warn('利率曲线分析：全量加载异常', e));
                 }
             });
         }
