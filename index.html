@@ -5773,6 +5773,8 @@
         const ANA_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
         const ANA_LABELS = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开即期', cdb_ytm: '国开到期' };
         const ANA_COLORS = { gov_spot: '#1f4a7a', gov_ytm: '#2e7d32', cdb_spot: '#c0392b', cdb_ytm: '#e67e22' };
+        // 分析板块只展示关键期限（底层数据仍为全期限，不裁剪）
+        const ANA_DISPLAY_TERMS = ['1Y','2Y','3Y','4Y','5Y','6Y','7Y','8Y','9Y','10Y','11Y','12Y','13Y','14Y','15Y','16Y','17Y','18Y','19Y','20Y','30Y','40Y','50Y'];
         let currentAnalysisView = 'overview';
         let anaCharts = {};
         let anaListenersBound = false;
@@ -5824,7 +5826,7 @@
             fill('anaDateASel', dates.map(d => ({ v: d, t: d })), gs.latestDate);
             const bDef = dates[Math.min(250, dates.length - 1)] || dates[dates.length - 1];
             fill('anaDateBSel', dates.map(d => ({ v: d, t: d })), bDef);
-            fill('anaTenorSel', gs.terms.map(t => ({ v: t, t })), '10Y');
+            fill('anaTenorSel', gs.terms.filter(t => ANA_DISPLAY_TERMS.includes(t)).map(t => ({ v: t, t })), '10Y');
             fill('anaStructCurveSel', ANA_TYPES.map(t => ({ v: t, t: ANA_LABELS[t] })), 'gov_spot');
         }
         function showAnaPanel(v) {
@@ -5843,12 +5845,12 @@
             const date = document.getElementById('anaDateSel').value || (dataStores.gov_spot && dataStores.gov_spot.latestDate);
             const curves = getCheckedCurves();
             const gs = dataStores.gov_spot;
-            const terms = gs ? gs.terms : [];
+            const terms = (gs ? gs.terms : []).filter(t => ANA_DISPLAY_TERMS.includes(t));
             const series = curves.map(t => {
                 const s = dataStores[t];
                 if (!s) return null;
                 const di = s.dates.indexOf(date);
-                const data = s.terms.map((tm, i) => (s.rates[di] ? s.rates[di][i] : null));
+                const data = terms.map(tm => { const ti = s.terms.indexOf(tm); return (di >= 0 && ti >= 0 && s.rates[di]) ? s.rates[di][ti] : null; });
                 return { name: ANA_LABELS[t], type: 'line', data, showSymbol: false, connectNulls: false, lineStyle: { width: 2 }, itemStyle: { color: ANA_COLORS[t] } };
             }).filter(Boolean);
             drawAnaChart('anaCurveChart', {
@@ -5856,9 +5858,8 @@
                 yAxis: { type: 'value', name: '%', scale: true },
                 series, tooltip: { trigger: 'axis' }, legend: { data: series.map(x => x.name), top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
             });
-            const keyTerms = ['1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '15Y', '20Y', '30Y'];
             let html = '<thead><tr><th>期限</th>' + curves.map(c => `<th>${ANA_LABELS[c]}</th>`).join('') + '</tr></thead><tbody>';
-            for (const tm of keyTerms) {
+            for (const tm of terms) {
                 html += `<tr><td>${tm}</td>` + curves.map(c => {
                     const v = anaValueAt(c, date, tm);
                     return `<td>${v == null ? '—' : v.toFixed(4)}</td>`;
@@ -5893,9 +5894,10 @@
             if (!s) return;
             const iA = s.dates.indexOf(dA), iB = s.dates.indexOf(dB);
             if (iA < 0 || iB < 0) return;
-            const mk = (idx, dash) => ({ name: (dash ? dB : dA) + (dash ? ' (B)' : ' (A)'), type: 'line', data: s.terms.map((tm, i) => s.rates[idx][i]), showSymbol: false, connectNulls: false, lineStyle: { width: 2, type: dash ? 'dashed' : 'solid', color: ANA_COLORS[t] }, itemStyle: { color: ANA_COLORS[t] } });
+            const dterms = s.terms.filter(tm => ANA_DISPLAY_TERMS.includes(tm));
+            const mk = (idx, dash) => ({ name: (dash ? dB : dA) + (dash ? ' (B)' : ' (A)'), type: 'line', data: dterms.map(tm => { const ti = s.terms.indexOf(tm); return s.rates[idx][ti]; }), showSymbol: false, connectNulls: false, lineStyle: { width: 2, type: dash ? 'dashed' : 'solid', color: ANA_COLORS[t] }, itemStyle: { color: ANA_COLORS[t] } });
             drawAnaChart('anaStructChart', {
-                xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
+                xAxis: { type: 'category', data: dterms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
                 series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
             });
         }
