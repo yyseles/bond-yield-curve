@@ -288,7 +288,13 @@
         .status-已赎回 { background: #fdecea; color: #c0392b; }
         .status-已到期 { background: #eef0f2; color: #7a8aa0; }
         .bonds-note { font-size: 12px; color: #8a99ad; margin: 6px 0 0; }
-        @media (max-width: 980px) { .bonds-row { grid-template-columns: 1fr; } }
+        @media (max-width: 980px) { .bonds-row, .bonds-row.is-mid { grid-template-columns: 1fr; } }
+        @media (max-width: 760px) {
+            .bonds-cards { grid-template-columns: 1fr; }
+            .bonds-row.is-top .chart-box { height: 340px; }
+            .bonds-row.is-mid #bondScatterChart { height: 280px; }
+            #bondIndustryChart.ind-chart { height: 280px; }
+        }
         @media (max-width: 760px) { .bonds-toolbar { flex-direction: column; align-items: flex-start; } .btn-download { margin-left: 0; } }
         /* 折现率曲线视图 */
         .view-discount { padding-top: 4px; }
@@ -4838,6 +4844,13 @@
                 if (maTimeSeriesChart) maTimeSeriesChart.resize();
                 if (maCurveChartEcharts) maCurveChartEcharts.resize();
                 if (discountCompareChart) discountCompareChart.resize();
+                // 资本债三图：仅在该视图可见时 resize，避免隐藏态读到 0 宽度导致变形
+                const vb = document.getElementById('viewBonds');
+                if (vb && vb.offsetParent !== null) {
+                    if (bondComboChart) bondComboChart.resize();
+                    if (bondIndustryChart) bondIndustryChart.resize();
+                    if (bondScatterChart) bondScatterChart.resize();
+                }
             });
 
             // 显示隐藏的card触发图表resize（强制重绘）
