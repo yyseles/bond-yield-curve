@@ -5895,12 +5895,57 @@
             const r = await Promise.all(ANA_TYPES.map(loadAnaCurve));
             return r.every(x => x);
         }
-        function drawAnaChart(id, option) {
+        // 从时间序列数据推断「最近约 12 个月」窗口，用于渐进加载时全量到达不跳变
+        function recentWindowFromOption(option) {
+            const dates = [];
+            for (const s of (option.series || [])) {
+                if (Array.isArray(s.data)) {
+                    for (const p of s.data) { if (Array.isArray(p) && p[0]) dates.push(p[0]); }
+                }
+            }
+            if (!dates.length) return null;
+            dates.sort();
+            const last = dates[dates.length - 1];
+            const lastT = new Date(last).getTime();
+            if (isNaN(lastT)) return null;
+            const startT = lastT - 365 * 24 * 3600 * 1000;
+            const startStr = new Date(startT).toISOString().slice(0, 10);
+            return { startValue: startStr, endValue: last };
+        }
+        function applyRecentZoom(option) {
+            if (!option.dataZoom) return;
+            const win = recentWindowFromOption(option);
+            if (!win) return;
+            const dz = Array.isArray(option.dataZoom) ? option.dataZoom : [option.dataZoom];
+            dz.forEach(z => { z.startValue = win.startValue; z.endValue = win.endValue; });
+            option.dataZoom = dz;
+        }
+        // opts.replace=true → 整图替换（系列数可能变化的图，避免残留旧系列）
+        // opts.replace=false(默认) → 合并模式，平滑更新数据、保留 hover/缩放状态
+        // 无论哪种，首次或全量到达（且用户未缩放）都把视图锁定到最近窗口，避免 12M→18Y 跳变
+        function drawAnaChart(id, option, opts) {
+            opts = opts || {};
             let c = anaCharts[id];
             const el = document.getElementById(id);
             if (!el) return;
-            if (!c) { c = echarts.init(el); anaCharts[id] = c; }
-            c.setOption(option, true);
+            option.animationDurationUpdate = option.animationDurationUpdate || 400;
+            option.animationEasingUpdate = option.animationEasingUpdate || 'cubicOut';
+            if (!c) {
+                c = echarts.init(el);
+                anaCharts[id] = c;
+                c._userZoomed = false;
+                c.on('dataZoom', () => { c._userZoomed = true; }); // 用户手动缩放后不再覆盖其视图
+                if (option.dataZoom && opts.forceZoom !== false) applyRecentZoom(option);
+                c.setOption(option, !!opts.replace);
+            } else if (opts.replace) {
+                if (option.dataZoom && opts.forceZoom !== false) applyRecentZoom(option);
+                c.setOption(option, true);
+            } else {
+                const forceZoom = opts.forceZoom !== false;
+                if (option.dataZoom && forceZoom && !c._userZoomed) applyRecentZoom(option);
+                else if (option.dataZoom) delete option.dataZoom; // 保留用户当前缩放
+                c.setOption(option, false);
+            }
         }
         function populateAnaSelectors() {
             // gov_spot 优先；缺失时退而用任一已加载曲线（近期切片未齐时也能填充选择器）
@@ -5955,7 +6000,7 @@
                 xAxis: { type: 'category', data: terms, name: '期限(年)' },
                 yAxis: { type: 'value', name: '%', scale: true },
                 series, tooltip: { trigger: 'axis' }, legend: { data: series.map(x => x.name), top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
-            });
+            }, { replace: true });
             const keyTerms = ['1Y', '2Y', '3Y', '5Y', '7Y', '10Y', '15Y', '20Y', '30Y'];
             let html = '<thead><tr><th>期限</th>' + curves.map(c => `<th>${ANA_LABELS[c]}</th>`).join('') + '</tr></thead><tbody>';
             for (const tm of keyTerms) {
@@ -5969,20 +6014,21 @@
         }
         function renderAnaTimeseries() {
             const tenor = document.getElementById('anaTenorSel').value || '10Y';
-            const curves = getCheckedCurves();
-            const series = curves.map(t => {
+            const checked = new Set(getCheckedCurves());
+            // 恒为 4 条系列（未勾选给空数据），保证合并模式不会残留旧系列
+            const series = ANA_TYPES.map(t => {
                 const s = anaStores[t];
-                if (!s) return null;
-                const ti = s.terms.indexOf(tenor);
-                if (ti < 0) return null;
-                const data = s.dates.map((d, i) => { const v = s.rates[i][ti]; return v == null ? null : [d, v]; });
+                const ti = s ? s.terms.indexOf(tenor) : -1;
+                const data = (s && checked.has(t) && ti >= 0)
+                    ? s.dates.map((d, i) => { const v = s.rates[i][ti]; return v == null ? null : [d, v]; })
+                    : [];
                 return { name: ANA_LABELS[t], type: 'line', data, showSymbol: false, lineStyle: { width: 1.5 }, itemStyle: { color: ANA_COLORS[t] } };
-            }).filter(Boolean);
+            });
             drawAnaChart('anaTsChart', {
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: '%', scale: true },
-                series, tooltip: { trigger: 'axis' }, legend: { data: series.map(x => x.name), top: 0 },
+                series, tooltip: { trigger: 'axis' }, legend: { data: ANA_TYPES.filter(t => checked.has(t)).map(t => ANA_LABELS[t]), top: 0 },
                 dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
-            });
+            }, { replace: false });
             document.getElementById('anaTsBadge').textContent = '期限 ' + tenor;
         }
         function renderAnaStructure() {
@@ -5997,7 +6043,7 @@
             drawAnaChart('anaStructChart', {
                 xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
                 series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
-            });
+            }, { replace: false });
         }
         function renderAnaSpread() {
             const gs = anaStores.gov_spot, cs = anaStores.cdb_spot;
@@ -6058,7 +6104,7 @@
                 ],
                 tooltip: { trigger: 'axis' }, legend: { data: ['10Y 税收溢价', '9Y 税收溢价'], top: 0 },
                 dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
-            });
+            }, { replace: false });
             let th = '<thead><tr><th>指标</th><th>10Y</th><th>9Y</th></tr></thead><tbody>';
             th += `<tr><td>最新税收溢价（${anchorDateTax || selDate}）</td><td>${fmtBp(latest10)}</td><td>${fmtBp(latest9)}</td></tr>`;
             th += `<tr><td>平均税收溢价水平（MA2500，约10年）</td><td>${fmtBp(ma2500_10)}</td><td>${fmtBp(ma2500_9)}</td></tr>`;
@@ -6097,7 +6143,7 @@
                 ],
                 tooltip: { trigger: 'axis' }, legend: { data: ['10Y−1Y', '30Y−10Y', '5Y−1Y'], top: 0 },
                 dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
-            });
+            }, { replace: false });
             let tt = '<thead><tr><th>指标</th><th>10Y−1Y</th><th>30Y−10Y</th><th>5Y−1Y</th></tr></thead><tbody>';
             tt += `<tr><td>最新利差（${anchorDateTerm || selDate}）</td><td>${fmtBp(latestOf(s101))}</td><td>${fmtBp(latestOf(s3010))}</td><td>${fmtBp(latestOf(s51))}</td></tr>`;
             tt += `<tr><td>截至基准日均值</td><td>${fmtBp(statOver(s101, avgOf))}</td><td>${fmtBp(statOver(s3010, avgOf))}</td><td>${fmtBp(statOver(s51, avgOf))}</td></tr>`;
