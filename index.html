@@ -5907,10 +5907,17 @@
             const primary = anaStores.gov_spot || Object.values(anaStores).find(s => s && s.dates && s.dates.length);
             if (!primary) return;
             const dates = primary.dates.slice().reverse(); // 最新在前
+            // 仅当「可选范围扩大」时重建下拉（近期切片 → 全量后台到达），并保留用户当前选择
             const fill = (id, opts, def) => {
                 const el = document.getElementById(id);
-                if (!el || el.options.length) return;
+                if (!el) return;
+                const covered = el.options.length === opts.length && el.options.length > 0
+                    && el.options[0].value === opts[0].v
+                    && el.options[el.options.length - 1].value === opts[opts.length - 1].v;
+                if (covered) return;
+                const prev = el.value; // 保留当前选择（全量仍含该日期则恢复）
                 el.innerHTML = opts.map(o => `<option value="${o.v}"${o.v === def ? ' selected' : ''}>${o.t}</option>`).join('');
+                if (prev && opts.some(o => o.v === prev)) el.value = prev;
             };
             fill('anaDateSel', dates.map(d => ({ v: d, t: d })), primary.latestDate);
             fill('anaDateASel', dates.map(d => ({ v: d, t: d })), primary.latestDate);
@@ -6006,8 +6013,9 @@
             // 基准日（可选；默认最新交易日）。指标以该日为「最新日」重算。
             const dateEl = document.getElementById('anaSpreadDate');
             if (!dateEl.value) dateEl.value = gs.latestDate;
-            if (!dateEl.min) dateEl.min = gs.dates[0];
-            if (!dateEl.max) dateEl.max = gs.latestDate;
+            // 始终按当前数据范围刷新（后台全量到达后自动从近期切片扩展到 2008 起）
+            dateEl.min = gs.dates[0];
+            dateEl.max = gs.latestDate;
             const selDate = dateEl.value || gs.latestDate;
             // 升序 [date,val] 数组中最后一个 date <= selDate 的下标
             const anchorIndex = (arr, sd) => {
