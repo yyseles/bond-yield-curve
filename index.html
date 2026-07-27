@@ -3937,6 +3937,20 @@
         function computeDiscountCurvesALM(spot, latestDate) {
             const years = [];
             for (let t = 1; t <= 50; t++) years.push(t);
+            // 连续即期曲线：整数年锚点 1..50；year0 由 1Y/2Y 线性外推（网页国债即期无 0Y 点）
+            const spotY = new Array(51);
+            for (let t = 1; t <= 50; t++) spotY[t] = spot[t];
+            spotY[0] = (spot[1] != null && spot[2] != null) ? (2 * spot[1] - spot[2])
+                     : (spot[1] != null ? spot[1] : null);
+            function spotAtYear(yf) {
+                if (yf <= 0) return spotY[0];
+                if (yf >= 50) return spotY[50];
+                const lo = Math.floor(yf), hi = Math.ceil(yf);
+                if (lo === hi) return spotY[lo];
+                const f = spotY[lo], g = spotY[hi];
+                if (f == null || g == null) return null;
+                return f + (g - f) * (yf - lo);
+            }
             const high = {}, mid = {}, low = {}, fhigh = {}, fmid = {}, flow = {};
             years.forEach(t => {
                 const s = spot[t];
@@ -3953,9 +3967,23 @@
                     flow[t]  = +(Math.pow(1 + low[t], t) / Math.pow(1 + low[t - 1], t - 1) - 1).toFixed(6);
                 }
             });
+            // 月度（0..600 月）：base = 国债即期在 yearFrac=m/12 处线性插值（与 Excel 修正久期曲线一致）
+            const NMON = 601;
+            const mhigh = new Array(NMON), mmid = new Array(NMON), mlow = new Array(NMON);
+            for (let m = 0; m < NMON; m++) {
+                const base = spotAtYear(m / 12);
+                if (base == null) { mhigh[m] = mmid[m] = mlow[m] = null; continue; }
+                mhigh[m] = +(base + ALM_PREM.high).toFixed(6);
+                mmid[m]  = +(base + ALM_PREM.mid).toFixed(6);
+                mlow[m]  = +(base + ALM_PREM.low).toFixed(6);
+            }
             return {
-                years,
-                liab: { spot: { high, mid, low }, fwd: { high: fhigh, mid: fmid, low: flow } },
+                years, months: NMON,
+                liab: {
+                    spot: { high, mid, low },
+                    fwd: { high: fhigh, mid: fmid, low: flow },
+                    monthly: { high: mhigh, mid: mmid, low: mlow }
+                },
                 latestDate, _key: null, _date: latestDate, _ref: null
             };
         }
@@ -4297,21 +4325,22 @@
 
         function renderDiscountOutputALM(mode) {
             const d = discountDataCache;
-            const years = d.years;
-            const high = d.liab.spot.high, mid = d.liab.spot.mid, low = d.liab.spot.low;
+            const months = d.months;
+            const high = d.liab.monthly.high, mid = d.liab.monthly.mid, low = d.liab.monthly.low;
             const thead = document.getElementById('discountOutputHead');
             const tbody = document.getElementById('discountOutputBody');
             const badge = document.getElementById('discountOutputBadge');
-            if (badge) badge.textContent = 'ALM · 关键久期 · 年1-' + years.length + ' · ' + (mode === 'fwd' ? '远期' : '即期') + '折现率';
-            let h = '<tr><th>年</th><th>高</th><th>中</th><th>低</th>';
+            if (badge) badge.textContent = 'ALM · 关键久期 · 月度 0–600月（共' + months + '行）· ' + (mode === 'fwd' ? '远期' : '即期') + '折现率';
+            let h = '<tr><th>年</th><th>月</th><th>高</th><th>中</th><th>低</th>';
             h += '<th>高+50</th><th>高-50</th><th>中+50</th><th>中-50</th><th>低+50</th><th>低-50</th>';
             ['高','中','低'].forEach(g => ALM_KEY_DURATIONS.forEach(kd => { h += '<th>' + g + '·' + kd + '+</th><th>' + g + '·' + kd + '-</th>'; }));
             h += '</tr>';
             thead.innerHTML = h;
             let b = '';
-            years.forEach(t => {
-                const hi = high[t], mi = mid[t], lo = low[t];
-                b += '<tr><td><strong>' + t + '</strong></td>';
+            for (let m = 0; m < months; m++) {
+                const hi = high[m], mi = mid[m], lo = low[m];
+                const yr = Math.floor((m - 1) / 12) + 1;
+                b += '<tr><td>' + yr + '</td><td><strong>' + m + '</strong></td>';
                 b += '<td>' + (hi==null?'—':(hi*100).toFixed(4)) + '</td>';
                 b += '<td>' + (mi==null?'—':(mi*100).toFixed(4)) + '</td>';
                 b += '<td>' + (lo==null?'—':(lo*100).toFixed(4)) + '</td>';
@@ -4323,13 +4352,13 @@
                 b += '<td>' + (lo==null?'—':((lo-ALM_SHOCK_50BP)*100).toFixed(4)) + '</td>';
                 [hi, mi, lo].forEach(base => {
                     ALM_KEY_DURATIONS.forEach(kd => {
-                        const imp = almKeyDurImpact(kd, t);
+                        const imp = almKeyDurImpact(kd, m / 12);
                         b += '<td>' + (base==null?'—':((base+imp)*100).toFixed(4)) + '</td>';
                         b += '<td>' + (base==null?'—':((base-imp)*100).toFixed(4)) + '</td>';
                     });
                 });
                 b += '</tr>';
-            });
+            }
             tbody.innerHTML = b;
         }
 
@@ -4455,8 +4484,8 @@
         function downloadDiscountOutputXLSX() {
             const d = ensureDiscountData(); if (!d) return;
             if (discountRule === 'alm') {
-                const years = d.years;
-                const high = d.liab.spot.high, mid = d.liab.spot.mid, low = d.liab.spot.low;
+                const months = d.months;
+                const high = d.liab.monthly.high, mid = d.liab.monthly.mid, low = d.liab.monthly.low;
                 const aoa = [];
                 const r1 = new Array(131).fill('');
                 r1[5] = 'High'; r1[7] = 'Middle'; r1[9] = 'Low'; r1[11] = 'High'; r1[51] = 'Middle'; r1[91] = 'Low';
@@ -4469,29 +4498,34 @@
                 let col = 11;
                 ['高', '中', '低'].forEach(() => { ALM_KEY_DURATIONS.forEach(kd => { r2[col] = kd + '+'; col++; r2[col] = kd + '-'; col++; }); });
                 aoa.push(r2);
-                years.forEach(t => {
-                    const hi = high[t], mi = mid[t], lo = low[t];
+                const r3 = new Array(131).fill('');
+                r3[0] = 'year'; r3[1] = 'month';
+                for (let c = 3; c < 132; c++) r3[c - 1] = c - 3;
+                aoa.push(r3);
+                for (let m = 0; m < months; m++) {
+                    const hi = high[m], mi = mid[m], lo = low[m];
+                    const yr = Math.floor((m - 1) / 12) + 1;
                     const row = new Array(131).fill('');
-                    row[0] = t; row[1] = t * 12;
-                    row[2] = hi == null ? null : +(hi * 100).toFixed(4);
-                    row[3] = mi == null ? null : +(mi * 100).toFixed(4);
-                    row[4] = lo == null ? null : +(lo * 100).toFixed(4);
-                    row[5] = hi == null ? null : +((hi + ALM_SHOCK_50BP) * 100).toFixed(4);
-                    row[6] = hi == null ? null : +((hi - ALM_SHOCK_50BP) * 100).toFixed(4);
-                    row[7] = mi == null ? null : +((mi + ALM_SHOCK_50BP) * 100).toFixed(4);
-                    row[8] = mi == null ? null : +((mi - ALM_SHOCK_50BP) * 100).toFixed(4);
-                    row[9] = lo == null ? null : +((lo + ALM_SHOCK_50BP) * 100).toFixed(4);
-                    row[10] = lo == null ? null : +((lo - ALM_SHOCK_50BP) * 100).toFixed(4);
+                    row[0] = yr; row[1] = m;
+                    row[2] = hi == null ? null : +(hi * 100).toFixed(6);
+                    row[3] = mi == null ? null : +(mi * 100).toFixed(6);
+                    row[4] = lo == null ? null : +(lo * 100).toFixed(6);
+                    row[5] = hi == null ? null : +((hi + ALM_SHOCK_50BP) * 100).toFixed(6);
+                    row[6] = hi == null ? null : +((hi - ALM_SHOCK_50BP) * 100).toFixed(6);
+                    row[7] = mi == null ? null : +((mi + ALM_SHOCK_50BP) * 100).toFixed(6);
+                    row[8] = mi == null ? null : +((mi - ALM_SHOCK_50BP) * 100).toFixed(6);
+                    row[9] = lo == null ? null : +((lo + ALM_SHOCK_50BP) * 100).toFixed(6);
+                    row[10] = lo == null ? null : +((lo - ALM_SHOCK_50BP) * 100).toFixed(6);
                     let c2 = 11;
                     [hi, mi, lo].forEach(base => {
                         ALM_KEY_DURATIONS.forEach(kd => {
-                            const imp = almKeyDurImpact(kd, t);
-                            row[c2] = base == null ? null : +((base + imp) * 100).toFixed(4); c2++;
-                            row[c2] = base == null ? null : +((base - imp) * 100).toFixed(4); c2++;
+                            const imp = almKeyDurImpact(kd, m / 12);
+                            row[c2] = base == null ? null : +((base + imp) * 100).toFixed(6); c2++;
+                            row[c2] = base == null ? null : +((base - imp) * 100).toFixed(6); c2++;
                         });
                     });
                     aoa.push(row);
-                });
+                }
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Liability_Output');
                 appendDiscountParamsSheet(wb, d);
