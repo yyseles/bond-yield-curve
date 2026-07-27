@@ -4210,6 +4210,66 @@
             const d = discountDataCache;
             return '折现率曲线_' + ruleLabel() + '_' + suffix + '_基准日' + (d ? d.latestDate : '') + '.xlsx';
         }
+        // 参数设置 sheet：记录本次生成所用参数（Solvency II 不含流动性标记 年度1–50；CROSS 同理）
+        function discountParamsAOA(d) {
+            const rows = [];
+            const pct = v => (v == null) ? '' : (v * 100).toFixed(4) + '%';
+            if (discountRule === 'c2_new') {
+                const P = SW_PARAMS;
+                rows.push(['参数设置（Solvency II · Smith-Wilson）']);
+                rows.push(['基准日', d.latestDate]);
+                rows.push([]);
+                rows.push(['① 基础参数', '']);
+                rows.push(['UFR 基础', P.ufrBase, pct(P.ufrBase)]);
+                rows.push(['α 下限', P.alphaMin]);
+                rows.push(['LLP 最后流动点（年）', P.llp]);
+                rows.push(['CP 收敛年', P.cp]);
+                rows.push(['收敛容差 (bp)', +(P.bandwidth * 10000).toFixed(4)]);
+                rows.push([]);
+                rows.push(['② UFR 不利情景（上升 / 下降自动计算）', '']);
+                rows.push(['利率上升·40年不利幅度', P.upMag40, pct(P.upMag40)]);
+                rows.push(['利率下降·40年不利幅度', P.downMag40, pct(P.downMag40)]);
+                rows.push(['UFR 上升（自动）', P.ufrUp, pct(P.ufrUp)]);
+                rows.push(['UFR 下降（自动）', P.ufrDown, pct(P.ufrDown)]);
+                rows.push([]);
+                rows.push(['③ 综合溢价 (BP)', '']);
+                rows.push(['负债溢价-高', +(P.premHigh * 10000).toFixed(2)]);
+                rows.push(['负债溢价-中', +(P.premMid * 10000).toFixed(2)]);
+                rows.push(['负债溢价-低', +(P.premLow * 10000).toFixed(2)]);
+                rows.push(['终极利率溢价 (VA)', +(P.ultPrem * 10000).toFixed(2)]);
+                rows.push([]);
+                rows.push(['收敛 α（确定性结果，非输入项）', '']);
+                rows.push(['负债曲线 α（中档）', d.liab._extr ? d.liab._extr[1] : null]);
+                rows.push(['利率曲线 α（基础）', d.rate._extr && d.rate._extr.base ? d.rate._extr.base[1] : null]);
+                rows.push(['利率曲线 α（上升）', d.rate._extr && d.rate._extr.up ? d.rate._extr.up[1] : null]);
+                rows.push(['利率曲线 α（下降）', d.rate._extr && d.rate._extr.down ? d.rate._extr.down[1] : null]);
+                rows.push([]);
+                rows.push(['注：流动性标记（年度 1–50）未列入本表，可在网页参数面板查看 / 调整。']);
+            } else {
+                const P = DISC_PARAMS;
+                rows.push(['参数设置（CROSS · 偿二代二期）']);
+                rows.push(['基准日', d.latestDate]);
+                rows.push([]);
+                rows.push(['基础参数', '']);
+                rows.push(['起始年 (startYear)', P.startYear]);
+                rows.push(['终止年 (endYear)', P.endYear]);
+                rows.push(['UFR 基础', P.ufr, pct(P.ufr)]);
+                rows.push(['UFR 上升', P.ufrUp, pct(P.ufrUp)]);
+                rows.push(['UFR 下降', P.ufrDown, pct(P.ufrDown)]);
+                rows.push([]);
+                rows.push(['综合溢价 (BP)', '']);
+                rows.push(['负债溢价-高', +(P.spreadHigh * 10000).toFixed(2)]);
+                rows.push(['负债溢价-中', +(P.spreadMid * 10000).toFixed(2)]);
+                rows.push(['负债溢价-低', +(P.spreadLow * 10000).toFixed(2)]);
+                rows.push(['利率曲线溢价 (Int)', +(P.spreadInt * 10000).toFixed(2)]);
+                rows.push([]);
+                rows.push(['压力参数：见网页「利率风险情景」说明表（年度 1–50 上升 / 下降）。']);
+            }
+            return rows;
+        }
+        function appendDiscountParamsSheet(wb, d) {
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(discountParamsAOA(d)), '参数设置');
+        }
         function downloadDiscountSummaryXLSX() {
             const d = ensureDiscountData(); if (!d) return;
             const years = d.years;
@@ -4227,6 +4287,7 @@
             }
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '汇总');
+            appendDiscountParamsSheet(wb, d);
             XLSX.writeFile(wb, discountXLSXName('汇总'));
         }
         function downloadDiscountOutputXLSX() {
@@ -4248,6 +4309,7 @@
             }
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '输出');
+            appendDiscountParamsSheet(wb, d);
             XLSX.writeFile(wb, discountXLSXName('输出'));
         }
         function downloadDiscountWorkingXLSX() {
