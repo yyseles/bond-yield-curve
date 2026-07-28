@@ -145,6 +145,48 @@ def _strip_seq(s):
     return re.sub(r"[0-9]{2}$", "", str(s or "").strip())
 
 
+_CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6,
+           "七": 7, "八": 8, "九": 9, "十": 10}
+
+
+def _cn2int(s):
+    """中文/阿拉伯数字期数 -> int (如 '第一期'/'第1期' -> 1)。"""
+    s = str(s)
+    if s.isdigit():
+        return int(s)
+    n = 0
+    for ch in s:
+        if ch == "十":
+            n = n * 10 + 10 if n else 10
+        elif ch in _CN_NUM:
+            n = n * 10 + _CN_NUM[ch] if n else _CN_NUM[ch]
+    return n
+
+
+def _norm_bondfull(s):
+    """归一化债券全称: 去空格/统一括号/统一债种词/统一期数写法。
+    跨数据源(Excel用户维护 vs chinamoney抓取)对同一只债的 bondFull 通常完全一致,
+    是比简称更权威的判重主键。"""
+    s = str(s or "").strip().replace(" ", "")
+    s = s.replace("（", "(").replace("）", ")")
+    s = s.replace("资本补充债券", "资本补充债")
+    s = s.replace("无固定期限资本债券", "永续债")
+    s = re.sub(r"\(第([一二三四五六七八九十\d]+)期\)",
+               lambda m: "(%d期)" % _cn2int(m.group(1)), s)
+    return s
+
+
+def _norm_short_core(s):
+    """归一化债券简称核心: 先剥离债种词(资本补充债/永续债/无固定期限资本债券),
+    再去末尾序号。'26横琴人寿01' 与 '26横琴人寿资本补充债01' 归一化后均为 '26横琴人寿'。"""
+    s = str(s or "").strip()
+    s = re.sub(r"资本补充债(券)?", "", s)
+    s = re.sub(r"无固定期限资本债券", "", s)
+    s = re.sub(r"永续债", "", s)
+    s = re.sub(r"[0-9]{2}$", "", s)
+    return s.strip()
+
+
 def _date_gap(a, b):
     da, db = _norm_date(a), _norm_date(b)
     if da and db:
@@ -153,30 +195,37 @@ def _date_gap(a, b):
 
 
 def _rec_match(a, b):
-    """两条记录是否同源(同一只债的不同命名形态):
-       发行人令牌相交 + 去序号简称相同 + 发行额相同 + 发行日差<=14天。
-       真正分多期发行的债(01/02/03 相隔数月)因日期差>14天不被误判。
-       任一侧金额为未知(None/0)时跳过金额校验(早期 probe 无额), 由最终 dedup 安全网兜底。"""
+    """两条记录是否同源(同一只债的不同命名形态/不同数据源写法):
+
+    主键1(最权威): 归一化 bondFull 相同 —— 跨数据源(Excel用户维护 vs chinamoney抓取)
+        对同一只债的 bondFull 通常完全一致, 但简称可能省略债种词(如 '26横琴人寿01' vs
+        '26横琴人寿资本补充债01'), 因此不可用简称做唯一主键。
+    主键2(兜底, 仅当至少一侧无 bondFull 时): 债种相同 + 简称核心词相同(剥离债种词+序号)
+        + 发行额相同 + 发行日差<=14天。多期发行(01/02/03 相隔数月)因日差>14天不被误判。
+        仅当至少一侧 bondFull 缺失才走兜底, 避免全称明确不同的债被简称巧合误并。"""
     if not (_issuer_tokens(a.get("issuer")) & _issuer_tokens(b.get("issuer"))):
         return False
-    if _strip_seq(a.get("bondShort")) != _strip_seq(b.get("bondShort")):
-        return False
-    amnt_a = float(a.get("planAmnt") or 0)
-    amnt_b = float(b.get("planAmnt") or 0)
-    if amnt_a and amnt_b and round(amnt_a, 1) != round(amnt_b, 1):
-        return False
-    gap = _date_gap(a.get("issueDate"), b.get("issueDate"))
-    if gap is not None and gap <= 14:
+    fa, fb = _norm_bondfull(a.get("bondFull")), _norm_bondfull(b.get("bondFull"))
+    if fa and fb and fa == fb:
         return True
-    # 兜底: 均无债券代码且简称完全一致(同一条记录两种写法)
-    if not a.get("bondCode") and not b.get("bondCode") and \
-       str(a.get("bondShort", "")).strip() == str(b.get("bondShort", "")).strip():
-        return True
+    # 兜底: 仅当至少一侧 bondFull 缺失
+    if not fa or not fb:
+        if a.get("bondType") and a.get("bondType") == b.get("bondType"):
+            ca, cb = _norm_short_core(a.get("bondShort")), _norm_short_core(b.get("bondShort"))
+            if ca and ca == cb:
+                amnt_a = float(a.get("planAmnt") or 0)
+                amnt_b = float(b.get("planAmnt") or 0)
+                if amnt_a and amnt_b and round(amnt_a, 1) != round(amnt_b, 1):
+                    return False
+                gap = _date_gap(a.get("issueDate"), b.get("issueDate"))
+                if gap is not None and gap <= 14:
+                    return True
     return False
 
 
 def dedup_bonds(bonds):
-    """去除同源重复: 优先保留带 bondCode(权威)的记录。O(n^2), 数据量小无妨。"""
+    """去除同源重复: 命中时合并两条(保留 bondCode 更全的为基, 补全另一条非空字段),
+    而非简单替换, 以免丢失 Excel 维护的评级等字段。O(n^2), 数据量小无妨。"""
     out = []
     for b in bonds:
         hit_idx = None
@@ -186,8 +235,19 @@ def dedup_bonds(bonds):
                 break
         if hit_idx is None:
             out.append(b)
-        elif b.get("bondCode") and not out[hit_idx].get("bondCode"):
-            out[hit_idx] = b  # 用更权威(有代码)的记录替换
+            continue
+        x = out[hit_idx]
+        bc, xc = str(b.get("bondCode") or "").strip(), str(x.get("bondCode") or "").strip()
+        if bc and (not xc or len(bc) > len(xc)):
+            base, other = b, x
+        else:
+            base, other = x, b
+        merged = dict(base)
+        # 补全 base 缺失/占位的字段
+        for k, v in other.items():
+            if merged.get(k) in (None, "", "---") and v not in (None, "", "---"):
+                merged[k] = v
+        out[hit_idx] = merged
     return out
 
 
