@@ -194,6 +194,90 @@ def generate_recent_slices(base_dir='.'):
         make_recent_slice(os.path.join(base_dir, src), os.path.join(base_dir, dst))
 
 
+# ---------- 首页 4 卡片用的 summary.json ----------
+# 4 曲线 → 各自的全量文件 → 显示名（与首页 dash-card 顺序保持一致）
+SUMMARY_CURVES = [
+    ('gov_spot', 'data.json',         '国债即期'),
+    ('gov_ytm',  'data_gov_ytm.json', '国债到期'),
+    ('cdb_spot', 'data_cdb.json',     '国开债即期'),
+    ('cdb_ytm',  'data_cdb_ytm.json', '国开债到期'),
+]
+# 卡片上展示的关键期限：1Y 5Y 20Y 30Y + 10Y 单独作 hero（与 index.html 的 subTerms 一致）
+SUMMARY_KEY_TERMS = ['1Y', '5Y', '10Y', '20Y', '30Y']
+SUMMARY_FILE = 'summary.json'
+
+
+def _summary_common_latest(base_dir):
+    """取 4 曲线共同最新日期（min），保证任一卡片都不会显示未来日"""
+    latest = None
+    for _, fn, _ in SUMMARY_CURVES:
+        p = os.path.join(base_dir, fn)
+        if not os.path.exists(p):
+            return None
+        with open(p, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+        ld = d['dates'][-1] if d.get('dates') else None
+        if ld is None:
+            return None
+        latest = ld if latest is None or ld < latest else latest
+    return latest
+
+
+def _summary_build_one(filename, display_name, ref_date):
+    with open(filename, 'r', encoding='utf-8') as f:
+        d = json.load(f)
+    dates, terms, rows = d['dates'], d['terms'], d['rows']
+    if ref_date not in dates:
+        return None
+    ci = dates.index(ref_date)
+    pi = ci - 1 if ci > 0 else None
+    out_terms = {}
+    for t in SUMMARY_KEY_TERMS:
+        if t not in terms:
+            out_terms[t] = {'value': None, 'change': None}
+            continue
+        ti = terms.index(t)
+        cv = rows[ci][ti]
+        if cv is None:
+            out_terms[t] = {'value': None, 'change': None}
+            continue
+        pv = rows[pi][ti] if pi is not None else None
+        chg = (cv - pv) if pv is not None else None
+        out_terms[t] = {'value': cv, 'change': chg}
+    return {'name': display_name, 'date': ref_date, 'terms': out_terms}
+
+
+def generate_summary(base_dir='.'):
+    """基于 4 曲线 data 文件生成 summary.json（首页 4 卡片数据源）。
+    若任一曲线文件缺失或无 dates，跳过（不破坏 CI）。"""
+    print("\n生成首页 4 卡片用的 summary.json：")
+    ref = _summary_common_latest(base_dir)
+    if ref is None:
+        print("  跳过（某曲线文件缺失或无数据）")
+        return False
+    curves_out = {}
+    for key, fn, name in SUMMARY_CURVES:
+        c = _summary_build_one(os.path.join(base_dir, fn), name, ref)
+        if c is None:
+            print(f"  跳过（{fn} 中找不到 {ref}）")
+            return False
+        curves_out[key] = c
+        hero = c['terms'].get('10Y') or {}
+        v = hero.get('value')
+        chg = hero.get('change')
+        bp = f'{chg*100:+.1f}bp' if chg is not None else '—'
+        print(f'  {key:<8} date={c["date"]}  10Y={v}  较上日 {bp}')
+    payload = {
+        'date': ref,
+        'generatedAt': datetime.now(BJ_TZ).strftime('%Y-%m-%dT%H:%M:%S+08:00'),
+        'curves': curves_out,
+    }
+    with open(os.path.join(base_dir, SUMMARY_FILE), 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
+    print(f"  写出 {SUMMARY_FILE} ({ref})")
+    return True
+
+
 def now_beijing() -> date:
     """返回北京时间今天的日期"""
     return datetime.now(BJ_TZ).date()
@@ -411,6 +495,7 @@ def main():
         print("模式: 仅维护 sub-1Y 短端文件")
         maintain_short_file(existing, verbose=True)
         generate_recent_slices()
+        generate_summary()
         print("\n✅ short-only 完成")
         return
 
@@ -493,6 +578,9 @@ def main():
 
     # 重新生成近期切片（滚动窗口，体积恒定 ~100KB/个，供分析板块快速首屏）
     generate_recent_slices()
+
+    # 生成首页 4 卡片用的 summary.json（gov_spot / gov_ytm / cdb_spot / cdb_ytm 各卡片）
+    generate_summary()
 
 
 if __name__ == "__main__":
