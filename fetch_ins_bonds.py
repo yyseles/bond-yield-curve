@@ -125,6 +125,72 @@ def compute_status(value_date, mrty_date, call_date, exercise_flag, is_perpetual
     return "存续"
 
 
+# ---------- 稳健去重（修复"两个数据源 + 改名/带序号简称"造成的重复）----------
+
+def _issuer_tokens(s):
+    """发行人匹配令牌集合: 含现名与'(原:X)'中的旧名, 用于跨数据源/改名识别同一公司。"""
+    s = str(s or "").strip()
+    toks = {s}
+    m = re.search(r"[（(]原[:：]?\s*([^）)]+)", s)
+    if m:
+        toks.add(m.group(1).strip())
+    m2 = re.search(r"[（(]原", s)
+    if m2:
+        toks.add(s[:m2.start()].strip())
+    return frozenset(toks)
+
+
+def _strip_seq(s):
+    """去掉债券简称末尾两位发行序号(01/02/03), 用于 '26中英人寿永续债' == '26中英人寿永续债01'。"""
+    return re.sub(r"[0-9]{2}$", "", str(s or "").strip())
+
+
+def _date_gap(a, b):
+    da, db = _norm_date(a), _norm_date(b)
+    if da and db:
+        return abs((da - db).days)
+    return None
+
+
+def _rec_match(a, b):
+    """两条记录是否同源(同一只债的不同命名形态):
+       发行人令牌相交 + 去序号简称相同 + 发行额相同 + 发行日差<=14天。
+       真正分多期发行的债(01/02/03 相隔数月)因日期差>14天不被误判。
+       任一侧金额为未知(None/0)时跳过金额校验(早期 probe 无额), 由最终 dedup 安全网兜底。"""
+    if not (_issuer_tokens(a.get("issuer")) & _issuer_tokens(b.get("issuer"))):
+        return False
+    if _strip_seq(a.get("bondShort")) != _strip_seq(b.get("bondShort")):
+        return False
+    amnt_a = float(a.get("planAmnt") or 0)
+    amnt_b = float(b.get("planAmnt") or 0)
+    if amnt_a and amnt_b and round(amnt_a, 1) != round(amnt_b, 1):
+        return False
+    gap = _date_gap(a.get("issueDate"), b.get("issueDate"))
+    if gap is not None and gap <= 14:
+        return True
+    # 兜底: 均无债券代码且简称完全一致(同一条记录两种写法)
+    if not a.get("bondCode") and not b.get("bondCode") and \
+       str(a.get("bondShort", "")).strip() == str(b.get("bondShort", "")).strip():
+        return True
+    return False
+
+
+def dedup_bonds(bonds):
+    """去除同源重复: 优先保留带 bondCode(权威)的记录。O(n^2), 数据量小无妨。"""
+    out = []
+    for b in bonds:
+        hit_idx = None
+        for i, x in enumerate(out):
+            if _rec_match(b, x):
+                hit_idx = i
+                break
+        if hit_idx is None:
+            out.append(b)
+        elif b.get("bondCode") and not out[hit_idx].get("bondCode"):
+            out[hit_idx] = b  # 用更权威(有代码)的记录替换
+    return out
+
+
 # ---------- 抓取 ----------
 
 def fetch_list(bond_type: str, year: str, retries=5):
@@ -210,31 +276,37 @@ def main():
     ap.add_argument("--type", default=None, help="只抓某类型(资本补充债/永续债)，合并进已有 json")
     ap.add_argument("--sleep", type=float, default=0.6, help="详情请求间隔(秒)")
     ap.add_argument("--year-sleep", type=float, default=1.5, help="每年列表请求间隔(秒)")
+    ap.add_argument("--dedup-only", action="store_true",
+                    help="不抓取, 仅对已有 ins_bonds.json 跑稳健去重并重写(用于清历史重复)")
     args = ap.parse_args()
+
+    # ---- 仅去重模式: 直接复用 dedup_bonds, 不改网络抓取 ----
+    if args.dedup_only:
+        if not os.path.exists(DATA_FILE):
+            sys.stderr.write("  [err] 不存在 ins_bonds.json\n")
+            return
+        prev = json.load(open(DATA_FILE, encoding="utf-8"))
+        before = len(prev.get("bonds", []))
+        cleaned = dedup_bonds(prev.get("bonds", []))
+        prev["bonds"] = cleaned
+        prev["count"] = len(cleaned)
+        prev["generatedAt"] = date.today().isoformat()
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(prev, f, ensure_ascii=False, indent=1)
+        print(f"[dedup-only] {before} -> {len(cleaned)} 只 (删除 {before - len(cleaned)} 条重复)")
+        return
 
     types = [args.type] if args.type else BOND_TYPES
     years = [args.year] if args.year else [str(y) for y in range(START_YEAR, date.today().year + 1)]
 
-    # 始终以已有 json 为基底：按 (发行人, 债券简称) 去重，保留 Excel 来源的永续债/资本补充债，
-    # chinamoney 仅补充其中缺失的新发行债，避免重复计数或把永续债覆盖丢失。
-    seen = {}
-
-    def _norm_issuer(s):
-        s = str(s or "").strip()
-        m = re.search(r"[（(]原", s)   # 去掉 "(原:信诚人寿…)" 曾用名后缀，避免同一公司被当两条
-        return s[:m.start()].strip() if m else s
-
-    def _key(b):
-        return (_norm_issuer(b.get("issuer")), str(b.get("bondShort", "")).strip())
-
+    # 始终以已有 json 为基底: 保留 Excel 来源的永续债/资本补充债, chinamoney 仅补充缺失的新发行债。
+    # 载入即先跑一次稳健去重, 清掉历史遗留的同源重复(改名/带序号简称两种命名形态)。
+    seen_list = []
     if os.path.exists(DATA_FILE):
         try:
             prev = json.load(open(DATA_FILE, encoding="utf-8"))
-            for b in prev.get("bonds", []):
-                k = _key(b)
-                if k[0] or k[1]:
-                    seen[k] = b
-            print(f"[merge] 载入已有 {len(seen)} 只", flush=True)
+            seen_list = dedup_bonds(prev.get("bonds", []))
+            print(f"[merge] 载入并去重后 {len(seen_list)} 只", flush=True)
         except Exception as e:  # noqa
             sys.stderr.write(f"  [warn] load prev fail: {e}\n")
 
@@ -249,10 +321,18 @@ def main():
                 issuer = row.get("发行人/受托机构") or ""
                 if not is_insurance(issuer):
                     continue
-                short = row.get("债券简称") or ""
                 code = row.get("查询代码")
-                key = (_norm_issuer(issuer), short.strip())
-                if not code or key in seen:
+                if not code:
+                    continue
+                # 构造候选记录, 用稳健匹配判断是否已存在(同源不同命名形态也算存在)
+                probe = {
+                    "issuer": issuer,
+                    "bondShort": row.get("债券简称") or "",
+                    "planAmnt": None,
+                    "issueDate": row.get("发行日期") or "",
+                    "bondCode": "",
+                }
+                if any(_rec_match(probe, x) for x in seen_list):
                     continue
                 info = fetch_detail(code)
                 time.sleep(args.sleep)
@@ -280,12 +360,13 @@ def main():
                     rec["status"] = "存续"  # 无到期日信息时保守视为存续
                 else:
                     rec = build_record(row, info)
-                seen[key] = rec
-            print(f"  {yr}: 累计 {len(seen)} 只", flush=True)
+                # 再次稳健匹配(此时有完整 issueDate/额), 命中则不重复加入
+                if not any(_rec_match(rec, x) for x in seen_list):
+                    seen_list.append(rec)
+            print(f"  {yr}: 累计 {len(seen_list)} 只", flush=True)
         time.sleep(3)
 
-    bonds = list(seen.values())
-    # 按发行日倒序
+    bonds = dedup_bonds(seen_list)  # 末步安全网
     bonds.sort(key=lambda r: r.get("issueDate") or "", reverse=True)
 
     out = {
