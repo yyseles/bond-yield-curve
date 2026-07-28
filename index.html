@@ -3426,10 +3426,10 @@
             if (v === 'discount') {
                 document.getElementById('viewDiscount').style.display = '';
                 if (!discountDate) discountDate = dataStore.latestDate;
-                if (!discountDatePopulated) populateDiscountDateSelect();
-                else syncDiscountDatePickerMode(discGetGov());
-                syncDiscountForecastRefUI();
                 requestDiscountAccess(function () {
+                    if (!discountDatePopulated) populateDiscountDateSelect();
+                    else syncDiscountDatePickerMode(discGetGov());
+                    syncDiscountForecastRefUI();
                     renderDiscount();
                     setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); }, 60);
                 });
