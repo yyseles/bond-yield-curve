@@ -52,6 +52,7 @@ RETRY_DELAY = 5  # 秒
 # 切片 = 最后 365 个日历日（约 252 个交易日），体积恒定（~100KB/个），不随时间增长。
 # 配合前端「先加载近期、后台加载全量」的渐进式加载，解决分析板块加载慢/白屏问题。
 RECENT_MAP = {
+    'data.json':         'data_gov_spot_recent.json',   # 国债即期全量 -> 近期切片（analysis 板块秒出用）
     'data_gov_ytm.json': 'data_gov_ytm_recent.json',
     'data_cdb.json':     'data_cdb_recent.json',
     'data_cdb_ytm.json': 'data_cdb_ytm_recent.json',
