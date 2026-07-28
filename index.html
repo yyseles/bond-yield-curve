@@ -4103,9 +4103,10 @@
                     renderDiscount();
                 });
             });
-            document.getElementById('discountSummaryBtn').addEventListener('click', downloadDiscountSummaryXLSX);
-            document.getElementById('discountOutputBtn').addEventListener('click', downloadDiscountOutputXLSX);
-            document.getElementById('discountWorkingBtn').addEventListener('click', downloadDiscountWorkingXLSX);
+            // 折现率下载函数在 discount-module.js 中（输访问码后懒加载），箭头包裹避免 setupEventListeners 时未定义报错
+            document.getElementById('discountSummaryBtn').addEventListener('click', () => downloadDiscountSummaryXLSX());
+            document.getElementById('discountOutputBtn').addEventListener('click', () => downloadDiscountOutputXLSX());
+            document.getElementById('discountWorkingBtn').addEventListener('click', () => downloadDiscountWorkingXLSX());
             const discountYearSel = document.getElementById('discountYearSel');
             if (discountYearSel) discountYearSel.addEventListener('change', function() {
                 populateDiscountMonths(this.value, null);
@@ -4852,7 +4853,8 @@
 
             // 先绑定所有事件监听器（无论数据加载成功与否都需要）
             setupEventListeners();
-            renderSwStressTable();
+            // renderSwStressTable() 已随折现率逻辑移入 discount-module.js，
+            // 模块加载（输入访问码后）时由 discount-module.js 末尾自调用填充 swStressTbody。
             loadDashboard();
             loadInsBonds();   // 异步加载资本债数据
 

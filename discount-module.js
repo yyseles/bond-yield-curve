@@ -1244,3 +1244,10 @@
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sa), '汇总');
             XLSX.writeFile(wb, discountXLSXName('底稿'));
         }
+
+        // 模块加载自初始化：填充折现率板块的利率压力参数表（swStressTbody）。
+        // 原 index.html 的 init() 在页面加载时直接调用 renderSwStressTable()，
+        // 拆块后该函数及依赖（stressUp/stressDown）移入本模块，
+        // 故改为模块加载（用户输入访问码后）时自调用，保证表格在用户进入折现率板块前已就绪。
+        // 函数体内已做 if (!tb) return 防护，对隐藏元素安全。
+        renderSwStressTable();
