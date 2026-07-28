@@ -54,7 +54,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json data_cdb.json data_gov_ytm.json data_cdb_ytm.json data_gov_spot_recent.json data_gov_ytm_recent.json data_cdb_recent.json data_cdb_ytm_recent.json data_gov_spot_short_recent.json summary.json || echo "No changes to commit"
+          # 由 ci_update.py 的 DATA_SOURCES 注册表驱动 git add（新增数据源只需改一处，杜绝漏 add）
+          FILES=$(python -c "import ci_update; print(' '.join(ci_update.COMMIT_FILES))")
+          for f in $FILES; do git add "$f" 2>/dev/null || true; done
+          echo "已暂存注册表文件: $FILES"
           # 检查 data.json 是否有实质变化
           if git diff --cached --quiet; then
             echo "数据无变化，检查是否需要 keepalive 保活..."
@@ -90,3 +93,6 @@ jobs:
       - name: 部署到 GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: 数据源时效性自检（落后即告警）
+        run: python ci_update.py --self-check

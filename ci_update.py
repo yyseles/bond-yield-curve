@@ -207,6 +207,43 @@ SUMMARY_KEY_TERMS = ['1Y', '5Y', '10Y', '20Y', '30Y']
 SUMMARY_FILE = 'summary.json'
 
 
+# ---------- 数据源注册表（统一声明：CI 提交清单 + 时效性自检） ----------
+# kind: 读取 latest 日期的方式
+#   'dates_last'   -> d['dates'][-1]                （曲线全量 / 近期切片 / LPR / 定存）
+#   'summary_date' -> d['date']                     （首页 4 卡片）
+#   'generated_at' -> d['generatedAt']              （资本补充债/永续债）
+#   'records_last' -> d['records'][-1]['published_at'] （监管 N 参数）
+# freq: daily / weekly / monthly（仅文档参考）
+# max_lag_days: 自检允许的最大落后天数（超过则告警；宽松以容忍周末/节假日）
+# commit: 是否由本每日 CI 写入（True -> 纳入统一 git add 清单，杜绝“漏 add”）
+DATA_SOURCES = [
+    # —— 每日：曲线全量（本 CI 抓取） ——
+    {"file": "data.json",                     "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_cdb.json",                 "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_gov_ytm.json",             "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_cdb_ytm.json",             "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    # —— 每日：近期切片（本 CI 生成） ——
+    {"file": "data_gov_spot_recent.json",     "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_gov_ytm_recent.json",      "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_cdb_recent.json",          "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_cdb_ytm_recent.json",      "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_gov_spot_short_recent.json","kind": "dates_last", "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    # —— 每日：首页 4 卡片 summary（本 CI 生成） ——
+    {"file": "summary.json",                  "kind": "summary_date","freq": "daily",   "max_lag_days": 4,  "commit": True},
+    # —— 周更：资本补充债/永续债（update-bonds.yml 维护，本 CI 不写，仅自检） ——
+    {"file": "ins_bonds.json",                "kind": "generated_at","freq": "weekly",  "max_lag_days": 10, "commit": False},
+    # —— 月/季检：政策利率（WorkBuddy 自动化/手动维护，仅自检） ——
+    # LPR5Y / 定存5Y 为阶梯利率（仅在央行调整日变动，2025-05-20 起未变），标 static 跳过每日时效检查，
+    # 其值正确性由每月25日「预定利率追踪数据月检更新」自动化负责校验。
+    {"file": "data_lpr5y.json",               "kind": "dates_last",  "freq": "monthly", "max_lag_days": 40, "commit": False, "static": True},
+    {"file": "data_deposit5y.json",           "kind": "dates_last",  "freq": "monthly", "max_lag_days": 40, "commit": False, "static": True},
+    {"file": "data_regulator_n.json",         "kind": "records_last","freq": "monthly", "max_lag_days": 40, "commit": False},
+]
+
+# 本每日 CI 应提交的文件清单（由注册表推导；新增数据源只需改 DATA_SOURCES，git add 自动覆盖）
+COMMIT_FILES = [s["file"] for s in DATA_SOURCES if s.get("commit")]
+
+
 def _summary_common_latest(base_dir):
     """取 4 曲线共同最新日期（min），保证任一卡片都不会显示未来日"""
     latest = None
@@ -281,6 +318,80 @@ def generate_summary(base_dir='.'):
 def now_beijing() -> date:
     """返回北京时间今天的日期"""
     return datetime.now(BJ_TZ).date()
+
+
+def get_latest_date(file, kind):
+    """按 kind 读取数据源的最新日期（ISO 字符串）或 None。"""
+    if not os.path.exists(file):
+        return None
+    try:
+        with open(file, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+    except Exception:
+        return None
+    try:
+        if kind == 'dates_last':
+            ds = d.get('dates') or []
+            return ds[-1] if ds else None
+        if kind == 'summary_date':
+            return d.get('date')
+        if kind == 'generated_at':
+            return d.get('generatedAt')
+        if kind == 'records_last':
+            recs = d.get('records') or []
+            if not recs:
+                return None
+            last = recs[-1]
+            return last.get('published_at') or last.get('quarter_end')
+    except Exception:
+        return None
+    return None
+
+
+def self_check(base_dir='.'):
+    """端到端时效性自检：每个注册数据源的 latest 日期不应落后超过 max_lag_days。
+    返回退出码：0=全部健康，1=存在落后/缺失。用于 CI 末步告警（失败即标红+通知）。"""
+    print("=" * 55)
+    print("  数据源时效性自检 (self-check)")
+    print(f"  北京时间: {datetime.now(BJ_TZ).strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 55)
+    today = now_beijing()
+    problems = []
+    healthy = 0
+    for s in DATA_SOURCES:
+        fn, kind, lag_max = s["file"], s["kind"], s["max_lag_days"]
+        if s.get("static"):
+            print(f"  ⏭  {fn:<32} 静态参考值(央行调整才变)，跳过每日时效检查")
+            continue
+        latest = get_latest_date(os.path.join(base_dir, fn), kind)
+        if latest is None:
+            print(f"  ❌ {fn:<32} 缺失或无法读取日期 (kind={kind})")
+            problems.append(f"{fn}: 缺失/无法读取")
+            continue
+        try:
+            ld = datetime.strptime(latest, '%Y-%m-%d').date()
+        except Exception:
+            print(f"  ❌ {fn:<32} 日期格式异常 ({latest})")
+            problems.append(f"{fn}: 日期格式异常 {latest}")
+            continue
+        lag = (today - ld).days
+        if lag <= lag_max:
+            print(f"  ✅ {fn:<32} 最新={latest}  落后={lag}天 (阈值{lag_max})")
+            healthy += 1
+        else:
+            print(f"  ⚠  {fn:<32} 最新={latest}  落后={lag}天 (阈值{lag_max}) !!")
+            problems.append(f"{fn}: 最新{latest} 落后{lag}天(>{lag_max})")
+    print("-" * 55)
+    dynamic_total = sum(1 for s in DATA_SOURCES if not s.get("static"))
+    if problems:
+        print(f"  自检未通过：{len(problems)} 个问题")
+        for p in problems:
+            print(f"    - {p}")
+        print("=" * 55)
+        return 1
+    print(f"  自检通过：{healthy}/{dynamic_total} 个动态数据源时效正常 ✅（另有静态参考项已跳过）")
+    print("=" * 55)
+    return 0
 
 
 def fetch_spot_rates_chinabond(query_date: str):
@@ -481,7 +592,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--short-only', action='store_true',
                         help='仅维护 sub-1Y 短端文件，不抓取/更新 data.json 整数年')
+    parser.add_argument('--self-check', action='store_true',
+                        help='仅做数据源时效性自检（不抓取/生成），落后即返回非零退出码')
+    parser.add_argument('--list-commit-files', action='store_true',
+                        help='打印本 CI 应提交的文件清单（空格分隔），供 workflow git add 使用')
     args = parser.parse_args()
+
+    if args.list_commit_files:
+        print(' '.join(COMMIT_FILES))
+        return
+
+    if args.self_check:
+        sys.exit(self_check())
 
     print("=" * 55)
     print("  国债即期利率 · CI 自动更新 (中债网)")
