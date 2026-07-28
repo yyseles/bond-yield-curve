@@ -138,9 +138,14 @@
     return overlay;
   }
 
-  // 入口：每次切换到折现率板块都弹码门（输对后加载模块并执行回调，不留免输入记录）。
-  // 设计权衡：若需要"本次访问免重复"，把下方 if (true) 改为 if (sessionStorage.getItem('discount_unlocked')==='1') 即可。
+  // 入口：已解锁（本次标签 sessionStorage）则直接加载模块并执行回调；否则弹码门（输对后写 sessionStorage 解锁，本次访问免重复输入）。
   function requestDiscountAccess(cb) {
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem('discount_unlocked') === '1'; } catch (e) {}
+    if (unlocked) {
+      loadModule().then(function () { cb(); }).catch(function () { cb(); });
+      return;
+    }
     pendingCb = cb;
     var ov = ensureOverlay();
     // 复位输入框与错误提示（防止上次输错残留）
