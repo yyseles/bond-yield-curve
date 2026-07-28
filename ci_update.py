@@ -59,6 +59,106 @@ RECENT_MAP = {
 RECENT_WINDOW_DAYS = 365  # 约 12 个月
 
 
+# ---------- 国开债即期 / 国债到期 / 国开债到期（中债 searchYc 接口） ----------
+# 历史遗留：这三个全量文件此前只在手动回填时更新，每日 CI 从不维护，
+# 导致它们会停在最后一次手动回填的日期（2026-07-24）。现并入每日 CI。
+SEARCH_YC_URL = "https://yield.chinabond.com.cn/cbweb-mn/yc/searchYc"
+SEARCH_YC_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Referer": "https://yield.chinabond.com.cn/cbweb-mn/yield_main?locale=zh_CN",
+    "Content-Type": "application/x-www-form-urlencoded",
+}
+CDB_ID = "8a8b2ca037a7ca910137bfaa94fa5057"        # 国开债曲线（即期 qxll=1 / 到期 qxll=0）
+GOV_YTM_ID = "2c9081e50a2f9606010a3068cae70001"    # 国债到期曲线
+# (全量文件, 曲线ID, qxll, 名称) —— 需每日与国债即期日历同步补齐
+SEARCHYC_CURVES = [
+    ("data_cdb.json",     CDB_ID,     "1", "国开债即期"),
+    ("data_gov_ytm.json", GOV_YTM_ID, "0", "国债到期"),
+    ("data_cdb_ytm.json", CDB_ID,     "0", "国开债到期"),
+]
+
+
+def fetch_searchyc(curve_id, query_date, qxll):
+    """从中债 searchYc 接口抓取指定曲线在指定日期的整数年(1~50Y)利率(%)。
+    返回 {1: val, 2: val, ...} 或 None（无数据/失败）。带重试。"""
+    params = {
+        "xyzSelect": "txy", "workTimes": query_date, "dxbj": "0",
+        "qxll": qxll, "yqqxN": "N", "yqqxK": "K",
+        "ycDefIds": curve_id, "wrjxCBFlag": "0", "locale": "zh_CN",
+    }
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.post(SEARCH_YC_URL, data=params, headers=SEARCH_YC_HEADERS, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+            if not data:
+                if attempt < MAX_RETRIES:
+                    print(f"  {query_date}: searchYc 空响应，第{attempt}次重试...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return None
+            sd = data[0].get("seriesData", [])
+            result = {}
+            for tenor, val in sd:
+                if abs(tenor - round(tenor)) < 1e-6 and 1 <= tenor <= 50:
+                    result[int(tenor)] = round(float(val), 8)
+            if len(result) >= 50:
+                return result
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+                continue
+            return result if result else None
+        except Exception as e:
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+            else:
+                print(f"  {query_date}: searchYc 失败 - {e}")
+                return None
+    return None
+
+
+def load_full_curve(file):
+    """加载全量曲线文件（data_cdb.json / data_gov_ytm.json / data_cdb_ytm.json）"""
+    if not os.path.exists(file):
+        return {"dates": [], "terms": ALL_TERMS, "rows": []}
+    with open(file, "r", encoding="utf-8") as f:
+        d = json.load(f)
+    if len(d.get("terms", [])) < 50:
+        d["terms"] = ALL_TERMS
+    return d
+
+
+def update_searchyc_curves(ref_dates):
+    """按国债即期交易日历，补齐各 searchYc 曲线的缺失日期（仅补齐，不重抓已有日）。"""
+    if not ref_dates:
+        return
+    print("\n同步国开债即期 / 国债到期 / 国开债到期曲线（searchYc）：")
+    for file, curve_id, qxll, name in SEARCHYC_CURVES:
+        existing = load_full_curve(file)
+        # 只向前补齐：曲线自身最后一日之后的交易日（不碰历史已有缺口，避免每日重复请求历史缺口）
+        last = existing["dates"][-1] if existing["dates"] else None
+        todo = [d for d in ref_dates if (last is None or d > last)]
+        if not todo:
+            print(f"  {name}: 已最新 ({existing['dates'][-1] if existing['dates'] else '无'})")
+            continue
+        d2r = {d: r for d, r in zip(existing["dates"], existing["rows"])}
+        got = 0
+        for d in todo:
+            rates = fetch_searchyc(curve_id, d, qxll)
+            if rates:
+                d2r[d] = [rates.get(y) for y in range(1, 51)]
+                got += 1
+                print(f"  ✓ {name} {d}: 补齐")
+            else:
+                print(f"  - {name} {d}: 无数据，跳过（下次重试）")
+            time.sleep(0.2)
+        sd = sorted(d2r.keys())
+        out = {"dates": sd, "terms": ALL_TERMS, "rows": [d2r[d] for d in sd]}
+        with open(file, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False)
+        print(f"  {name}: 补齐 {got}/{len(todo)} 天 → {file} (最新 {sd[-1]})")
+
+
 def make_recent_slice(src, dst, window=RECENT_WINDOW_DAYS):
     if not os.path.exists(src):
         print(f"  跳过 {src}（不存在，未生成切片）")
@@ -386,6 +486,9 @@ def main():
 
     # 维护 sub-1Y 短端文件（合并本次新抓 + 回填缺失）
     maintain_short_file(existing, short_new, verbose=True)
+
+    # 同步国开债即期 / 国债到期 / 国开债到期（按国债即期日历补齐缺失日）
+    update_searchyc_curves(existing.get("dates", []))
 
     # 重新生成近期切片（滚动窗口，体积恒定 ~100KB/个，供分析板块快速首屏）
     generate_recent_slices()
