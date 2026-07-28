@@ -11,18 +11,28 @@ GitHub Actions CI 数据更新脚本
 - 增加重试机制，应对中债网偶发性超时
 - 仅抓取缺失的新日期，避免重复抓取已有数据（除非在回填窗口内）
 - 详细的日志输出，便于排查
+
+sub-1Y 短端曲线:
+- bxjDownload 接口的完整 XLSX 已含 0~1Y 每5天一个点的密集曲线(共73个 sub-1Y 点)
+- 之前只在 fetch 阶段提取整数年并丢弃了短端；ALM(现行) 规则需要 sub-1Y 月度精确采样
+- 现额外维护 data_gov_spot_short_recent.json: 仅存近期窗口(默认365日)的 sub-1Y 短端,
+  数据增量极小(约73点/日 × ~250日 ≈ 1.8万点, <0.3MB), 不动 data.json 全量历史
 """
 import json
 import os
 import sys
 import tempfile
 import time
+import argparse
 from datetime import datetime, date, timedelta, timezone
 
 import requests
 from openpyxl import load_workbook
 
 DATA_FILE = "data.json"
+# sub-1Y 短端近期切片（供 ALM 规则的月度精确采样）
+SHORT_FILE = "data_gov_spot_short_recent.json"
+SHORT_WINDOW_DAYS = 365  # 与 RECENT_WINDOW_DAYS 对齐
 CHINABOND_DOWNLOAD_URL = "https://yield.chinabond.com.cn/cbweb-mn/yc/bxjDownload"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -88,10 +98,13 @@ def now_beijing() -> date:
     return datetime.now(BJ_TZ).date()
 
 
-def fetch_spot_rates_chinabond(query_date: str) -> dict:
+def fetch_spot_rates_chinabond(query_date: str):
     """
-    从中债网 bxjDownload 接口下载 XLSX，提取整数年即期利率。
-    返回 {"1Y": rate, "2Y": rate, ... "50Y": rate} 或空字典（非交易日/数据未发布）
+    从中债网 bxjDownload 接口下载 XLSX，提取即期利率。
+    返回 (int_result, short_result):
+      - int_result: {"1Y": rate, ..., "50Y": rate} (整数年, 百分比)
+      - short_result: {0.0: rate, 0.0137: rate, ...} (sub-1Y 密集曲线, 年小数键, 百分比)
+    任一部分无数据则返回 ({}, {})
     带重试机制。
     """
     params = {
@@ -114,7 +127,7 @@ def fetch_spot_rates_chinabond(query_date: str) -> dict:
                     time.sleep(RETRY_DELAY)
                     continue
                 print(f"  {query_date}: 无数据 (非交易日或未发布)")
-                return {}
+                return {}, {}
 
             # 写入临时文件
             with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
@@ -137,17 +150,23 @@ def fetch_spot_rates_chinabond(query_date: str) -> dict:
                 os.unlink(tmp_path)
 
             # 提取整数年
-            result = {}
+            int_result = {}
             for y in range(1, 51):
                 val = data.get(float(y))
                 if val is not None:
-                    result[f"{y}Y"] = round(val, 8)
+                    int_result[f"{y}Y"] = round(val, 8)
 
-            if not result:
+            # 提取 sub-1Y 短端密集曲线（年小数键，含 0Y）
+            short_result = {}
+            for t, v in data.items():
+                if t < 1.0:
+                    short_result[round(t, 6)] = round(v, 8)
+
+            if not int_result and not short_result:
                 print(f"  {query_date}: 无数据 (非交易日或未发布)")
-                return {}
+                return {}, {}
 
-            return result
+            return int_result, short_result
 
         except Exception as e:
             if attempt < MAX_RETRIES:
@@ -155,9 +174,9 @@ def fetch_spot_rates_chinabond(query_date: str) -> dict:
                 time.sleep(RETRY_DELAY)
             else:
                 print(f"  {query_date}: 请求失败 - {e}")
-                return {}
+                return {}, {}
 
-    return {}
+    return {}, {}
 
 
 def load_existing_data() -> dict:
@@ -180,7 +199,105 @@ def save_data(data: dict):
         json.dump(data, f, ensure_ascii=False)
 
 
+def load_existing_short() -> dict:
+    """加载现有 data_gov_spot_short_recent.json（sub-1Y 短端近期切片）"""
+    if not os.path.exists(SHORT_FILE):
+        return {"terms": [], "dates": [], "rows": []}
+    with open(SHORT_FILE, "r", encoding="utf-8") as f:
+        d = json.load(f)
+    if not isinstance(d, dict) or "dates" not in d:
+        return {"terms": [], "dates": [], "rows": []}
+    return d
+
+
+def save_short(data: dict):
+    with open(SHORT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def get_recent_dates(all_dates, window=SHORT_WINDOW_DAYS):
+    """返回 all_dates 中落在最近 window 天内的交易日（升序）"""
+    if not all_dates:
+        return []
+    last = datetime.strptime(all_dates[-1], '%Y-%m-%d')
+    cutoff = (last - timedelta(days=window)).strftime('%Y-%m-%d')
+    return [d for d in all_dates if d >= cutoff]
+
+
+def maintain_short_file(existing, short_new=None, verbose=True):
+    """
+    维护 data_gov_spot_short_recent.json：
+    - 取 existing(全量 data.json) 的近期窗口交易日
+    - 合并本次新抓的 short_new（date->short_dict）
+    - 对缺失日从 bxjDownload 回填短端
+    - 写出近期窗口的 short 文件（terms=sub-1Y 年小数列表, dates, rows）
+    不修改 data.json。
+    """
+    if short_new is None:
+        short_new = {}
+    recent = get_recent_dates(existing.get("dates", []))
+    if not recent:
+        if verbose:
+            print("short: 无近期交易日，跳过")
+        return
+
+    short_store = load_existing_short()
+    short_terms = short_store.get("terms")
+    if not short_terms:
+        # 从本次新抓样本或抓近期最后一日确定 tenor 列表
+        sample = next(iter(short_new.values()), None)
+        if sample is None:
+            if verbose:
+                print("short: 无现有 tenor，抓取近期最后一日确定 sub-1Y 锚点...")
+            s_int, s_short = fetch_spot_rates_chinabond(recent[-1])
+            sample = s_short
+        if sample:
+            short_terms = sorted(sample.keys())
+
+    if not short_terms:
+        if verbose:
+            print("short: 仍无法确定 tenor，跳过")
+        return
+
+    # date -> row
+    d2r = {}
+    for i, d in enumerate(short_store.get("dates", [])):
+        d2r[d] = short_store["rows"][i]
+
+    # 合并本次新抓
+    for d, sh in short_new.items():
+        if d in recent:
+            d2r[d] = [sh.get(t) for t in short_terms]
+
+    # 回填缺失日
+    missing = [d for d in recent if d not in d2r]
+    backfilled = 0
+    if missing:
+        if verbose:
+            print(f"short: 回填 {len(missing)} 个缺失日 (近期窗口 {recent[0]}~{recent[-1]})...")
+        for i, d in enumerate(missing):
+            s_int, s_short = fetch_spot_rates_chinabond(d)
+            if s_short:
+                d2r[d] = [s_short.get(t) for t in short_terms]
+                backfilled += 1
+            if verbose and (i + 1) % 25 == 0:
+                print(f"  short 回填进度 {i+1}/{len(missing)} (已成功 {backfilled})")
+            time.sleep(0.15)  # 轻量限速，避免触发中债网限流
+
+    # 仅保留近期窗口
+    dates = [d for d in recent if d in d2r]
+    rows = [d2r[d] for d in dates]
+    save_short({"terms": short_terms, "dates": dates, "rows": rows})
+    if verbose:
+        print(f"short: 写出 {SHORT_FILE} ({len(dates)} 日, {len(short_terms)} 个 sub-1Y 期限, 回填成功 {backfilled}/{len(missing)})")
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--short-only', action='store_true',
+                        help='仅维护 sub-1Y 短端文件，不抓取/更新 data.json 整数年')
+    args = parser.parse_args()
+
     print("=" * 55)
     print("  国债即期利率 · CI 自动更新 (中债网)")
     print(f"  北京时间: {datetime.now(BJ_TZ).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -188,6 +305,13 @@ def main():
 
     existing = load_existing_data()
     print(f"现有数据: {len(existing['dates'])} 条")
+
+    if args.short_only:
+        print("模式: 仅维护 sub-1Y 短端文件")
+        maintain_short_file(existing, verbose=True)
+        generate_recent_slices()
+        print("\n✅ short-only 完成")
+        return
 
     today_bj = now_beijing()
     today_str = today_bj.strftime("%Y-%m-%d")
@@ -209,6 +333,7 @@ def main():
 
     # 逐日抓取
     all_new = {}
+    short_new = {}
     current = datetime.strptime(fetch_start, "%Y-%m-%d")
     end = datetime.strptime(today_str, "%Y-%m-%d")
 
@@ -218,11 +343,12 @@ def main():
         ds = current.strftime("%Y-%m-%d")
         # 跳过周末
         if current.weekday() < 5:
-            rates = fetch_spot_rates_chinabond(ds)
+            rates, short = fetch_spot_rates_chinabond(ds)
             if rates:
                 all_new[ds] = rates
+                short_new[ds] = short
                 fetched += 1
-                print(f"  ✓ {ds}: {len(rates)} 个期限")
+                print(f"  ✓ {ds}: {len(rates)} 个整数年期限, sub-1Y {len(short)} 点")
             else:
                 skipped += 1
         current += timedelta(days=1)
@@ -257,6 +383,9 @@ def main():
 
         print(f"\n✅ 更新完成: 新增 {new_count} 条, 修正 {update_count} 条")
         print(f"   总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
+
+    # 维护 sub-1Y 短端文件（合并本次新抓 + 回填缺失）
+    maintain_short_file(existing, short_new, verbose=True)
 
     # 重新生成近期切片（滚动窗口，体积恒定 ~100KB/个，供分析板块快速首屏）
     generate_recent_slices()

@@ -1412,6 +1412,7 @@
         let maPrefixStoreRef = null; // 记录当前 dataStore 引用，变化时重建前缀和
         let currentBondType = 'gov_spot';
         let dataStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
+        let govSpotShortStore = null;  // sub-1Y 短端近期曲线（ALM 月度精确采样用）
         // 分析板独立 store：结构为 { dates, terms, rates(二维) }，与 monitor 板 loadFromRawData
         // 的对象数组 / allTerms 结构不同，必须隔离，否则复用 monitor 错误结构会导致 reading 'map'
         let anaStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
@@ -3937,17 +3938,56 @@
         function computeDiscountCurvesALM(spot, latestDate) {
             const years = [];
             for (let t = 1; t <= 50; t++) years.push(t);
-            // 连续即期曲线：整数年锚点 1..50；year0 由 1Y/2Y 线性外推（网页国债即期无 0Y 点）
-            const spotY = new Array(51);
-            for (let t = 1; t <= 50; t++) spotY[t] = spot[t];
-            spotY[0] = (spot[1] != null && spot[2] != null) ? (2 * spot[1] - spot[2])
-                     : (spot[1] != null ? spot[1] : null);
+            // 连续即期曲线：整数年锚点 1..50；sub-1Y 用短端真实曲线，按 Excel「修正久期曲线」锚点法分段线性
+            let shortPts = null;
+            if (typeof govSpotShortStore !== 'undefined' && govSpotShortStore && govSpotShortStore.dates && govSpotShortStore.dates.length) {
+                const si = govSpotShortStore.dates.indexOf(latestDate);
+                if (si >= 0 && govSpotShortStore.terms && govSpotShortStore.rows && govSpotShortStore.rows[si]) {
+                    const trow = govSpotShortStore.rows[si];
+                    shortPts = [];
+                    for (let i = 0; i < govSpotShortStore.terms.length; i++) {
+                        const tt = +govSpotShortStore.terms[i];
+                        const rv = trow[i];
+                        if (tt < 1 && rv != null && isFinite(rv)) shortPts.push({ t: tt, r: rv / 100 });
+                    }
+                    shortPts.sort((a, b) => a.t - b.t);
+                }
+            }
+            // 在短端曲线上取标准锚点值（容差匹配）
+            function anchorAt(a) {
+                if (!shortPts) return null;
+                for (const p of shortPts) if (Math.abs(p.t - a) < 1e-4) return p.r;
+                return null;
+            }
             function spotAtYear(yf) {
-                if (yf <= 0) return spotY[0];
-                if (yf >= 50) return spotY[50];
+                if (yf <= 0) {
+                    if (shortPts && shortPts.length) return shortPts[0].r;
+                    return (spot[1] != null && spot[2] != null) ? (2 * spot[1] - spot[2]) : (spot[1] != null ? spot[1] : null);
+                }
+                if (yf >= 50) return spot[50];
+                if (yf < 1) {
+                    if (shortPts && shortPts.length) {
+                        // 与 Excel「修正久期曲线」sub-1Y 一致：标准锚点 [0,1/6,1/4,1/2,3/4,1Y] 分段线性
+                        const segs = [0, 0.166667, 0.25, 0.5, 0.75, 1];
+                        const vals = [shortPts[0].r, anchorAt(0.166667), anchorAt(0.25), anchorAt(0.5), anchorAt(0.75), spot[1]];
+                        let lo = 0, hi = 1, vl = vals[0], vh = vals[5];
+                        for (let i = 0; i < 5; i++) {
+                            if (yf >= segs[i] - 1e-7 && yf <= segs[i + 1] + 1e-7) { lo = segs[i]; hi = segs[i + 1]; vl = vals[i]; vh = vals[i + 1]; break; }
+                        }
+                        if (lo === hi) return vl;
+                        if (vl == null || vh == null) {
+                            let chosen = shortPts[0];
+                            for (let i = 0; i < shortPts.length; i++) { if (shortPts[i].t <= yf + 1e-6) chosen = shortPts[i]; else break; }
+                            return chosen.r;
+                        }
+                        return vl + (vh - vl) * (yf - lo) / (hi - lo);
+                    }
+                    const y0 = (spot[1] != null && spot[2] != null) ? (2 * spot[1] - spot[2]) : spot[1];
+                    return (y0 != null && spot[1] != null) ? (y0 + (spot[1] - y0) * yf) : null;
+                }
                 const lo = Math.floor(yf), hi = Math.ceil(yf);
-                if (lo === hi) return spotY[lo];
-                const f = spotY[lo], g = spotY[hi];
+                if (lo === hi) return spot[lo];
+                const f = spot[lo], g = spot[hi];
                 if (f == null || g == null) return null;
                 return f + (g - f) * (yf - lo);
             }
@@ -6082,6 +6122,10 @@
                 loadFromRawData(rawData);
                 saveDataStore();
                 finishWith(usedSource.indexOf('raw.githubusercontent') >= 0 ? '云端数据（备用源）' : '云端数据', '#2e7d32');
+                // 异步加载 sub-1Y 短端近期曲线（ALM 月度精确采样用，不阻塞主流程）
+                fetchJsonCached('data_gov_spot_short_recent.json', o => o && o.dates && o.dates.length && o.terms && o.terms.length)
+                    .then(s => { if (s) govSpotShortStore = s; })
+                    .catch(() => {});
                 return;
             }
 
