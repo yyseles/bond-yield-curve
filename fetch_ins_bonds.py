@@ -223,6 +223,29 @@ def _rec_match(a, b):
     return False
 
 
+def _is_preissue(rec):
+    """是否'尚未发行'占位记录: 唯一的硬标记是 bondCode=='---'
+    (发行前 chinamoney 尚无代码/票息/评级; 发行成功后会补全)。
+    注意: bondCode 为空串 '' 不等于未发行 —— 很多已发行债只是脚本没抓到代码,
+    但其票面/评级/金额都是真实值, 不应被整体接管。"""
+    return rec.get("bondCode") == "---"
+
+
+def _refresh(old, new):
+    """重抓命中已有记录时, 用新抓到的真实数据刷新 old (同只债不同期/不同抓取时点):
+    - 未发行占位(bondCode=='---'): 全面接管真实数据(发行额/代码/票息/评级/状态)。
+    - 已发行但缺字段(如 bondCode 空串): 仅补缺, 绝不覆盖已有真实值, 避免 chinamoney
+      偶发异常值污染已正确的金额/票息。"""
+    pre = _is_preissue(old)
+    for k, v in new.items():
+        if v in (None, "", "---"):
+            continue
+        ov = old.get(k)
+        if pre or ov in (None, "", "---"):
+            old[k] = v
+    return old
+
+
 def dedup_bonds(bonds):
     """去除同源重复: 命中时合并两条(保留 bondCode 更全的为基, 补全另一条非空字段),
     而非简单替换, 以免丢失 Excel 维护的评级等字段。O(n^2), 数据量小无妨。"""
@@ -420,9 +443,14 @@ def main():
                     rec["status"] = "存续"  # 无到期日信息时保守视为存续
                 else:
                     rec = build_record(row, info)
-                # 再次稳健匹配(此时有完整 issueDate/额), 命中则不重复加入
-                if not any(_rec_match(rec, x) for x in seen_list):
+                # 再次稳健匹配(此时有完整 issueDate/额):
+                # 命中=同只债已存在 -> 用新抓到的真实数据刷新(发行成功后补全金额/代码/票息/评级),
+                # 而非丢弃; 未命中才作为新债追加。
+                hit = next((x for x in seen_list if _rec_match(rec, x)), None)
+                if hit is None:
                     seen_list.append(rec)
+                else:
+                    _refresh(hit, rec)
             print(f"  {yr}: 累计 {len(seen_list)} 只", flush=True)
         time.sleep(3)
 
