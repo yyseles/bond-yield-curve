@@ -1068,11 +1068,15 @@
             <div class="ana-panel" id="anaTimeseries" style="display:none;">
                 <div class="ana-controls">
                     <label>期限：<select id="anaTenorSel"></select></label>
-                    <span class="toolbar-hint">同一期限、不同曲线的历史走势（横轴为日期）</span>
+                    <span class="toolbar-hint">同一期限、不同曲线的历史走势（横轴为日期）；即期与到期分图展示</span>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>单期限利率时间序列</span><span class="badge" id="anaTsBadge"></span></div>
+                    <div class="card-title"><span>单期限利率时间序列 · 即期</span><span class="badge" id="anaTsBadge"></span></div>
                     <div class="chart-box tall" id="anaTsChart"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>单期限利率时间序列 · 到期</span><span class="badge">期限 <span id="anaTsBadgeYtm"></span></span></div>
+                    <div class="chart-box tall" id="anaTsChartYtm"></div>
                 </div>
             </div>
 
@@ -1087,6 +1091,11 @@
                 <div class="card">
                     <div class="card-title"><span>期限结构</span><span class="badge">A 实线 / B 虚线</span></div>
                     <div class="chart-box tall" id="anaStructChart"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>期限利差（A − B）</span><span class="badge">bp</span></div>
+                    <div class="chart-box tall" id="anaStructSpreadChart"></div>
+                    <div class="footnote">各期限 A 日利率 − B 日利率（bp）；正值=走阔（A&gt;B），负值=收窄</div>
                 </div>
             </div>
 
@@ -1112,11 +1121,15 @@
                 </div>
 
                 <h3 class="ana-subtitle">② 期限利差（国债即期，bp）</h3>
+                <div class="ana-controls" style="margin-top:8px;">
+                    <label>自定义利差：<select id="anaTermCustomA"></select> − <select id="anaTermCustomB"></select></label>
+                    <span class="toolbar-hint">在默认三项(10Y−1Y / 30Y−10Y / 5Y−1Y)基础上，追加自选两期限利差</span>
+                </div>
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-title"><span>期限利差时间序列</span><span class="badge">bp</span></div>
                         <div class="chart-box ana-chart" id="anaTermChart"></div>
-                        <div class="footnote">10Y−1Y / 30Y−10Y / 5Y−1Y（国债即期）；虚线为所选基准日</div>
+                        <div class="footnote">10Y−1Y / 30Y−10Y / 5Y−1Y（国债即期）+ 自定义；虚线为所选基准日</div>
                     </div>
                     <div class="card">
                         <div class="card-title"><span>期限利差最新值与全周期特征</span><span class="badge" id="anaTermAnchor">基准日 —</span></div>
@@ -4510,6 +4523,8 @@
         const ANA_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
         const ANA_LABELS = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开即期', cdb_ytm: '国开到期' };
         const ANA_COLORS = { gov_spot: '#1f4a7a', gov_ytm: '#2e7d32', cdb_spot: '#c0392b', cdb_ytm: '#e67e22' };
+        const ANA_SPOT = ['gov_spot', 'cdb_spot'];   // 即期曲线（上图）
+        const ANA_YTM = ['gov_ytm', 'cdb_ytm'];       // 到期曲线（下图）
         let currentAnalysisView = 'overview';
         let anaCharts = {};
         let anaListenersBound = false;
@@ -4634,6 +4649,8 @@
             fill('anaDateBSel', dates.map(d => ({ v: d, t: d })), bDef);
             fill('anaTenorSel', primary.terms.map(t => ({ v: t, t })), '10Y');
             fill('anaStructCurveSel', ANA_TYPES.map(t => ({ v: t, t: ANA_LABELS[t] })), 'gov_spot');
+            fill('anaTermCustomA', primary.terms.map(t => ({ v: t, t })), '7Y');
+            fill('anaTermCustomB', primary.terms.map(t => ({ v: t, t })), '3Y');
         }
         function showAnaPanel(v) {
             ['overview', 'timeseries', 'structure', 'spread'].forEach(p => {
@@ -4679,8 +4696,8 @@
         function renderAnaTimeseries() {
             const tenor = document.getElementById('anaTenorSel').value || '10Y';
             const checked = new Set(getCheckedCurves());
-            // 恒为 4 条系列（未勾选给空数据），保证合并模式不会残留旧系列
-            const series = ANA_TYPES.map(t => {
+            // 即期 / 到期 分图：每张图恒为各自两条系列（未勾选给空数据），保证合并模式不残留旧系列
+            const mkSeries = (types) => types.map(t => {
                 const s = anaStores[t];
                 const ti = s ? s.terms.indexOf(tenor) : -1;
                 const data = (s && checked.has(t) && ti >= 0)
@@ -4688,12 +4705,16 @@
                     : [];
                 return { name: ANA_LABELS[t], type: 'line', data, showSymbol: false, lineStyle: { width: 1.5 }, itemStyle: { color: ANA_COLORS[t] } };
             });
-            drawAnaChart('anaTsChart', {
+            const spotSeries = mkSeries(ANA_SPOT), ytmSeries = mkSeries(ANA_YTM);
+            const baseOpt = (legendData) => ({
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: '%', scale: true },
-                series, tooltip: { trigger: 'axis' }, legend: { data: ANA_TYPES.filter(t => checked.has(t)).map(t => ANA_LABELS[t]), top: 0 },
+                tooltip: { trigger: 'axis' }, legend: { data: legendData, top: 0 },
                 dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
-            }, { replace: false });
+            });
+            drawAnaChart('anaTsChart', Object.assign(baseOpt(ANA_SPOT.filter(t => checked.has(t)).map(t => ANA_LABELS[t])), { series: spotSeries }), { replace: false });
+            drawAnaChart('anaTsChartYtm', Object.assign(baseOpt(ANA_YTM.filter(t => checked.has(t)).map(t => ANA_LABELS[t])), { series: ytmSeries }), { replace: false });
             document.getElementById('anaTsBadge').textContent = '期限 ' + tenor;
+            document.getElementById('anaTsBadgeYtm').textContent = tenor;
         }
         function renderAnaStructure() {
             const t = document.getElementById('anaStructCurveSel').value;
@@ -4707,6 +4728,18 @@
             drawAnaChart('anaStructChart', {
                 xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
                 series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
+            }, { replace: false });
+            // 各期限利差 A − B（bp），柱形图，正负分色
+            const barData = s.terms.map((tm, i) => {
+                const a = s.rates[iA][i], b = s.rates[iB][i];
+                if (a == null || b == null) return { value: null };
+                const v = +((a - b) * 100).toFixed(2);
+                return { value: v, itemStyle: { color: v >= 0 ? '#2e7d32' : '#c0392b' } };
+            });
+            drawAnaChart('anaStructSpreadChart', {
+                xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: 'bp', scale: true },
+                series: [{ name: 'A−B (bp)', type: 'bar', data: barData, barMaxWidth: 26 }],
+                tooltip: { trigger: 'axis' }, grid: { top: 24, bottom: 30, left: 48, right: 16 }
             }, { replace: false });
         }
         function renderAnaSpread() {
@@ -4785,6 +4818,19 @@
                 if (g30 != null && g10 != null) s3010.push([gs.dates[i], +((g30 - g10) * 100).toFixed(2)]);
                 if (g5 != null && g1 != null) s51.push([gs.dates[i], +((g5 - g1) * 100).toFixed(2)]);
             }
+            // 自定义两期限利差（Ta − Tb）
+            const customA = document.getElementById('anaTermCustomA').value || '7Y';
+            const customB = document.getElementById('anaTermCustomB').value || '3Y';
+            const tAG = tiG(customA), tBG = tiG(customB);
+            const customName = customA + '−' + customB;
+            const sCustom = (tAG >= 0 && tBG >= 0) ? (() => {
+                const out = [];
+                for (let i = 0; i < gs.dates.length; i++) {
+                    const gA = gs.rates[i][tAG], gB = gs.rates[i][tBG];
+                    if (gA != null && gB != null) out.push([gs.dates[i], +((gA - gB) * 100).toFixed(2)]);
+                }
+                return out;
+            })() : [];
             const aiT = anchorIndex(s101, selDate);
             const anchorDateTerm = aiT >= 0 ? s101[aiT][0] : null;
             const latestOf = arr => { const ai = anchorIndex(arr, selDate); return ai >= 0 ? arr[ai][1] : null; };
@@ -4803,16 +4849,17 @@
                     { name: '10Y−1Y', type: 'line', data: s101, showSymbol: false, lineStyle: { width: 1.5, color: '#1f4a7a' }, itemStyle: { color: '#1f4a7a' },
                       markLine: { silent: true, symbol: 'none', lineStyle: { color: '#888', type: 'dashed' }, data: [{ xAxis: selDate }] } },
                     { name: '30Y−10Y', type: 'line', data: s3010, showSymbol: false, lineStyle: { width: 1.5, color: '#2e7d32' }, itemStyle: { color: '#2e7d32' } },
-                    { name: '5Y−1Y', type: 'line', data: s51, showSymbol: false, lineStyle: { width: 1.5, color: '#8e44ad' }, itemStyle: { color: '#8e44ad' } }
+                    { name: '5Y−1Y', type: 'line', data: s51, showSymbol: false, lineStyle: { width: 1.5, color: '#8e44ad' }, itemStyle: { color: '#8e44ad' } },
+                    { name: customName, type: 'line', data: sCustom, showSymbol: false, lineStyle: { width: 1.5, color: '#d4a017', type: 'dotted' }, itemStyle: { color: '#d4a017' } }
                 ],
-                tooltip: { trigger: 'axis' }, legend: { data: ['10Y−1Y', '30Y−10Y', '5Y−1Y'], top: 0 },
+                tooltip: { trigger: 'axis' }, legend: { data: ['10Y−1Y', '30Y−10Y', '5Y−1Y', customName], top: 0 },
                 dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
             }, { replace: false });
-            let tt = '<thead><tr><th>指标</th><th>10Y−1Y</th><th>30Y−10Y</th><th>5Y−1Y</th></tr></thead><tbody>';
-            tt += `<tr><td>最新利差（${anchorDateTerm || selDate}）</td><td>${fmtBp(latestOf(s101))}</td><td>${fmtBp(latestOf(s3010))}</td><td>${fmtBp(latestOf(s51))}</td></tr>`;
-            tt += `<tr><td>截至基准日均值</td><td>${fmtBp(statOver(s101, avgOf))}</td><td>${fmtBp(statOver(s3010, avgOf))}</td><td>${fmtBp(statOver(s51, avgOf))}</td></tr>`;
-            tt += `<tr><td>截至基准日最小</td><td>${fmtBp(statOver(s101, minOf))}</td><td>${fmtBp(statOver(s3010, minOf))}</td><td>${fmtBp(statOver(s51, minOf))}</td></tr>`;
-            tt += `<tr><td>截至基准日最大</td><td>${fmtBp(statOver(s101, maxOf))}</td><td>${fmtBp(statOver(s3010, maxOf))}</td><td>${fmtBp(statOver(s51, maxOf))}</td></tr>`;
+            let tt = `<thead><tr><th>指标</th><th>10Y−1Y</th><th>30Y−10Y</th><th>5Y−1Y</th><th>${customName}</th></tr></thead><tbody>`;
+            tt += `<tr><td>最新利差（${anchorDateTerm || selDate}）</td><td>${fmtBp(latestOf(s101))}</td><td>${fmtBp(latestOf(s3010))}</td><td>${fmtBp(latestOf(s51))}</td><td>${fmtBp(latestOf(sCustom))}</td></tr>`;
+            tt += `<tr><td>截至基准日均值</td><td>${fmtBp(statOver(s101, avgOf))}</td><td>${fmtBp(statOver(s3010, avgOf))}</td><td>${fmtBp(statOver(s51, avgOf))}</td><td>${fmtBp(statOver(sCustom, avgOf))}</td></tr>`;
+            tt += `<tr><td>截至基准日最小</td><td>${fmtBp(statOver(s101, minOf))}</td><td>${fmtBp(statOver(s3010, minOf))}</td><td>${fmtBp(statOver(s51, minOf))}</td><td>${fmtBp(statOver(sCustom, minOf))}</td></tr>`;
+            tt += `<tr><td>截至基准日最大</td><td>${fmtBp(statOver(s101, maxOf))}</td><td>${fmtBp(statOver(s3010, maxOf))}</td><td>${fmtBp(statOver(s51, maxOf))}</td><td>${fmtBp(statOver(sCustom, maxOf))}</td></tr>`;
             tt += '</tbody>';
             document.getElementById('anaTermTable').innerHTML = tt;
             document.getElementById('anaTermAnchor').textContent = '基准日 ' + (anchorDateTerm || selDate);
@@ -4832,7 +4879,7 @@
             document.querySelectorAll('#anaCurveChecks input').forEach(cb => {
                 cb.addEventListener('change', renderAnaCurrent);
             });
-            ['anaDateSel', 'anaTenorSel', 'anaStructCurveSel', 'anaDateASel', 'anaDateBSel', 'anaSpreadDate'].forEach(id => {
+            ['anaDateSel', 'anaTenorSel', 'anaStructCurveSel', 'anaDateASel', 'anaDateBSel', 'anaSpreadDate', 'anaTermCustomA', 'anaTermCustomB'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', renderAnaCurrent);
             });
