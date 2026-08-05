@@ -4212,10 +4212,10 @@
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
                 series:[
-                    {name:'LPR 5Y',type:'line',data:slc(c.lprFF),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
-                    {name:'定存 5Y',type:'line',data:slc(c.depFF),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5}},
-                    {name:'走廊中值',type:'line',data:slc(c.corridorMid),symbol:'none',lineStyle:{color:'#999',width:1,type:'dashed'}},
-                    {name:'走廊中值6MMA',type:'line',data:slc(c.corridor6MMA),symbol:'none',lineStyle:{color:'#27ae60',width:2}}
+                    {name:'LPR 5Y',type:'line',data:slc(c.lprFF),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5},itemStyle:{color:'#2e75b6'}},
+                    {name:'定存 5Y',type:'line',data:slc(c.depFF),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5},itemStyle:{color:'#e74c3c'}},
+                    {name:'走廊中值',type:'line',data:slc(c.corridorMid),symbol:'none',lineStyle:{color:'#999',width:1,type:'dashed'},itemStyle:{color:'#999'}},
+                    {name:'走廊中值6MMA',type:'line',data:slc(c.corridor6MMA),symbol:'none',lineStyle:{color:'#27ae60',width:2},itemStyle:{color:'#27ae60'}}
                 ]
             });
             mk('presetChartBaseReturn').setOption({
@@ -4224,9 +4224,9 @@
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:[{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},{type:'value',name:'bp'}],
                 series:[
-                    {name:'10Y国债到期',type:'line',data:slc(c.cgb10y),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
-                    {name:'税收溢价(bp,右轴)',type:'line',yAxisIndex:1,data:slc(c.tax),symbol:'none',lineStyle:{color:'#e74c3c',width:1},areaStyle:{color:'rgba(231,76,60,0.06)'}},
-                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#8e44ad',width:2}}
+                    {name:'10Y国债到期',type:'line',data:slc(c.cgb10y),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5},itemStyle:{color:'#2e75b6'}},
+                    {name:'税收溢价(bp,右轴)',type:'line',yAxisIndex:1,data:slc(c.tax),symbol:'none',lineStyle:{color:'#e74c3c',width:1},areaStyle:{color:'rgba(231,76,60,0.06)'},itemStyle:{color:'#e74c3c'}},
+                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#8e44ad',width:2},itemStyle:{color:'#8e44ad'}}
                 ]
             });
             mk('presetChartMALevel').setOption({
@@ -4235,10 +4235,10 @@
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
                 series:[
-                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#94a3b8',width:1,type:'dotted'}},
-                    {name:'250MA',type:'line',data:slc(c.br250),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5}},
-                    {name:'750MA',type:'line',data:slc(c.br750),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5}},
-                    {name:'基础回报水平(MIN)',type:'line',data:slc(c.baseLevel),symbol:'none',lineStyle:{color:'#8e44ad',width:2.5}}
+                    {name:'基础回报',type:'line',data:slc(c.baseReturn),symbol:'none',lineStyle:{color:'#94a3b8',width:1,type:'dotted'},itemStyle:{color:'#94a3b8'}},
+                    {name:'250MA',type:'line',data:slc(c.br250),symbol:'none',lineStyle:{color:'#e74c3c',width:1.5},itemStyle:{color:'#e74c3c'}},
+                    {name:'750MA',type:'line',data:slc(c.br750),symbol:'none',lineStyle:{color:'#2e75b6',width:1.5},itemStyle:{color:'#2e75b6'}},
+                    {name:'基础回报水平(MIN)',type:'line',data:slc(c.baseLevel),symbol:'none',lineStyle:{color:'#8e44ad',width:2.5},itemStyle:{color:'#8e44ad'}}
                 ]
             });
             const markLines = PRESET_N_SEGMENTS.filter(s => s.threshold > 0.5).map(s => ({
@@ -4311,11 +4311,11 @@
                     max: val => Math.max(4.5, (val.max||0)*1.05), min: val => Math.min(0, (val.min||0)-0.2)},
                 series:[
                     {name:'参考利率 M',type:'line',data:histMFull,
-                        symbol:'none',lineStyle:{color:'#2e75b6',width:2}},
+                        symbol:'none',lineStyle:{color:'#2e75b6',width:2},itemStyle:{color:'#2e75b6'}},
                     {name:'预定利率 N(历史实线)',type:'line',data:histSeriesFull,
-                        symbol:'none',lineStyle:{color:'#e74c3c',width:2}},
+                        symbol:'none',lineStyle:{color:'#e74c3c',width:2},itemStyle:{color:'#e74c3c'}},
                     {name:'预测 N(基准·虚线)',type:'line',data:fcSeriesFinal,symbol:'circle',symbolSize:6,
-                        lineStyle:{color:'#27ae60',width:2,type:'dashed'}},
+                        lineStyle:{color:'#27ae60',width:2,type:'dashed'},itemStyle:{color:'#27ae60'}},
                     {name:'监管公布值',type:'scatter',data:regScatter,symbolSize:10,itemStyle:{color:'#d4a017'},
                         markLine:{silent:true,symbol:'none',data:markLines.concat(eventLines)},
                         tooltip:{formatter:p=>`${p.data.rec.quarter} 公布 ${p.data.rec.published_N.toFixed(2)}%`}}
