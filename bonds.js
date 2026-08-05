@@ -192,8 +192,10 @@
             keys.forEach(k => {
                 const g = map[k];
                 const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+                const capN = g.filter(b => b.bondType === '资本补充债').length;
+                const perpN = g.filter(b => b.bondType === '永续债').length;
                 const pct = grandTotal > 0 ? (total / grandTotal * 100).toFixed(1) : '0.0';
-                html += `<tr><td class="lft">${k}</td><td>${g.length}</td><td>${fmtAmnt(total)}</td><td>${pct}%</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
+                html += `<tr><td class="lft">${k}</td><td><b>${g.length}</b><span class="cnt-sub">（资补${capN}；永续${perpN}）</span></td><td>${fmtAmnt(total)}</td><td>${pct}%</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondIndustryTable').innerHTML = html;
