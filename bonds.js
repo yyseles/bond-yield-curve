@@ -4,16 +4,14 @@
 // 与主页共享全局作用域（classic script 顶层声明即全局）：
 //   依赖全局：echarts（CDN）、insBonds（主页 loadInsBonds 异步写入）、showMainView / showDetail / currentMainView。
 //   导出全局（供主页调用）：renderBondsView、populateIndustryYear、populateEndYearSelect、populateSummaryYearSelect、handleHashChange，
-//             以及模块状态 bondScatterChart / bondComboChart / bondIndustryChart / industryYear / comboEndYear / scatterEndYear / summaryYear。
+//             以及模块状态 bondScatterChart / bondComboChart / industryYear / comboEndYear / summaryYear。
 // 注意：本板块无访问码门控，故采用静态 defer 加载（不同于 discount-module.js 的懒加载）。
 // ================================================================
 
         let bondScatterChart = null;
         let bondComboChart = null;
-        let bondIndustryChart = null;
         let industryYear = '';
         let comboEndYear = '';
-        let scatterEndYear = '';
         let summaryYear = 'all';
         const zhCollator = new Intl.Collator('zh-Hans-CN');
 
@@ -56,7 +54,6 @@
             }
             const rows = allBonds();
             const comboWin = winRows(comboEndYear);
-            const scatterWin = winRows(scatterEndYear);
             const rangeNote = insBonds.note || '';
             const minYear = rows.reduce((m, b) => {
                 const y = parseInt((b.issueDate || '').slice(0, 4), 10);
@@ -71,11 +68,10 @@
             // 组合图 + 年度表：受组合图截止年份控制
             renderBondComboChart(comboWin);
             renderBondYearTable(rows);
-            // 行业汇总：独立的行业年份下拉
+            // 行业汇总：独立的行业年份下拉（表格内已含占比列）
             renderBondIndustryTable(industryRows());
-            renderBondIndustryChart(industryRows());
-            // 散点图：受散点截止年份控制
-            renderBondScatter(scatterWin);
+            // 散点图：始终显示全部年份
+            renderBondScatter(allBonds());
         }
 
         function renderBondSummaryCards(rows) {
@@ -191,42 +187,16 @@
             });
             const order = ['寿险', '产险', '再保', '集团', '其他'];
             const keys = Object.keys(map).sort((a, b) => order.indexOf(a) - order.indexOf(b));
-            let html = '<thead><tr><th class="lft">行业</th><th>只数</th><th>总额(亿)</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
+            const grandTotal = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            let html = '<thead><tr><th class="lft">行业</th><th>只数</th><th>总额(亿)</th><th>占比</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
             keys.forEach(k => {
                 const g = map[k];
                 const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
-                html += `<tr><td class="lft">${k}</td><td>${g.length}</td><td>${fmtAmnt(total)}</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
+                const pct = grandTotal > 0 ? (total / grandTotal * 100).toFixed(1) : '0.0';
+                html += `<tr><td class="lft">${k}</td><td>${g.length}</td><td>${fmtAmnt(total)}</td><td>${pct}%</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondIndustryTable').innerHTML = html;
-        }
-
-        function renderBondIndustryChart(rows) {
-            const dom = document.getElementById('bondIndustryChart');
-            if (typeof echarts === 'undefined') { dom.innerHTML = '<p style="color:#999;padding:10px;">图表库未加载</p>'; return; }
-            if (!bondIndustryChart) bondIndustryChart = echarts.init(dom);
-            const map = {};
-            rows.forEach(b => { const k = b.industry || '其他'; map[k] = (map[k] || 0) + (b.issueAmnt || 0); });
-            const order = ['寿险', '产险', '再保', '集团', '其他'];
-            const keys = Object.keys(map).sort((a, b) => order.indexOf(a) - order.indexOf(b));
-            const colors = { '寿险': '#3b7dd8', '产险': '#e6a23c', '再保': '#67c23a', '集团': '#9b59b6', '其他': '#95a5a6' };
-            const total = keys.reduce((s, k) => s + map[k], 0);
-            const data = keys.map(k => ({
-                name: k,
-                value: +(map[k].toFixed(1)),
-                pct: total > 0 ? (map[k] / total * 100).toFixed(1) : 0,
-                itemStyle: { color: colors[k] || '#3b7dd8' },
-            }));
-            bondIndustryChart.setOption({
-                tooltip: { trigger: 'item', formatter: p => `${p.name}<br/>发行额：${p.value} 亿<br/>占比：${p.percent.toFixed(1)}%` },
-                legend: { orient: 'horizontal', top: 2, left: 'center', itemWidth: 10, itemHeight: 10, itemGap: 10, textStyle: { fontSize: 11, color: '#3e5a7a' } },
-                series: [{
-                    type: 'pie', radius: ['42%', '66%'], center: ['50%', '56%'],
-                    avoidLabelOverlap: true, data,
-                    label: { show: true, position: 'outside', formatter: p => `${p.percent.toFixed(1)}%`, fontSize: 11, color: '#3e5a7a' },
-                    labelLine: { length: 6, length2: 10 },
-                }],
-            }, true);
         }
 
         function renderBondCompanyYear(rows) {
@@ -302,9 +272,11 @@
             bondScatterChart.setOption({
                 tooltip: { trigger: 'item', formatter: p => `${p.data[3]}<br/>${p.data[2]}（${p.data[5]}）<br/>发行日：${p.data[0]} · 票面利率：${p.data[1]}%<br/>发行额：${fmtAmnt(p.data[4])} 亿` },
                 legend: { data: Object.keys(byStatus), top: 0 },
-                grid: { left: 50, right: 24, top: 36, bottom: 40 },
+                toolbox: { right: 12, feature: { dataZoom: { yAxisIndex: 'none', title: { zoom: '区域缩放', back: '缩放还原' } }, dataView: { readOnly: false, title: '数据视图' }, restore: { title: '还原' } } },
+                grid: { left: 50, right: 24, top: 36, bottom: 56 },
                 xAxis: { type: 'category', data: years, name: '发行年份', axisLabel: { rotate: 45 } },
                 yAxis: { type: 'value', name: '票面利率(%)', scale: true },
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }],
                 series,
             }, true);
         }
@@ -342,12 +314,14 @@
                         return s;
                     } },
                 legend: { data: ['资本补充债', '永续债', '加权平均利率', '最高利率', '最低利率'], top: 4 },
-                grid: { left: 56, right: 56, top: 56, bottom: 36 },
+                toolbox: { right: 12, feature: { dataZoom: { yAxisIndex: 'none', title: { zoom: '区域缩放', back: '缩放还原' } }, dataView: { readOnly: false, title: '数据视图' }, restore: { title: '还原' } } },
+                grid: { left: 56, right: 56, top: 56, bottom: 52 },
                 xAxis: { type: 'category', data: years, axisLabel: { fontSize: 12 }, axisTick: { alignWithLabel: true } },
                 yAxis: [
                     { type: 'value', name: '发行额(亿)', position: 'left', nameTextStyle: { fontSize: 11 } },
                     { type: 'value', name: '利率(%)', position: 'right', min: v => Math.max(0, (v.min - 0.5).toFixed(2)), max: v => (v.max + 0.5).toFixed(2), splitLine: { show: false }, nameTextStyle: { fontSize: 11 } },
                 ],
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }],
                 series: [
                     { name: '资本补充债', type: 'bar', stack: 'amt', data: capArr, itemStyle: { color: '#3b7dd8' }, barMaxWidth: 32 },
                     { name: '永续债', type: 'bar', stack: 'amt', data: perpArr, itemStyle: { color: '#e6a23c' }, barMaxWidth: 32 },
@@ -391,16 +365,15 @@
             sel.innerHTML = '<option value="">全部年份</option>' + ys.map(y => `<option value="${y}">${y} 年</option>`).join('');
         }
 
-        // 截止年份下拉（组合图 / 散点图 各一个），默认取最新发行年份
+        // 截止年份下拉（组合图使用），默认「全部」
         function populateEndYearSelect(selId, setter) {
             if (!insBonds || !insBonds.bonds) return;
             const ys = [...new Set(insBonds.bonds.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort((a, b) => b - a);
             const sel = document.getElementById(selId);
             if (!sel) return;
-            sel.innerHTML = ys.map(y => `<option value="${y}">截至 ${y} 年</option>`).join('');
-            const def = ys[0] || '';
-            sel.value = def;
-            setter(def);
+            sel.innerHTML = ['<option value="">全部</option>'].concat(ys.map(y => `<option value="${y}">截至 ${y} 年</option>`)).join('');
+            sel.value = '';
+            setter('');
         }
 
         function populateSummaryYearSelect() {
@@ -436,7 +409,6 @@
         if (iySel) iySel.addEventListener('change', function() {
             industryYear = this.value;
             renderBondIndustryTable(industryRows());
-            renderBondIndustryChart(industryRows());
         });
         // 组合图截止年份
         const coSel = document.getElementById('bondComboEndYear');
@@ -445,12 +417,6 @@
             const w = winRows(comboEndYear);
             renderBondComboChart(w);
             renderBondYearTable(allBonds());
-        });
-        // 散点图截止年份
-        const scSel = document.getElementById('bondScatterEndYear');
-        if (scSel) scSel.addEventListener('change', function() {
-            scatterEndYear = this.value;
-            renderBondScatter(winRows(scatterEndYear));
         });
         // 顶部汇总卡：汇总年份筛选
         const sySel = document.getElementById('bondSummaryYear');

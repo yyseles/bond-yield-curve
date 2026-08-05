@@ -198,14 +198,12 @@
         .bonds-row.is-top .bonds-panel, .bonds-row.is-mid .bonds-panel { display: flex; flex-direction: column; }
         .bonds-row.is-top .chart-box { height: 460px; flex: none; }
         .bonds-row.is-top .tbl-scroll { flex: 1 1 auto; min-height: 0; max-height: 460px; }
-        /* 行2 三列：左=分行业汇总表，中=行业占比饼图，右=票面利率散点；三栏等高，以中间饼图(300)为基准 */
-        .bonds-row.is-mid { grid-template-columns: 1fr 0.8fr 1.5fr; align-items: stretch; }
+        /* 行2 两列：左=分行业汇总表（含占比），右=票面利率散点 */
+        .bonds-row.is-mid { grid-template-columns: 1fr 1.5fr; align-items: stretch; }
         .bonds-row.is-mid #bondScatterChart { height: 300px; flex: none; }
-        /* 分行业汇总表：撑满左栏高度，内容垂直居中，与中/右栏等高 */
+        /* 分行业汇总表：撑满左栏高度，内容垂直居中，与右栏等高 */
         .ind-tbl { overflow: auto; max-height: 320px; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
         .ind-tbl table { width: 100%; }
-        /* 饼图：固定高度、不参与 flex 拉伸、垂直居中，避免宽度塌缩导致不显示 */
-        #bondIndustryChart.ind-chart { height: 300px; width: 100%; margin: auto 0; flex: none; box-sizing: border-box; }
         .bonds-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
         .bonds-cards .bcard { background: linear-gradient(135deg,#fff,#eef4fb); border: 1px solid #e1e8f0; border-left: 4px solid #1f4a7a; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(31,74,122,.06); min-width: 0; }
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
@@ -293,7 +291,6 @@
             .bonds-cards { grid-template-columns: 1fr; }
             .bonds-row.is-top .chart-box { height: 340px; }
             .bonds-row.is-mid #bondScatterChart { height: 280px; }
-            #bondIndustryChart.ind-chart { height: 280px; }
             /* 宽表在手机上改为横向滚动（由 .tbl-scroll 的 overflow:auto 承载），
                不再把 8~11 列压成 30~45px 导致数字溢出重叠 */
             #bondYearTable { min-width: 600px; }
@@ -986,7 +983,7 @@
             </div>
         </div>
 
-        <!-- 中部：左=分行业汇总表，中=行业占比饼图，右=票面利率散点 -->
+        <!-- 中部：左=分行业汇总表（含占比），右=票面利率散点 -->
         <div class="bonds-row is-mid">
             <div class="bonds-panel">
                 <div class="panel-head">
@@ -994,21 +991,14 @@
                     <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
                 </div>
                 <div class="tbl-scroll ind-tbl"><table id="bondIndustryTable"></table></div>
-                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分。</p>
-            </div>
-            <div class="bonds-panel">
-                <div class="panel-head">
-                    <h4><span class="accent"></span>行业占比</h4>
-                    <span class="ph-spacer"></span>
-                </div>
-                <div id="bondIndustryChart" class="chart-box ind-chart"></div>
+                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分；占比=该行业发行额 / 当前筛选范围总发行额。</p>
             </div>
             <div class="bonds-panel">
                 <div class="panel-head">
                     <h4><span class="accent"></span>票面利率散点分布</h4>
-                    <select id="bondScatterEndYear" class="mini-select" title="近五年窗口的截止年份"></select>
+                    <span class="ph-spacer"></span>
                 </div>
-                <p class="bonds-note">每点一只债，X=发行年份，Y=票面利率(%)，点大小≈发行额，颜色=状态。</p>
+                <p class="bonds-note">每点一只债，X=发行年份，Y=票面利率(%)，点大小≈发行额，颜色=状态。可拖拽下方滑块缩放年份区间。</p>
                 <div id="bondScatterChart" class="chart-box"></div>
             </div>
         </div>
@@ -3428,7 +3418,7 @@
                 document.querySelector('.container').classList.remove('overview-mode');
                 document.getElementById('viewBonds').style.display = '';
                 renderBondsView();
-                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); if (bondIndustryChart) bondIndustryChart.resize(); }, 60);
+                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); }, 60);
                 return;
             }
             if (v === 'analysis') {
@@ -3604,11 +3594,10 @@
                 if (maTimeSeriesChart) maTimeSeriesChart.resize();
                 if (maCurveChartEcharts) maCurveChartEcharts.resize();
                 if (discountCompareChart) discountCompareChart.resize();
-                // 资本债三图：仅在该视图可见时 resize，避免隐藏态读到 0 宽度导致变形
+                // 资本债两图：仅在该视图可见时 resize，避免隐藏态读到 0 宽度导致变形
                 const vb = document.getElementById('viewBonds');
                 if (vb && vb.offsetParent !== null) {
                     if (bondComboChart) bondComboChart.resize();
-                    if (bondIndustryChart) bondIndustryChart.resize();
                     if (bondScatterChart) bondScatterChart.resize();
                 }
             });
@@ -3864,7 +3853,6 @@
                     insBonds = parsed;
                     populateIndustryYear();
                     populateEndYearSelect('bondComboEndYear', v => comboEndYear = v);
-                    populateEndYearSelect('bondScatterEndYear', v => scatterEndYear = v);
                     populateSummaryYearSelect();
                     if (currentMainView === 'bonds') renderBondsView();
                     return;
