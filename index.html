@@ -4190,8 +4190,26 @@
             const start = _presetDispStart(c);
             const len = c.n - start;
             const x = c.dates.slice(start).map(d => d.slice(0, 7));
+            const fullDates = c.dates.slice(start);
             const intv = Math.max(1, Math.floor(len / 6));
             const slc = (arr) => arr.slice(start).map(v => v != null ? +v.toFixed(6) : null);
+            const fmtTooltip = (params, dates, suffix) => {
+                if (!params || !params.length) return '';
+                const idx = params[0].dataIndex;
+                const date = dates[idx];
+                let html = '<div style="font-weight:600;margin-bottom:4px">' + (date || '') + (suffix || '') + '</div>';
+                for (const p of params) {
+                    if (p.seriesName === '监管公布值' && p.data && p.data.rec) {
+                        const r = p.data.rec;
+                        html += '<div style="display:flex;align-items:center;gap:6px">' + p.marker + '<span style="flex:1">' + r.quarter + ' 监管公布</span><b>' + r.published_N.toFixed(2) + '%</b></div>';
+                        continue;
+                    }
+                    if (p.value == null || (typeof p.value === 'number' && isNaN(p.value))) continue;
+                    const unit = p.seriesName.includes('bp') || p.seriesName.includes('溢价') ? 'bp' : '%';
+                    html += '<div style="display:flex;align-items:center;gap:6px">' + p.marker + '<span style="flex:1">' + p.seriesName + '</span><b>' + (+p.value).toFixed(2) + unit + '</b></div>';
+                }
+                return html;
+            };
             const mk = (id) => {
                 const dom = document.getElementById(id);
                 if (presetCharts[id]) presetCharts[id].dispose();
@@ -4207,7 +4225,7 @@
             const regScatter = regKnown.map(r => ({ value: [r.quarter_end.slice(0, 7), r.published_N], rec: r }));
 
             mk('presetChartCorridor').setOption({
-                tooltip:{trigger:'axis'}, legend:{data:['LPR 5Y','定存 5Y','走廊中值','走廊中值6MMA'], top:5},
+                tooltip:{trigger:'axis', formatter:p=>fmtTooltip(p, fullDates)}, legend:{data:['LPR 5Y','定存 5Y','走廊中值','走廊中值6MMA'], top:5},
                 grid:{left:55,right:20,top:40,bottom:40},
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
@@ -4219,7 +4237,7 @@
                 ]
             });
             mk('presetChartBaseReturn').setOption({
-                tooltip:{trigger:'axis'}, legend:{data:['10Y国债到期','税收溢价(bp,右轴)','基础回报'], top:5},
+                tooltip:{trigger:'axis', formatter:p=>fmtTooltip(p, fullDates)}, legend:{data:['10Y国债到期','税收溢价(bp,右轴)','基础回报'], top:5},
                 grid:{left:55,right:60,top:40,bottom:40},
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:[{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},{type:'value',name:'bp'}],
@@ -4230,7 +4248,7 @@
                 ]
             });
             mk('presetChartMALevel').setOption({
-                tooltip:{trigger:'axis'}, legend:{data:['基础回报','250MA','750MA','基础回报水平(MIN)'], top:5},
+                tooltip:{trigger:'axis', formatter:p=>fmtTooltip(p, fullDates)}, legend:{data:['基础回报','250MA','750MA','基础回报水平(MIN)'], top:5},
                 grid:{left:55,right:20,top:40,bottom:40},
                 xAxis:{type:'category',data:x,axisLabel:{rotate:45,fontSize:9,interval:intv}},
                 yAxis:{type:'value',name:'%',axisLabel:{formatter:v=>v.toFixed(1)}},
@@ -4266,20 +4284,26 @@
             })();
             // 把日频 M/N 序列按"每月最后一日"压缩为月频点（便于 x 轴对齐）
             const compressMonthly = (arr) => {
-                const out = []; let i = mnStartIdx;
+                const values = []; const dates = []; let i = mnStartIdx;
                 for (const ym of histXUniq) {
                     while (i + 1 < c.dates.length && c.dates[i + 1].slice(0, 7) === ym) i++;
-                    out.push(arr[i] != null ? +arr[i].toFixed(6) : null);
+                    values.push(arr[i] != null ? +arr[i].toFixed(6) : null);
+                    dates.push(c.dates[i]);
                     i++;
                 }
-                return out;
+                return { values, dates };
             };
-            const histM = compressMonthly(c.Mvals);
-            const histN = compressMonthly(c.Nvals);
+            const histMObj = compressMonthly(c.Mvals);
+            const histNObj = compressMonthly(c.Nvals);
+            const histM = histMObj.values;
+            const histN = histNObj.values;
+            const histDates = histMObj.dates;
             // 合并 x：历史 + 预测；首月重叠时合并（fc 起始月常与历史末月相同）
             const overlap = (histXUniq.length > 0 && fcX.length > 0 && histXUniq[histXUniq.length - 1] === fcX[0]) ? 1 : 0;
             const fcPadLen = fcX.length - overlap;
             const combX = overlap ? histXUniq.concat(fcX.slice(1)) : histXUniq.concat(fcX);
+            const fcDates = fc.map(r => r.date);
+            const combDates = overlap ? histDates.concat(fcDates.slice(1)) : histDates.concat(fcDates);
             const lastHistN = histN[histN.length - 1];
             // M 仅历史；N 历史段
             const histMFull = histM.concat(new Array(fcPadLen).fill(null));
@@ -4302,7 +4326,7 @@
                     label:{formatter:r.published_at + ' 公告',fontSize:9,position:'insideEndTop',color:'#c0392b'}});
             }
             mk('presetChartMN').setOption({
-                tooltip:{trigger:'axis'},
+                tooltip:{trigger:'axis', formatter:p=>fmtTooltip(p, combDates, '（月末/季末）')},
                 legend:{data:['参考利率 M','预定利率 N(历史实线)','预测 N(基准·虚线)','监管公布值'], top:5},
                 grid:{left:55,right:20,top:40,bottom:40},
                 xAxis:{type:'category',data:combX,
