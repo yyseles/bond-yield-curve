@@ -692,6 +692,9 @@ def main():
         print(f"\n✅ 更新完成: 新增 {new_count} 条, 修正 {update_count} 条")
         print(f"   总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
 
+        # data.json 已更新，重新加载以保证下游步骤使用最新交易日历
+        existing = load_existing_data()
+
     # 维护 sub-1Y 短端文件（合并本次新抓 + 回填缺失）
     maintain_short_file(existing, short_new, verbose=True)
 
