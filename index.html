@@ -1366,8 +1366,8 @@
                     return obj;
                 } catch (e) { return undefined; }
             };
-            // 1) 浏览器缓存优先（内容未变则 304，几乎不下载、不重解析）
-            const a = await tryOne(url);
+            // 1) 条件请求优先（no-cache：内容未变则 304 零开销，变了才下载新数据）
+            const a = await tryOne(url, { cache: 'no-cache' });
             if (a) return a;
             // 2) 仅在空/损坏时绕过缓存重试（最多 3 次，轻微退避）
             for (let i = 0; i < 3; i++) {
