@@ -1083,9 +1083,9 @@
                     <div class="chart-box tall" id="anaStructChart"></div>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>期限利差（A − B）</span><span class="badge">bp</span></div>
+                    <div class="card-title"><span>收益率变动（A − B）</span><span class="badge">bp</span></div>
                     <div class="chart-box tall" id="anaStructSpreadChart"></div>
-                    <div class="footnote">各期限 A 日利率 − B 日利率（bp）；正值=走阔（A&gt;B），负值=收窄</div>
+                    <div class="footnote">各期限 A 日利率 − B 日利率（bp）；正值=上升（A&gt;B），负值=下降</div>
                 </div>
             </div>
 
@@ -4745,7 +4745,7 @@
                 xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
                 series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
             }, { replace: false });
-            // 各期限利差 A − B（bp），柱形图，正负分色
+            // 各期限收益率变动 A − B（bp），柱形图，正负分色
             const barData = s.terms.map((tm, i) => {
                 const a = s.rates[iA][i], b = s.rates[iB][i];
                 if (a == null || b == null) return { value: null };
@@ -4754,7 +4754,7 @@
             });
             drawAnaChart('anaStructSpreadChart', {
                 xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: 'bp', scale: true },
-                series: [{ name: 'A−B (bp)', type: 'bar', data: barData, barMaxWidth: 26 }],
+                series: [{ name: '收益率变动(bp)', type: 'bar', data: barData, barMaxWidth: 26 }],
                 tooltip: { trigger: 'axis' }, grid: { top: 24, bottom: 30, left: 48, right: 16 }
             }, { replace: false });
         }
