@@ -483,8 +483,6 @@
                 </span>
                 <div class="upload-area">
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
-                    <label for="fileUpload">📤 上传Excel</label>
-                    <input type="file" id="fileUpload" accept=".xlsx,.xls">
                     <span class="upload-status" id="uploadStatus">等待加载数据...</span>
                     <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
                     <button class="btn-reset" id="resetDataBtn">清空重置</button>
@@ -2683,23 +2681,36 @@
         // ================================================================
         // 下载导出
         // ================================================================
-        function downloadExcel() {
+        async function downloadExcel() {
             if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) {
-                alert('暂无数据可导出，请先同步或上传数据。');
+                alert('暂无数据可导出，请等待数据加载完成。');
                 return;
             }
-            // 生成带日期的 Excel
-            const headerRow = ['日期', ...allTerms];
-            const dataRows = dataStore.dates.map((d, i) => {
-                const rateRow = dataStore.rates[i];
-                return [d, ...allTerms.map(t => rateRow[t] != null ? rateRow[t].toFixed(4) : '')];
-            });
-            const allRows = [headerRow, ...dataRows];
-            const ws = XLSX.utils.aoa_to_sheet(allRows);
+            const statusEl = document.getElementById('uploadStatus');
+            const oldText = statusEl ? statusEl.textContent : '';
+            const oldColor = statusEl ? statusEl.style.color : '';
+            if (statusEl) { statusEl.textContent = '正在加载全部曲线...'; statusEl.style.color = '#f57c00'; }
+            try {
+                await ensureAnaData();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                if (statusEl) { statusEl.textContent = oldText; statusEl.style.color = oldColor; }
+            }
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '中债' + bondName() + '利率');
             const today = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, bondName() + `利率数据_${today}.xlsx`);
+            for (const type of ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm']) {
+                const s = anaStores[type];
+                if (!s || !s.dates || !s.dates.length) continue;
+                const headerRow = ['日期', ...s.terms];
+                const dataRows = s.dates.map((d, i) => {
+                    const rateRow = s.rates[i];
+                    return [d, ...s.terms.map((t, ti) => rateRow[ti] != null ? rateRow[ti].toFixed(4) : '')];
+                });
+                const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+                XLSX.utils.book_append_sheet(wb, ws, bondNames[type]);
+            }
+            XLSX.writeFile(wb, `利率曲线数据_四条曲线_${today}.xlsx`);
         }
 
         // ================================================================
@@ -3503,43 +3514,17 @@
 
             // 重置按钮
             document.getElementById('resetDataBtn').addEventListener('click', function() {
-                if (confirm('确定要清空所有数据吗？清空后可重新从服务器或文件加载。')) {
+                if (confirm('确定要清空所有数据吗？清空后将重新从服务器加载。')) {
                     clearDataStore();
                     dataStore = getDefaultData();
                     allTerms = [];
                     selectedDate = null;
                     forecastRefDate = null;
                     document.getElementById('latestDateLabel').textContent = '—';
-                    document.getElementById('uploadStatus').textContent = '数据已清空，请重新同步或上传';
+                    document.getElementById('uploadStatus').textContent = '数据已清空，请重新同步';
                     document.getElementById('uploadStatus').style.color = '#e65100';
                     renderEmptyState();
                 }
-            });
-
-            // 文件上传
-            document.getElementById('fileUpload').addEventListener('change', function(e) {
-                const file = this.files[0];
-                if (!file) return;
-                const statusEl = document.getElementById('uploadStatus');
-                statusEl.textContent = '处理中...';
-                statusEl.style.color = '#f57c00';
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    try {
-                        const arrayBuffer = ev.target.result;
-                        const parsed = parseExcelData(arrayBuffer);
-                        const replaceMode = confirm(
-                            `检测到 ${parsed.dates.length} 条新数据。\n\n是否清空所有旧数据，并用本次上传的新数据完全覆盖？\n\n选择"确定" → 完全替换\n选择"取消" → 追加/合并`
-                        );
-                        mergeUploadedData(parsed.dates, parsed.rates, replaceMode);
-                    } catch (err) {
-                        alert('解析失败: ' + err.message);
-                        statusEl.textContent = '解析失败';
-                        statusEl.style.color = '#c0392b';
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-                this.value = '';
             });
 
             // 导出按钮
@@ -4511,7 +4496,7 @@
             dataStore = getDefaultData();
             allTerms = [];
             selectedDate = null;
-            document.getElementById('uploadStatus').textContent = '暂无数据，请等待自动更新或上传文件';
+            document.getElementById('uploadStatus').textContent = '暂无数据，请等待自动更新';
             document.getElementById('uploadStatus').style.color = '#e65100';
             document.getElementById('latestDateLabel').textContent = '—';
             renderEmptyState();
@@ -4519,7 +4504,7 @@
 
         function renderEmptyState() {
             // 清空所有图表区域的显示，展示友好提示
-            const emptyHtml = '<div class="loading-overlay"><div class="spinner" style="border-color:#ddd;border-top-color:#ccc;animation:none;"></div><p>暂无数据</p><p style="font-size:12px;color:#999;">数据每日自动更新<br>或使用 <strong>📤 上传Excel</strong> 手动导入</p></div>';
+            const emptyHtml = '<div class="loading-overlay"><div class="spinner" style="border-color:#ddd;border-top-color:#ccc;animation:none;"></div><p>暂无数据</p><p style="font-size:12px;color:#999;">数据每日自动更新</p></div>';
             document.getElementById('metricsRow').innerHTML = '';
             document.getElementById('latestDateLabel').textContent = '—';
             // 清空图表
