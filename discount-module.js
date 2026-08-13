@@ -514,9 +514,23 @@
             return ends.reverse().slice(0, 120);
         }
 
-        // 对比日（默认上一交易日；用户可在对比图内选每月末）
+        // 取某日期上年末的最后一个交易日（默认对比日，与当前日差一年差异明显）
+        function getPrevYearEndTradingDay(gov, baseDate) {
+            if (!gov || !gov.dates || gov.dates.length === 0) return baseDate;
+            const baseYear = baseDate ? parseInt(baseDate.slice(0, 4)) : new Date().getUTCFullYear();
+            const lastYear = baseYear - 1;
+            let best = null;
+            for (const d of gov.dates) {
+                if (parseInt(d.slice(0, 4)) === lastYear) {
+                    if (!best || d > best) best = d;
+                }
+            }
+            return best || getPrevTradingDay(gov, baseDate);
+        }
+
+        // 对比日（默认上年末最后一个交易日；用户可在对比图内选每月末）
         function getEffectiveCompareDate(gov, baseDate) {
-            return discountCompareDate || getPrevTradingDay(gov, baseDate);
+            return discountCompareDate || getPrevYearEndTradingDay(gov, baseDate);
         }
 
         // 给定基准日（实际/预测）计算折现率曲线，供当前日与对比日共用
@@ -696,7 +710,7 @@
             const csel = document.getElementById('discountCompareDateSelect');
             if (csel) {
                 const me = getMonthEndDatesFromGov(gov);
-                const opts = ['<option value="">（上一交易日）</option>']
+                const opts = ['<option value="">（上年末）</option>']
                     .concat(me.map(d => `<option value="${d}" ${d === discountCompareDate ? 'selected' : ''}>${d}</option>`));
                 csel.innerHTML = opts.join('');
             }
@@ -788,7 +802,7 @@
             if (cmpBadge) {
                 const cmpDate = getEffectiveCompareDate(gov, d.latestDate);
                 const cfc = isForecastDate(gov, cmpDate);
-                cmpBadge.textContent = '对比日 ' + cmpDate + (discountCompareDate ? '' : '（上一交易日）') + (cfc ? '（预测）' : '') + ' ｜ 负债中档 · 利率上升/下降';
+                cmpBadge.textContent = '对比日 ' + cmpDate + (discountCompareDate ? '' : '（上年末最后一个交易日）') + (cfc ? '（预测）' : '') + ' ｜ 负债中档 · 利率上升/下降';
                 cmpBadge.classList.toggle('forecast', !!cfc);
             }
             // 切换汇总/输出标题的基准日标注
