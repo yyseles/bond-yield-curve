@@ -1,14 +1,14 @@
 {
- "generatedAt": "2026-08-17",
+ "generatedAt": "2026-08-24",
  "source": "中国货币网(chinamoney) 债券信息综合查询",
  "count": 176,
  "bonds": [
   {
    "bondDefinedCode": "afhec7ocsa",
    "issuer": "中国人民人寿保险股份有限公司",
-   "bondShort": "26人保寿险永续债",
+   "bondShort": "26人民人寿永续债01",
    "bondFull": "中国人民人寿保险股份有限公司2026年无固定期限资本债券",
-   "bondCode": "---",
+   "bondCode": "282680010",
    "bondType": "永续债",
    "industry": "寿险",
    "issueDate": "2026-08-18",
@@ -17,7 +17,7 @@
    "bondPeriod": "5+N年",
    "planAmnt": 100.0,
    "issueAmnt": 100.0,
-   "couponRate": null,
+   "couponRate": 1.88,
    "couponType": "附息式固定利率",
    "couponFrqncy": "年",
    "debtRating": "---",
