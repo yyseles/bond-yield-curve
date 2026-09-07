@@ -46,6 +46,42 @@
         function fmtRate(r) { return r == null ? '—' : (r.toFixed(2) + '%'); }
         function fmtAmnt(a) { return a == null ? '—' : (Math.round(a * 100) / 100).toFixed(1); }
 
+        function escHtml(v) {
+            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 顶部滚动播报：最新 5 条资本债发行（按发行日期降序）
+        function renderBondTicker() {
+            const track = document.getElementById('bondTickerTrack');
+            if (!track) return;
+            const list = allBonds()
+                .filter(b => b && b.issueDate)
+                .sort((a, b) => String(b.issueDate).localeCompare(String(a.issueDate)))
+                .slice(0, 5);
+            if (!list.length) {
+                track.style.animation = 'none';
+                track.innerHTML = '<span class="bond-ticker-empty">暂无发行记录</span>';
+                return;
+            }
+            const items = list.map(b => {
+                const amt = (b.issueAmnt == null) ? '—' : (Math.abs(b.issueAmnt - Math.round(b.issueAmnt)) < 1e-9 ? String(Math.round(b.issueAmnt)) : (Math.round(b.issueAmnt * 100) / 100).toFixed(1));
+                const coupon = (b.couponRate == null) ? '—' : (Number(b.couponRate).toFixed(2) + '%');
+                const rating = (b.ratingStr && b.ratingStr !== '---') ? b.ratingStr : '—';
+                const period = b.bondPeriod ? '（' + b.bondPeriod + '）' : '';
+                return '<span class="bond-ticker-item">'
+                    + '<span class="tk-date">' + escHtml(b.issueDate) + '</span>'
+                    + '<span class="tk-co">' + escHtml(b.issuer || '') + '</span>'
+                    + '<span>发行</span><span class="tk-amt">' + escHtml(amt) + '亿元</span>'
+                    + '<span>' + escHtml(b.bondType || '') + escHtml(period) + '</span>'
+                    + '<span>，票息</span><span class="tk-amt">' + escHtml(coupon) + '</span>'
+                    + '<span>，评级</span><span>' + escHtml(rating) + '</span>'
+                    + '</span><span class="bond-ticker-sep">│</span>';
+            }).join('');
+            track.style.animation = '';
+            track.style.animationDuration = (list.length * 9) + 's';
+            track.innerHTML = items + items; // 两份拼接实现无缝循环
+        }
+
         function renderBondsView() {
             const wrap = document.getElementById('viewBonds');
             if (!insBonds || !insBonds.bonds) {
@@ -61,6 +97,7 @@
             }, null);
             document.getElementById('bondRangeNote').textContent =
                 (rangeNote ? rangeNote + '　' : '') + `数据截至 ${insBonds.generatedAt || '—'}` + (minYear ? `（统计自${minYear}年起）` : '');
+            renderBondTicker();
             // 顶部汇总卡：受「汇总年份」筛选控制（默认全部）；公司×年表：全量
             const summaryRows = summaryYear === 'all' ? rows : rows.filter(b => (b.issueDate || '').slice(0, 4) === summaryYear);
             renderBondSummaryCards(summaryRows);
