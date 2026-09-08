@@ -379,15 +379,20 @@
 
         function downloadBondDetails() {
             if (!insBonds || !insBonds.bonds) return;
+            // 期限显示归一化: 资本补充债统一 "5+5年"(数据源两种写法: Excel"10年" / chinamoney"5+5年");
+            // 评级只留 "主体/债项" 一列(debtRating 是其斜杠后段的子集, 且列表接口常缺, 故删)。
+            const normPeriod = b => (b.bondType === '资本补充债' && (b.bondPeriod || '') === '10年')
+                ? '5+5年' : (b.bondPeriod || '');
             const cols = [
                 ['issuer', '发行人'], ['bondShort', '债券简称'], ['industry', '行业'],
-                ['bondType', '类型'], ['issueDate', '发行日'], ['bondPeriod', '期限'],
-                ['issueAmnt', '发行额(亿)'], ['couponRate', '票面利率%'], ['debtRating', '债项评级'],
-                ['status', '状态'], ['mrtyDate', '到期日'], ['valueDate', '起息日'], ['ratingStr', '主体/债项'],
+                ['bondType', '类型'], ['issueDate', '发行日'],
+                [normPeriod, '期限'],
+                ['issueAmnt', '发行额(亿)'], ['couponRate', '票面利率%'],
+                ['status', '状态'], ['mrtyDate', '到期日'], ['valueDate', '起息日'], ['ratingStr', '评级(主体/债项)'],
             ];
             const esc = v => { let s = (v == null ? '' : String(v)); if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"'; return s; };
             let csv = '﻿' + cols.map(c => esc(c[1])).join(',') + '\n';
-            insBonds.bonds.forEach(b => { csv += cols.map(c => esc(b[c[0]])).join(',') + '\n'; });
+            insBonds.bonds.forEach(b => { csv += cols.map(c => esc(typeof c[0] === 'function' ? c[0](b) : b[c[0]])).join(',') + '\n'; });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
