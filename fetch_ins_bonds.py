@@ -421,10 +421,40 @@ NOTICE_HEADERS = {
 }
 
 
+def _post_chinamoney(url, form, referer, tag="notices"):
+    """chinamoney /ags/ms 公告接口 POST。限流极严(实测单 IP 约 20 分钟只放行 1 个请求),
+    退避重试覆盖一个完整冷却周期; 仍失败返回 None(周频任务下轮再补)。"""
+    for wait in (0, 60, 300, 900):
+        if wait:
+            print(f"[{tag}] 被限流, 等待 {wait}s 后重试...", flush=True)
+            time.sleep(wait)
+        try:
+            r = requests.post(url, data=form,
+                              headers={**NOTICE_HEADERS, "referer": referer}, timeout=30)
+        except requests.RequestException as e:
+            sys.stderr.write(f"  [{tag}] warn 请求异常: {e}\n")
+            continue
+        if r.status_code == 200:
+            return r.json()
+    sys.stderr.write(f"  [{tag}] warn 接口持续限流, 本轮放弃\n")
+    return None
+
+
+def _to_redemption(records):
+    out = []
+    for rec in records:
+        title = (rec.get("title") or "").strip()
+        if rec.get("prefix") == "行权公告" and "赎回" in title:
+            out.append({"title": title, "date": rec.get("releaseDate") or "",
+                        "contentId": rec.get("contentId")})
+    return out
+
+
 def fetch_redemption_notices(days_back=None, sleep=1.0):
-    """拉取重大事项-行权公告(关键词'保险'), 返回赎回类公告列表。
+    """拉取重大事项-行权公告(关键词'保险'), 返回赎回类公告列表; 全程被限流返回 None。
     days_back=None -> 接口全窗口(约3年, 用于首次回填); 否则只看最近 N 天(周频增量)。"""
     records, page = [], 1
+    blocked = False
     while True:
         form = {
             "eventCode": "",
@@ -435,23 +465,10 @@ def fetch_redemption_notices(days_back=None, sleep=1.0):
             "startDate": (date.today() - timedelta(days=days_back)).isoformat() if days_back else "",
             "endDate": "",
         }
-        # 该接口限流极严: 实测单 IP 约 20 分钟只放行 1 个请求(其余 403),
-        # 退避重试覆盖一个完整冷却周期; 仍失败则本轮放弃(周频任务下轮再补)。
-        d = None
-        for wait in (0, 60, 300, 900):
-            if wait:
-                print(f"[notices] 被限流, 等待 {wait}s 后重试...", flush=True)
-                time.sleep(wait)
-            try:
-                r = requests.post(NOTICE_URL, data=form, headers=NOTICE_HEADERS, timeout=30)
-            except requests.RequestException as e:
-                sys.stderr.write(f"  [warn] notices 请求异常: {e}\n")
-                continue
-            if r.status_code == 200:
-                d = r.json()
-                break
+        d = _post_chinamoney(NOTICE_URL, form,
+                             "https://www.chinamoney.com.cn/chinese/zdsx/", tag="notices")
         if d is None:
-            sys.stderr.write("  [warn] 赎回公告接口持续限流, 本轮跳过(下轮再补)\n")
+            blocked = True
             break
         recs = d.get("records") or []
         records.extend(recs)
@@ -459,14 +476,8 @@ def fetch_redemption_notices(days_back=None, sleep=1.0):
         if not recs or len(records) >= total or page >= 60:
             break
         page += 1
-        time.sleep(1200)  # 翻页前强制冷却(限流约20分钟/请求); 周频任务总量<100条通常单页即可
-    out = []
-    for rec in records:
-        title = (rec.get("title") or "").strip()
-        if rec.get("prefix") == "行权公告" and "赎回" in title:
-            out.append({"title": title, "date": rec.get("releaseDate") or "",
-                        "contentId": rec.get("contentId")})
-    return out
+        time.sleep(1200)  # 翻页前强制冷却; 周频任务总量<100条通常单页即可
+    return _to_redemption(records), blocked
 
 
 def _title_bondname(title):
@@ -490,12 +501,28 @@ def _notice_new_status(title):
     return None
 
 
+def _match_notice_bond(bonds, title):
+    """公告标题 -> 债券记录候选。
+    强: 标题债名段(归一化) 与 bondFull(归一化) 相互包含;
+    弱: 发行人命中 + 标题年份 == 发行年份。
+    调用方须要求候选唯一(宁缺毋滥)。"""
+    tname = _title_bondname(title)
+    m_year = re.search(r"(20\d\d)", title)
+    year = m_year.group(1) if m_year else ""
+    strong, weak = [], []
+    for b in bonds:
+        if not any(tok and tok in title for tok in _issuer_tokens(b.get("issuer"))):
+            continue
+        nf = _norm_bondfull(b.get("bondFull"))
+        if nf and (nf in tname or tname.endswith(nf)):
+            strong.append(b)
+        elif year and (b.get("issueDate") or "")[:4] == year:
+            weak.append(b)
+    return strong if strong else weak
+
+
 def apply_notice_status(bonds, notices, verbose=True):
     """按公告标题更新 bonds 的 status(行使->已赎回 / 不行使->存续)。
-    匹配优先级:
-      强: 公告标题债券名段(归一化) 与 bondFull(归一化) 相互包含
-      弱: 发行人命中 + 标题年份 == 发行年份
-    候选不唯一(如同年多期且标题缺期数)时不动作, 宁缺毋滥。
     注: Excel(用户维护) 记录仅保护字段不被覆写, 官方赎回公告的状态判定必须生效
     (否则 Excel 来源的存续债永远等不到赎回状态)。返回 (changed, skipped)。"""
     changed, skipped = [], []
@@ -503,19 +530,7 @@ def apply_notice_status(bonds, notices, verbose=True):
         st = _notice_new_status(n["title"])
         if st is None:
             continue
-        tname = _title_bondname(n["title"])
-        m_year = re.search(r"(20\d\d)", n["title"])
-        year = m_year.group(1) if m_year else ""
-        strong, weak = [], []
-        for b in bonds:
-            if not any(tok and tok in n["title"] for tok in _issuer_tokens(b.get("issuer"))):
-                continue
-            nf = _norm_bondfull(b.get("bondFull"))
-            if nf and (nf in tname or tname.endswith(nf)):
-                strong.append(b)
-            elif year and (b.get("issueDate") or "")[:4] == year:
-                weak.append(b)
-        cands = strong if strong else weak
+        cands = _match_notice_bond(bonds, n["title"])
         if len(cands) != 1:
             skipped.append((n["title"][:44], f"{len(cands)}只候选" if cands else "无匹配债"))
             continue
@@ -530,10 +545,82 @@ def apply_notice_status(bonds, notices, verbose=True):
     return changed, skipped
 
 
+PAY_URL = "https://www.chinamoney.com.cn/ags/ms/cm-u-notice-issue/clinrAnNotice"
+
+
+def _to_payment(records):
+    out = []
+    for rec in records:
+        title = (rec.get("title") or "").strip()
+        if "付息" in title or "兑付" in title:
+            out.append({"title": title, "date": rec.get("releaseDate") or ""})
+    return out
+
+
+def fetch_payment_notices(days_back=21, sleep=1.0):
+    """付息兑付栏目公告(披露->债券信息披露->付息兑付)。
+    scnd=2001,2002 即该页选中的 资本补充债/无固定期限资本债券 两债种。
+    days_back=0 -> 全窗口(量大需翻页, 每页冷却20分钟, 慎用)。返回 (公告列表, 是否全程被限流)。"""
+    records, page, blocked = [], 1, False
+    start = (date.today() - timedelta(days=days_back)).isoformat() if days_back else ""
+    while True:
+        form = {"channelId": "2562", "bondSrno": "", "drftClAngl": "20",
+                "scnd": "2001,2002", "pageNo": str(page), "pageSize": "100",
+                "startDate": start, "endDate": "", "limit": "0", "timeln": "0"}
+        d = _post_chinamoney(PAY_URL, form,
+                             "https://www.chinamoney.com.cn/chinese/fxdflm/", tag="pay")
+        if d is None:
+            blocked = True
+            break
+        recs = d.get("records") or []
+        if page == 1 and not recs:
+            sys.stderr.write(f"  [pay] warn 空返回, 原始: {str(d)[:300]}\n")
+        records.extend(recs)
+        total = int((d.get("data") or {}).get("total") or 0)
+        if not recs or len(records) >= total or page >= 5:
+            break
+        page += 1
+        time.sleep(1200)
+    return _to_payment(records), blocked
+
+
+def apply_payment_status(bonds, notices, verbose=True):
+    """付息兑付公告状态信号: '兑付'公告 + 到期日已过 -> 已到期。
+    保守: 到期未到(疑提前兑付)/匹配不唯一/纯付息公告 均不改状态。"""
+    changed, skipped = [], []
+    today = date.today()
+    for n in notices:
+        title = n["title"]
+        if "兑付" not in title:
+            if verbose:
+                skipped.append((title[:44], "纯付息公告不改状态"))
+            continue
+        cands = _match_notice_bond(bonds, title)
+        if len(cands) != 1:
+            skipped.append((title[:44], f"{len(cands)}只候选" if cands else "无匹配债"))
+            continue
+        b = cands[0]
+        m = _norm_date(b.get("mrtyDate"))
+        if not m or m > today:
+            skipped.append((title[:44], f"到期日未到({b.get('mrtyDate') or '?'})疑提前兑付, 保守不动"))
+            continue
+        if b.get("status") != "已到期":
+            old = b.get("status")
+            b["status"] = "已到期"
+            changed.append(((b.get("bondShort") or b.get("bondFull") or "?")[:24],
+                            old, "已到期", f"{n['date']} {title[:40]}"))
+        elif verbose:
+            skipped.append((title[:44], "已是已到期"))
+    return changed, skipped
+
+
 def _sync_notices(seen_list, notice_days, sleep, verbose=True):
-    """抓赎回公告并应用到债券列表。notice_days=0 -> 全窗口回填。返回变更数。"""
+    """抓赎回公告并应用到债券列表。notice_days=0 -> 全窗口回填。
+    返回 (变更数, 是否成功拉到数据)。"""
     nd = notice_days or None
-    notices = fetch_redemption_notices(days_back=nd, sleep=sleep)
+    notices, blocked = fetch_redemption_notices(days_back=nd, sleep=sleep)
+    if notices is None:
+        return 0, False
     print(f"[notices] 赎回类行权公告 {len(notices)} 条 (窗口={'全量约3年' if nd is None else f'{nd}天'})",
           flush=True)
     changed, skipped = apply_notice_status(seen_list, notices, verbose=verbose)
@@ -542,7 +629,38 @@ def _sync_notices(seen_list, notice_days, sleep, verbose=True):
     for title, why in skipped:
         print(f"  [notice-skip] {title} ({why})", flush=True)
     print(f"[notices] 状态变更 {len(changed)} 条", flush=True)
-    return len(changed)
+    return len(changed), not blocked or bool(notices)
+
+
+def _sync_payments(seen_list, pay_days, sleep, verbose=True):
+    """抓付息兑付公告并应用(兑付+到期已过->已到期)。返回 (变更数, 是否成功拉到数据)。"""
+    notices, blocked = fetch_payment_notices(days_back=pay_days, sleep=sleep)
+    if notices is None:
+        return 0, False
+    print(f"[pay] 付息兑付公告 {len(notices)} 条 (窗口={pay_days}天)", flush=True)
+    changed, skipped = apply_payment_status(seen_list, notices, verbose=verbose)
+    for short, old, new, why in changed:
+        print(f"  [pay-upd] {short:<24} {old} -> {new} | {why}", flush=True)
+    for title, why in skipped:
+        print(f"  [pay-skip] {title} ({why})", flush=True)
+    print(f"[pay] 状态变更 {len(changed)} 条", flush=True)
+    return len(changed), not blocked or bool(notices)
+
+
+def _run_notice_syncs(seen_list, args):
+    """两个公告栏目一次性同步: 重大事项-行使公告(赎回状态) + 付息兑付(到期确认)。
+    两接口共用 IP 限流额度(约20分钟1请求): 第一个成功后冷却再打第二个;
+    第一个被限流则小歇后仍尝试第二个(自带退避)。任何失败不抛出, 不影响主流程。"""
+    ok1 = False
+    try:
+        _, ok1 = _sync_notices(seen_list, args.notice_days, args.sleep)
+    except Exception as e:  # noqa
+        sys.stderr.write(f"  [warn] 赎回公告同步失败(不影响后续): {e}\n")
+    time.sleep(1200 if ok1 else 60)
+    try:
+        _sync_payments(seen_list, args.pay_days, args.sleep)
+    except Exception as e:  # noqa
+        sys.stderr.write(f"  [warn] 付息兑付同步失败(不影响后续): {e}\n")
 
 
 def main():
@@ -554,10 +672,12 @@ def main():
     ap.add_argument("--dedup-only", action="store_true",
                     help="不抓取, 仅对已有 ins_bonds.json 跑稳健去重并重写(用于清历史重复)")
     ap.add_argument("--notices-only", action="store_true",
-                    help="不抓行情, 仅抓赎回公告(重大事项-行权公告)并按行使/不行使更新状态")
+                    help="不抓行情, 仅抓 赎回公告+付息兑付公告 并更新状态")
     ap.add_argument("--notice-days", type=int, default=0,
                     help="赎回公告回看天数; 0=接口全窗口(约3年, 总量<100条单页即拉全)。默认0")
-    ap.add_argument("--no-notices", action="store_true", help="跳过赎回公告状态同步")
+    ap.add_argument("--pay-days", type=int, default=30,
+                    help="付息兑付公告回看天数(窗口大需翻页, 每页冷却20分钟)。默认30天")
+    ap.add_argument("--no-notices", action="store_true", help="跳过赎回公告+付息兑付状态同步")
     args = ap.parse_args()
 
     # ---- 仅赎回公告模式: 载入已有 json, 抓公告更新状态后写回 ----
@@ -567,7 +687,7 @@ def main():
             return
         prev = json.load(open(DATA_FILE, encoding="utf-8"))
         seen_list = dedup_bonds(prev.get("bonds", []))
-        _sync_notices(seen_list, args.notice_days, args.sleep)
+        _run_notice_syncs(seen_list, args)
         bonds = dedup_bonds(seen_list)
         bonds.sort(key=lambda r: r.get("issueDate") or "", reverse=True)
         prev["bonds"] = bonds
@@ -609,13 +729,10 @@ def main():
         except Exception as e:  # noqa
             sys.stderr.write(f"  [warn] load prev fail: {e}\n")
 
-    # 赎回公告状态同步放在重度抓取之前: 公告接口限流严格,
-    # 先用干净 IP 完成(仅1~8个请求), 再慢慢爬新债列表。
+    # 公告状态同步放在重度抓取之前: 公告接口限流极严(约20分钟1请求),
+    # 先用干净 IP 完成(行使公告+付息兑付各~1个请求, 中间冷却20分钟), 再慢慢爬新债列表。
     if not args.no_notices:
-        try:
-            _sync_notices(seen_list, args.notice_days, args.sleep)
-        except Exception as e:  # noqa
-            sys.stderr.write(f"  [warn] 赎回公告同步失败(不影响新债抓取): {e}\n")
+        _run_notice_syncs(seen_list, args)
 
     for bt in types:
         print(f"[info] 类型={bt}", flush=True)
