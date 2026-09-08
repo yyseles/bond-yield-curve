@@ -585,12 +585,31 @@ def fetch_payment_notices(days_back=21, sleep=1.0):
 
 
 def apply_payment_status(bonds, notices, verbose=True):
-    """付息兑付公告状态信号: '兑付'公告 + 到期日已过 -> 已到期。
+    """付息兑付公告状态信号:
+    1) 含赎回行使语义(如'付息及赎回选择权行使情况公告') -> 复用赎回状态判定(行使->已赎回/不行使->存续);
+    2) '兑付'公告 + 到期日已过 -> 已到期。
     保守: 到期未到(疑提前兑付)/匹配不唯一/纯付息公告 均不改状态。"""
     changed, skipped = [], []
     today = date.today()
     for n in notices:
         title = n["title"]
+        # 付息兑付栏目也混有'赎回选择权行使情况公告'类标题(实测存在), 优先按赎回语义判定
+        if "赎回" in title:
+            st = _notice_new_status(title)
+            if st is not None:
+                cands = _match_notice_bond(bonds, title)
+                if len(cands) != 1:
+                    skipped.append((title[:44], f"赎回语义{len(cands)}只候选" if cands else "赎回语义无匹配债"))
+                    continue
+                b = cands[0]
+                if b.get("status") != st:
+                    old = b.get("status")
+                    b["status"] = st
+                    changed.append(((b.get("bondShort") or b.get("bondFull") or "?")[:24],
+                                    old, st, f"{n['date']} {title[:40]}"))
+                elif verbose:
+                    skipped.append((title[:44], f"已是{st}"))
+                continue
         if "兑付" not in title:
             if verbose:
                 skipped.append((title[:44], "纯付息公告不改状态"))
