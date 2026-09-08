@@ -795,7 +795,9 @@
             const refTxt = (isForecast && d._ref) ? ' ｜ 平推基准 ' + d._ref : '';
             const basisTxt = discountRule === 'c2_new'
                 ? '国债即期当日 · Smith-Wilson'
-                : '负债=MA750 · 利率=MA60';
+                : discountRule === 'alm'
+                    ? '国债即期当日 · 固定溢价 70/45/30bp'
+                    : '负债=MA750 · 利率=MA60';
             document.getElementById('discountSummaryBadge').textContent =
                 '基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt + ' ｜ ' + basisTxt;
             const cmpBadge = document.getElementById('discountCompareBadge');
