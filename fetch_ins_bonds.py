@@ -492,10 +492,13 @@ def _title_bondname(title):
 
 
 def _notice_new_status(title):
-    """按标题判定公告含义: 不行使->存续 / 行使->已赎回 / 其他->None。"""
-    if "不行使" in title or "不予行使" in title or ("放弃" in title and "赎回" in title):
+    """按标题判定公告含义: 不行使->存续 / 行使->已赎回 / 其他->None。
+    注: 中债登公告存在错别字"行驶"(如'阳光人寿2016年资本补充债券赎回选择权行驶公告'),
+    须与"行使"同等对待。"""
+    t = str(title or "")
+    if "不行使" in t or "不予行使" in t or "不行权" in t or ("放弃" in t and "赎回" in t):
         return "存续"
-    if "行使" in title:
+    if "行使" in t or "行驶" in t or "行权" in t:
         return "已赎回"
     return None
 

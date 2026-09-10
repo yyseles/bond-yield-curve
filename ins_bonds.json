@@ -2439,7 +2439,7 @@
    "ratingStr": "AA+/AA",
    "exerciseFlag": "否",
    "callDate": "2026-08-24",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {
@@ -2463,7 +2463,7 @@
    "ratingStr": "AAA/AA+",
    "exerciseFlag": "否",
    "callDate": "2026-08-10",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {
@@ -2487,7 +2487,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "否",
    "callDate": "2026-07-29",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {
@@ -2535,7 +2535,7 @@
    "ratingStr": "AAA/AA+",
    "exerciseFlag": "否",
    "callDate": "2026-06-28",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {
@@ -3748,7 +3748,7 @@
    "industry": "寿险",
    "issueDate": "2017-09-12",
    "valueDate": "2017-09-14",
-   "mrtyDate": "2022-09-14",
+   "mrtyDate": "2027-09-12",
    "bondPeriod": "5+5年",
    "planAmnt": 35.0,
    "issueAmnt": 35.0,
@@ -3759,7 +3759,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2022-09-14",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000084994",
@@ -3794,7 +3794,7 @@
    "industry": "产险",
    "issueDate": "2016-11-21",
    "valueDate": "2016-11-23",
-   "mrtyDate": "2021-11-23",
+   "mrtyDate": "2026-11-21",
    "bondPeriod": "5+5年",
    "planAmnt": 150.0,
    "issueAmnt": 150.0,
@@ -3805,7 +3805,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2021-11-23",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000083190",
@@ -3817,7 +3817,7 @@
    "industry": "产险",
    "issueDate": "2016-11-11",
    "valueDate": "2016-11-15",
-   "mrtyDate": "2021-11-15",
+   "mrtyDate": "2026-11-11",
    "bondPeriod": "5+5年",
    "planAmnt": 60.0,
    "issueAmnt": 60.0,
@@ -3828,7 +3828,7 @@
    "ratingStr": "AA+/AAA",
    "exerciseFlag": "是",
    "callDate": "2021-11-15",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000078983",
@@ -3840,7 +3840,7 @@
    "industry": "寿险",
    "issueDate": "2016-09-26",
    "valueDate": "2016-09-27",
-   "mrtyDate": "2021-09-27",
+   "mrtyDate": "2026-09-26",
    "bondPeriod": "5+5年",
    "planAmnt": 60.0,
    "issueAmnt": 60.0,
@@ -3851,7 +3851,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2021-09-27",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000076271",
@@ -3863,7 +3863,7 @@
    "industry": "产险",
    "issueDate": "2016-08-19",
    "valueDate": "2016-08-22",
-   "mrtyDate": "2021-08-22",
+   "mrtyDate": "2026-08-19",
    "bondPeriod": "5+5年",
    "planAmnt": 30.0,
    "issueAmnt": 30.0,
@@ -3874,7 +3874,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2021-08-22",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000068214",
@@ -3897,7 +3897,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "5924723001",
@@ -3909,7 +3909,7 @@
    "industry": "寿险",
    "issueDate": "2016-03-28",
    "valueDate": "2016-03-30",
-   "mrtyDate": "2021-03-30",
+   "mrtyDate": "2026-03-28",
    "bondPeriod": "5+5年",
    "planAmnt": 35.0,
    "issueAmnt": 35.0,
@@ -3920,7 +3920,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2021-03-30",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "5449423012",
@@ -3932,7 +3932,7 @@
    "industry": "寿险",
    "issueDate": "2015-12-29",
    "valueDate": "2015-12-30",
-   "mrtyDate": "2020-12-30",
+   "mrtyDate": "2025-12-29",
    "bondPeriod": "5+5年",
    "planAmnt": 5.0,
    "issueAmnt": 5.0,
@@ -3943,7 +3943,7 @@
    "ratingStr": "AA-/---",
    "exerciseFlag": "是",
    "callDate": "2020-12-30",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000061835",
@@ -3966,7 +3966,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "5437123010",
@@ -4024,7 +4024,7 @@
    "industry": "寿险",
    "issueDate": "2015-12-25",
    "valueDate": "2015-12-29",
-   "mrtyDate": "2020-12-29",
+   "mrtyDate": "2025-12-25",
    "bondPeriod": "5+5年",
    "planAmnt": 150.0,
    "issueAmnt": 150.0,
@@ -4047,7 +4047,7 @@
    "industry": "寿险",
    "issueDate": "2015-12-17",
    "valueDate": "2015-12-18",
-   "mrtyDate": "2020-12-18",
+   "mrtyDate": "2025-12-17",
    "bondPeriod": "5+5年",
    "planAmnt": 15.0,
    "issueAmnt": 15.0,
@@ -4058,7 +4058,7 @@
    "ratingStr": "AA-/---",
    "exerciseFlag": "是",
    "callDate": "2020-12-18",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000059685",
@@ -4070,7 +4070,7 @@
    "industry": "寿险",
    "issueDate": "2015-11-17",
    "valueDate": "2015-11-18",
-   "mrtyDate": "2020-11-18",
+   "mrtyDate": "2025-11-17",
    "bondPeriod": "5+5年",
    "planAmnt": 18.0,
    "issueAmnt": 18.0,
@@ -4081,7 +4081,7 @@
    "ratingStr": "AA-/---",
    "exerciseFlag": "是",
    "callDate": "2020-11-18",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "5040023004",
@@ -4116,7 +4116,7 @@
    "industry": "寿险",
    "issueDate": "2015-09-29",
    "valueDate": "2015-09-30",
-   "mrtyDate": "2020-09-30",
+   "mrtyDate": "2025-09-29",
    "bondPeriod": "5+5年",
    "planAmnt": 25.0,
    "issueAmnt": 25.0,
@@ -4127,7 +4127,7 @@
    "ratingStr": "AA-/---",
    "exerciseFlag": "是",
    "callDate": "2020-09-30",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "4985823003",
@@ -4139,7 +4139,7 @@
    "industry": "寿险",
    "issueDate": "2015-09-18",
    "valueDate": "2015-09-22",
-   "mrtyDate": "2020-09-22",
+   "mrtyDate": "2025-09-18",
    "bondPeriod": "5+5年",
    "planAmnt": 80.0,
    "issueAmnt": 80.0,
@@ -4150,7 +4150,7 @@
    "ratingStr": "AA/---",
    "exerciseFlag": "是",
    "callDate": "2020-09-22",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000057019",
@@ -4162,7 +4162,7 @@
    "industry": "集团",
    "issueDate": "2015-09-15",
    "valueDate": "2015-09-17",
-   "mrtyDate": "2020-09-17",
+   "mrtyDate": "2025-09-15",
    "bondPeriod": "5+5年",
    "planAmnt": 80.0,
    "issueAmnt": 80.0,
@@ -4173,7 +4173,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2020-09-17",
-   "status": "已到期"
+   "status": "已赎回"
   },
   {
    "bondDefinedCode": "1000054994",
@@ -4185,7 +4185,7 @@
    "industry": "产险",
    "issueDate": "2015-07-27",
    "valueDate": "2015-07-28",
-   "mrtyDate": "2020-07-28",
+   "mrtyDate": "2025-07-27",
    "bondPeriod": "5+5年",
    "planAmnt": 50.0,
    "issueAmnt": 50.0,
@@ -4196,7 +4196,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "是",
    "callDate": "2020-07-28",
-   "status": "已到期"
+   "status": "已赎回"
   }
  ]
 }
