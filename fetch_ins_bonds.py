@@ -134,13 +134,12 @@ def _maybe_update_status_from_detail(rec, info):
     返回 ("updated", 新status) / ("kept", 旧status) / ("skipped", 原因)。
 
     严格保护:
-      - rec["source"] == "Excel(用户维护)"  永不动(用户手录最高优先级)
       - detail 接口的 dlstngDate / note 缺失或为 "---" 不动
+    注: Excel(用户维护) 仅保护"字段"不被覆写; 摘牌日/官方备注是权威状态信号必须生效,
+        否则 Excel 来源的老债(存量主体)永远等不到 已赎回/已到期。
     """
     if not info or not isinstance(info, dict):
         return ("skipped", "no-info")
-    if rec.get("source") == "Excel(用户维护)":
-        return ("skipped", "excel-source")
     today = date.today()
     dlstng = _norm_date(info.get("dlstngDate"))
     note = (info.get("note") or "").strip()

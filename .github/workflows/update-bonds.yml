@@ -23,6 +23,7 @@ on:
           - all      # 公告同步 + 新债全量抓取(约1小时)
           - notices  # 仅公告同步(约25分钟, 含栏目间20分钟冷却)
           - bonds    # 仅新债抓取(约30分钟, 跳过公告)
+          - probe    # 仅连通性自检(约1分钟, 诊断各端点是否可达)
 
 permissions:
   contents: write
@@ -45,13 +46,20 @@ jobs:
       - name: 安装依赖
         run: pip install requests openpyxl akshare
 
+      - name: 连通性自检（mode=probe）
+        if: github.event.inputs.mode == 'probe'
+        continue-on-error: true
+        run: |
+          python probe_chinamoney.py
+          cat connectivity_report.json
+
       - name: 仅公告同步（mode=notices）
         if: github.event.inputs.mode == 'notices'
         continue-on-error: true
         run: python fetch_ins_bonds.py --notices-only
 
       - name: 新债全量抓取（mode=all / bonds）
-        if: github.event.inputs.mode != 'notices'
+        if: github.event.inputs.mode != 'notices' && github.event.inputs.mode != 'probe'
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.mode }}" = "bonds" ]; then
@@ -101,7 +109,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ins_bonds.json notice_sync_report.json
+          git add ins_bonds.json notice_sync_report.json connectivity_report.json
           if git diff --cached --quiet; then
             echo "ins_bonds.json 无变化，跳过提交"
           else
