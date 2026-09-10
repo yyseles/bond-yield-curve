@@ -1,0 +1,25 @@
+{
+ "runAt": "2026-09-10T13:14:55",
+ "statusBefore": {
+  "存续": 113,
+  "已赎回": 44,
+  "已到期": 19
+ },
+ "notices": {
+  "count": 0,
+  "blocked": true,
+  "changed": [],
+  "skipped": []
+ },
+ "payments": {
+  "count": 0,
+  "blocked": true,
+  "changed": [],
+  "skipped": []
+ },
+ "statusAfter": {
+  "存续": 113,
+  "已赎回": 44,
+  "已到期": 19
+ }
+}
