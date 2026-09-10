@@ -635,11 +635,14 @@ def apply_payment_status(bonds, notices, verbose=True):
 
 def _sync_notices(seen_list, notice_days, sleep, verbose=True):
     """抓赎回公告并应用到债券列表。notice_days=0 -> 全窗口回填。
-    返回 (变更数, 是否成功拉到数据)。"""
+    返回报告 dict: {count, blocked, changed, skipped}。"""
     nd = notice_days or None
+    rep = {"count": 0, "blocked": True, "changed": [], "skipped": []}
     notices, blocked = fetch_redemption_notices(days_back=nd, sleep=sleep)
     if notices is None:
-        return 0, False
+        sys.stderr.write("  [warn] 赎回公告接口持续限流, 本轮未取到数据\n")
+        return rep
+    rep["count"], rep["blocked"] = len(notices), blocked
     print(f"[notices] 赎回类行权公告 {len(notices)} 条 (窗口={'全量约3年' if nd is None else f'{nd}天'})",
           flush=True)
     changed, skipped = apply_notice_status(seen_list, notices, verbose=verbose)
@@ -648,14 +651,19 @@ def _sync_notices(seen_list, notice_days, sleep, verbose=True):
     for title, why in skipped:
         print(f"  [notice-skip] {title} ({why})", flush=True)
     print(f"[notices] 状态变更 {len(changed)} 条", flush=True)
-    return len(changed), not blocked or bool(notices)
+    rep["changed"] = [list(c) for c in changed]
+    rep["skipped"] = [list(s) for s in skipped]
+    return rep
 
 
 def _sync_payments(seen_list, pay_days, sleep, verbose=True):
-    """抓付息兑付公告并应用(兑付+到期已过->已到期)。返回 (变更数, 是否成功拉到数据)。"""
+    """抓付息兑付公告并应用(兑付+到期已过->已到期)。返回报告 dict。"""
+    rep = {"count": 0, "blocked": True, "changed": [], "skipped": []}
     notices, blocked = fetch_payment_notices(days_back=pay_days, sleep=sleep)
     if notices is None:
-        return 0, False
+        sys.stderr.write("  [warn] 付息兑付接口持续限流, 本轮未取到数据\n")
+        return rep
+    rep["count"], rep["blocked"] = len(notices), blocked
     print(f"[pay] 付息兑付公告 {len(notices)} 条 (窗口={pay_days}天)", flush=True)
     changed, skipped = apply_payment_status(seen_list, notices, verbose=verbose)
     for short, old, new, why in changed:
@@ -663,23 +671,54 @@ def _sync_payments(seen_list, pay_days, sleep, verbose=True):
     for title, why in skipped:
         print(f"  [pay-skip] {title} ({why})", flush=True)
     print(f"[pay] 状态变更 {len(changed)} 条", flush=True)
-    return len(changed), not blocked or bool(notices)
+    rep["changed"] = [list(c) for c in changed]
+    rep["skipped"] = [list(s) for s in skipped]
+    return rep
+
+
+REPORT_FILE = "notice_sync_report.json"
+
+
+def _write_report(rep):
+    """把公告同步结果落盘, 便于 CI 跑完后直接从仓库读取诊断(限流/匹配失败一目了然)。"""
+    try:
+        with open(REPORT_FILE, "w", encoding="utf-8") as f:
+            json.dump(rep, f, ensure_ascii=False, indent=1)
+        print(f"[report] 已写出 {REPORT_FILE}", flush=True)
+    except Exception as e:  # noqa
+        sys.stderr.write(f"  [warn] 报告写出失败: {e}\n")
 
 
 def _run_notice_syncs(seen_list, args):
     """两个公告栏目一次性同步: 重大事项-行使公告(赎回状态) + 付息兑付(到期确认)。
     两接口共用 IP 限流额度(约20分钟1请求): 第一个成功后冷却再打第二个;
-    第一个被限流则小歇后仍尝试第二个(自带退避)。任何失败不抛出, 不影响主流程。"""
+    第一个被限流则小歇后仍尝试第二个(自带退避)。任何失败不抛出, 不影响主流程。
+    返回报告 dict, 并落盘 notice_sync_report.json。"""
+    from collections import Counter
+    rep = {
+        "runAt": datetime.now().isoformat(timespec="seconds"),
+        "statusBefore": dict(Counter(b.get("status") for b in seen_list)),
+        "notices": {"count": 0, "blocked": True, "changed": [], "skipped": []},
+        "payments": {"count": 0, "blocked": True, "changed": [], "skipped": []},
+    }
     ok1 = False
     try:
-        _, ok1 = _sync_notices(seen_list, args.notice_days, args.sleep)
+        r1 = _sync_notices(seen_list, args.notice_days, args.sleep)
+        rep["notices"] = r1
+        ok1 = not r1["blocked"]
     except Exception as e:  # noqa
         sys.stderr.write(f"  [warn] 赎回公告同步失败(不影响后续): {e}\n")
-    time.sleep(1200 if ok1 else 60)
+        rep["notices"]["error"] = str(e)
+    if not args.notices_skip_cool:
+        time.sleep(1200 if ok1 else 60)
     try:
-        _sync_payments(seen_list, args.pay_days, args.sleep)
+        rep["payments"] = _sync_payments(seen_list, args.pay_days, args.sleep)
     except Exception as e:  # noqa
         sys.stderr.write(f"  [warn] 付息兑付同步失败(不影响后续): {e}\n")
+        rep["payments"]["error"] = str(e)
+    rep["statusAfter"] = dict(Counter(b.get("status") for b in seen_list))
+    _write_report(rep)
+    return rep
 
 
 def main():
@@ -697,6 +736,8 @@ def main():
     ap.add_argument("--pay-days", type=int, default=30,
                     help="付息兑付公告回看天数(窗口大需翻页, 每页冷却20分钟)。默认30天")
     ap.add_argument("--no-notices", action="store_true", help="跳过赎回公告+付息兑付状态同步")
+    ap.add_argument("--notices-skip-cool", action="store_true",
+                    help="跳过两个公告栏目之间的20分钟冷却(调试用, 有被限流风险)")
     args = ap.parse_args()
 
     # ---- 仅赎回公告模式: 载入已有 json, 抓公告更新状态后写回 ----

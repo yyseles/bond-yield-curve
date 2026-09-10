@@ -13,6 +13,16 @@ on:
     # 北京时间每周一 19:00 (UTC 11:00)
     - cron: '0 11 * * 1'
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      mode:
+        description: '运行模式'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all      # 公告同步 + 新债全量抓取(约1小时)
+          - notices  # 仅公告同步(约25分钟, 含栏目间20分钟冷却)
+          - bonds    # 仅新债抓取(约30分钟, 跳过公告)
 
 permissions:
   contents: write
@@ -35,9 +45,20 @@ jobs:
       - name: 安装依赖
         run: pip install requests openpyxl akshare
 
-      - name: 抓取保险公司资本补充债/永续债（全量两种类型，增量合并）
+      - name: 仅公告同步（mode=notices）
+        if: github.event.inputs.mode == 'notices'
         continue-on-error: true
-        run: python fetch_ins_bonds.py
+        run: python fetch_ins_bonds.py --notices-only
+
+      - name: 新债全量抓取（mode=all / bonds）
+        if: github.event.inputs.mode != 'notices'
+        continue-on-error: true
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "bonds" ]; then
+            python fetch_ins_bonds.py --no-notices
+          else
+            python fetch_ins_bonds.py
+          fi
 
       - name: 校验 ins_bonds.json
         continue-on-error: true
@@ -55,12 +76,32 @@ jobs:
             exit 1
           fi
 
+      - name: 输出公告同步报告（诊断用）
+        continue-on-error: true
+        run: |
+          if [ -f "notice_sync_report.json" ]; then
+            python -c "
+          import json
+          r=json.load(open('notice_sync_report.json'))
+          print('runAt:', r.get('runAt'))
+          print('变更前:', r.get('statusBefore'))
+          print('变更后:', r.get('statusAfter'))
+          for k in ('notices','payments'):
+              s=r.get(k,{})
+              print(f\"[{k}] 公告数={s.get('count')} 被限流={s.get('blocked')} 变更={len(s.get('changed',[]))} 跳过={len(s.get('skipped',[]))}\")
+              for c in s.get('changed',[]): print('   CHG', c)
+              for t in (s.get('skipped') or [])[:15]: print('   SKIP', t)
+          "
+          else
+            echo "无 notice_sync_report.json（本轮未跑公告同步）"
+          fi
+
       - name: 提交并推送更新
         continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ins_bonds.json
+          git add ins_bonds.json notice_sync_report.json
           if git diff --cached --quiet; then
             echo "ins_bonds.json 无变化，跳过提交"
           else
