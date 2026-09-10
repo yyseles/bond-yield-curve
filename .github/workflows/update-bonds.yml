@@ -5,9 +5,12 @@ name: 每周更新保险公司资本补充债/永续债数据
 #   标题标准写明"赎回选择权行使/不行使" -> 已赎回/存续, 是赎回状态的权威依据; 免登录、无限流、约1分钟跑完。
 #   脚本: fix_status_from_chinabond.py (同时修正 5+5年 债 mrtyDate 被错写成第5年的历史错误)
 #
-# 【新债抓取(次, 仅 mode=bonds/all 手动触发)】chinamoney /ags/ms 接口
-#   2026-09-10 起 chinamoney 对 GitHub Actions 数据中心 IP 全站 403(含新债列表/公告),
-#   本机 IP 同样被封。该路已失效, 默认不再随定时任务执行, 保留代码待恢复或换源。
+# 【新债抓取-上清所(每周固定)】金融债券交易流通要素公告栏目(静态HTML, 覆盖2023-11至今)
+#   限流敏感: 高频访问会被软封禁(404), 脚本内置 2.5s 间隔+重试退避, 失败不阻塞主流程。
+#   脚本: fetch_shc_newbonds.py (--backfill 一次性回溯全部67页验证历史完整性)
+#
+# 【新债抓取-货币网(探测)】chinamoney 2026-09-10 起对 CI IP 全站 403;
+#   每轮跑 probe_chinamoney.py 单次探测(不重试), 恢复后再手动 mode=bonds 全量抓。
 on:
   schedule:
     # 北京时间每周一 19:00 (UTC 11:00)
@@ -20,10 +23,11 @@ on:
         default: 'all'
         type: choice
         options:
-          - all      # 中债登状态同步 + 新债全量抓取(视 chinamoney 是否恢复, 约30分钟)
-          - notices  # 仅中债登状态同步(约1分钟; 定时任务的默认行为)
-          - bonds    # 中债登状态同步 + 新债抓取
-          - probe    # 仅连通性自检(约1分钟, 诊断各端点是否可达)
+          - all        # 状态同步 + 上清所新债增量 + 货币网探测 + chinamoney全量尝试
+          - notices    # 仅中债登状态同步(约1分钟)
+          - bonds      # 状态同步 + 上清所新债增量 + 货币网探测
+          - backfill   # 状态同步 + 上清所全历史回溯(一次性, 约8分钟)
+          - probe      # 仅连通性自检(约1分钟, 诊断各端点是否可达)
 
 permissions:
   contents: write
@@ -57,6 +61,46 @@ jobs:
         if: github.event.inputs.mode != 'probe'
         continue-on-error: true
         run: python fix_status_from_chinabond.py
+
+      - name: 上清所新债增量抓取（每周固定, 限流敏感已内置节奏控制）
+        if: github.event.inputs.mode != 'probe' && github.event.inputs.mode != 'notices'
+        continue-on-error: true
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "backfill" ]; then
+            python fetch_shc_newbonds.py --backfill
+          else
+            python fetch_shc_newbonds.py
+          fi
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: 上清所新债报告
+        if: github.event.inputs.mode != 'probe' && github.event.inputs.mode != 'notices'
+        continue-on-error: true
+        run: |
+          if [ -f "_shc_report.json" ]; then
+            python -c "
+          import json
+          r=json.load(open('_shc_report.json'))
+          print('runAt:', r.get('runAt'), '| mode:', r.get('mode'))
+          print('翻页数:', r.get('pagesFetched'), '| 公告总数:', r.get('itemsTotal'), '| 保险类:', r.get('insFound'), '| 被限流:', r.get('blocked'))
+          for b in r.get('newBonds', []): print('  新债:', b)
+          for e in (r.get('errors') or [])[:10]: print('  ERR:', e)
+          "
+          fi
+
+      - name: 货币网连通性探测（单次, 检查是否解除封禁）
+        if: github.event.inputs.mode != 'probe' && github.event.inputs.mode != 'backfill'
+        continue-on-error: true
+        run: |
+          python probe_chinamoney.py
+          python -c "
+          import json
+          r=json.load(open('connectivity_report.json'))
+          ok=[x for x in r['results'] if x['http']==200]
+          print('货币网可用端点: %d/%d' % (len(ok), len(r['results'])))
+          for x in r['results']: print(' ', x['name'], '->', x['http'])
+          "
 
       - name: 新债全量抓取（仅 mode=all / bonds 手动触发; chinamoney 目前对 CI IP 403）
         if: github.event.inputs.mode == 'all' || github.event.inputs.mode == 'bonds'
@@ -109,7 +153,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ins_bonds.json notice_sync_report.json connectivity_report.json
+          git add ins_bonds.json notice_sync_report.json connectivity_report.json _shc_report.json
           if git diff --cached --quiet; then
             echo "ins_bonds.json 无变化，跳过提交"
           else
