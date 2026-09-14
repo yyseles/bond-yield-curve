@@ -193,6 +193,7 @@ def main():
     # 2. 过滤保险类公告
     ins = [it for it in items if INS_PAT.search(it["title"])]
     report["insFound"] = len(ins)
+    report["insTitles"] = [f"{it['pubdate']} {it['title'][:70]}" for it in ins]
 
     # 3. 与现有库比对：保险类公告全量进详情页确认代码后再判重（每周约5条保险公告，量小）
     todo = ins[:80 if args.backfill else 10]

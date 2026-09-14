@@ -237,7 +237,9 @@ DATA_SOURCES = [
     # 其值正确性由每月25日「预定利率追踪数据月检更新」自动化负责校验。
     {"file": "data_lpr5y.json",               "kind": "dates_last",  "freq": "monthly", "max_lag_days": 40, "commit": False, "static": True},
     {"file": "data_deposit5y.json",           "kind": "dates_last",  "freq": "monthly", "max_lag_days": 40, "commit": False, "static": True},
-    {"file": "data_regulator_n.json",         "kind": "records_last","freq": "monthly", "max_lag_days": 40, "commit": False},
+    # 监管研究值为「季度」公布（金寿险函〔2025〕10号）：阈值 100 天（≈一季度+公布滞后余量）。
+    # 原 40 天阈值会导致每季度后半段每日 CI 必然误报失败（2026-09 实测连续标红）。
+    {"file": "data_regulator_n.json",         "kind": "records_last","freq": "quarterly","max_lag_days": 100, "commit": False},
 ]
 
 # 本每日 CI 应提交的文件清单（由注册表推导；新增数据源只需改 DATA_SOURCES，git add 自动覆盖）
