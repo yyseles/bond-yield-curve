@@ -224,31 +224,37 @@
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
         .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
-        /* 资本债顶部「发行/存续」总览矩阵 */
+        /* 资本债顶部「发行/存续」双卡总览 */
         .summary-grid { display: block; margin-bottom: 16px; box-sizing: border-box; }
-        .bo-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; box-shadow: 0 3px 12px rgba(31,74,122,.08); padding: 10px 18px 12px; overflow-x: auto; }
-        .bo-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 660px; }
-        .bo-table th { font-size: 11px; color: #94a3b8; font-weight: 600; text-align: right; padding: 6px 12px; white-space: nowrap; letter-spacing: .3px; }
-        .bo-table th:first-child { text-align: left; padding-left: 4px; }
-        .bo-table td { padding: 8px 12px; font-size: 13.5px; border-top: 1px dashed #e9eef5; text-align: right; color: #24405f; white-space: nowrap; }
-        .bo-table td:first-child { text-align: left; padding-left: 4px; }
-        .bo-table .num { font-weight: 700; font-size: 14.5px; }
-        .bo-table .rate { font-weight: 700; color: #b8651b; font-size: 14.5px; }
-        .bo-table .mut { color: #7a8aa0; font-size: 12.5px; }
-        .bo-row-group td { border-top: none; padding: 10px 12px 2px; }
-        .bo-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 20px; letter-spacing: 1px; }
-        .bo-chip-issue { color: #1f4a7a; background: linear-gradient(90deg, #e8f0fb, #f2f7fd); }
-        .bo-chip-live { color: #1f6d4a; background: linear-gradient(90deg, #e4f5ec, #f0faf5); }
-        .bo-main td { font-weight: 700; }
-        .bo-main.bo-issue td { background: linear-gradient(90deg, #f2f7fd 0%, #fbfdff 70%); font-size: 14.5px; }
-        .bo-main.bo-issue td:first-child { border-radius: 8px 0 0 8px; }
-        .bo-main.bo-issue td:last-child { border-radius: 0 8px 8px 0; }
-        .bo-main.bo-live td { background: linear-gradient(90deg, #edf9f3 0%, #fbfefd 70%); font-size: 14.5px; }
-        .bo-main.bo-live td:first-child { border-radius: 8px 0 0 8px; }
-        .bo-main.bo-live td:last-child { border-radius: 0 8px 8px 0; }
-        .bo-sub td { font-size: 13px; color: #41546e; }
-        .bo-sub td:first-child { padding-left: 26px; }
+        .sum-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .sum-card { background: #fff; border: 1px solid #e4e9f0; border-radius: 16px; box-shadow: 0 3px 14px rgba(31,74,122,.08); padding: 16px 20px 14px; position: relative; overflow: hidden; min-width: 0; }
+        .sum-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+        .sum-card-issue::before { background: linear-gradient(90deg, #1f4a7a, #3b7dd8); }
+        .sum-card-live::before { background: linear-gradient(90deg, #1f6d4a, #2e9e5b); }
+        .sum-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .sum-ico { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; color: #fff; flex-shrink: 0; }
+        .sum-card-issue .sum-ico { background: linear-gradient(135deg, #1f4a7a, #3b7dd8); }
+        .sum-card-live .sum-ico { background: linear-gradient(135deg, #1f6d4a, #2e9e5b); }
+        .sum-title { font-size: 15px; font-weight: 800; color: #1f3a5f; letter-spacing: .3px; }
+        .sum-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+        .sum-count { margin-left: auto; font-size: 12px; font-weight: 700; color: #5a6b82; background: #f1f5fa; border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+        .sum-hero { display: grid; grid-template-columns: 1.15fr 1fr .75fr .75fr; gap: 8px; padding: 8px 2px 14px; align-items: end; }
+        .sum-hero .hv { font-size: 24px; font-weight: 800; color: #1f3a5f; font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; }
+        .sum-hero .hv small { font-size: 12px; font-weight: 600; color: #94a3b8; margin-left: 2px; }
+        .sum-hero .hv.is-rate { color: #b8651b; }
+        .sum-hero .hv.is-dim { font-size: 19px; color: #41546e; padding-bottom: 1px; }
+        .sum-hero .hk { font-size: 11px; color: #94a3b8; margin-top: 3px; font-weight: 600; white-space: nowrap; }
+        .sum-subcard { display: grid; grid-template-columns: 1fr 96px 84px 172px; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px; margin-top: 8px; }
+        .sum-card-issue .sum-subcard { background: linear-gradient(90deg, #f3f8fd, #f9fcff); }
+        .sum-card-live .sum-subcard { background: linear-gradient(90deg, #eef9f3, #f8fdfa); }
+        .ss-name { font-size: 13px; font-weight: 700; color: #33475f; white-space: nowrap; }
+        .ss-n { font-size: 11px; color: #94a3b8; font-weight: 600; margin-left: 6px; }
+        .ss-amnt { font-size: 15px; font-weight: 800; color: #1f3a5f; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .ss-amnt small { font-size: 11px; color: #94a3b8; font-weight: 600; }
+        .ss-rate { font-size: 15px; font-weight: 800; color: #b8651b; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .ss-hl { font-size: 12px; color: #7a8aa0; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .bo-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+        @media (max-width: 900px) { .sum-cards { grid-template-columns: 1fr; } }
         .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
         .bonds-row > * { min-width: 0; }
         .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
@@ -1239,7 +1245,7 @@
     </div>
 
     <script src="discount-loader.js"></script>
-        <script src="bonds.js?v=2026-09-16b" defer></script>
+        <script src="bonds.js?v=2026-09-16c" defer></script>
     <script>
         // ================================================================
         // 核心清洗函数

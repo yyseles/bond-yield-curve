@@ -112,7 +112,7 @@
         }
 
         function renderBondSummaryCards(rows) {
-            // 「发行/存续」总览矩阵: 行=口径(合计/资补/永续), 列=规模·只数·加权平均·最高·最低
+            // 「发行/存续」双卡总览: 英雄区4大数字(规模/加权平均/最高/最低) + 债种明细色块行
             const grp = r => ({
                 amnt: r.reduce((s, b) => s + (b.issueAmnt || 0), 0),
                 n: r.length,
@@ -125,34 +125,34 @@
                 lAll: grp(live), lCap: grp(live.filter(b => b.bondType === '资本补充债')),
                 lPerp: grp(live.filter(b => b.bondType === '永续债')),
             };
-            const groupRow = (cls, label) =>
-                `<tr class="bo-row-group"><td colspan="6"><span class="bo-chip ${cls}">${label}</span></td></tr>`;
-            const dataRow = (cls, name, dot, x) => `
-                <tr class="${cls}">
-                    <td>${dot ? `<span class="bo-dot" style="background:${dot}"></span>` : ''}${name}</td>
-                    <td class="num">${fmtAmnt(x.amnt)}</td>
-                    <td class="${cls === 'bo-main' ? '' : 'mut'}">${x.n}</td>
-                    <td class="rate">${fmtRate(x.wa)}</td>
-                    <td class="${cls === 'bo-main' ? 'num' : ''}">${fmtRate(x.hi)}</td>
-                    <td class="${cls === 'bo-main' ? 'num' : ''}">${fmtRate(x.lo)}</td>
-                </tr>`;
+            const hero = (v, k, cls) => `<div><div class="hv ${cls || ''}">${v}</div><div class="hk">${k}</div></div>`;
+            const subRow = (name, dot, x) => `
+                <div class="sum-subcard">
+                    <div class="ss-name"><span class="bo-dot" style="background:${dot}"></span>${name}<span class="ss-n">${x.n} 只</span></div>
+                    <div class="ss-amnt">${fmtAmnt(x.amnt)}<small>亿</small></div>
+                    <div class="ss-rate">${fmtRate(x.wa)}</div>
+                    <div class="ss-hl">最高 ${fmtRate(x.hi)} · 最低 ${fmtRate(x.lo)}</div>
+                </div>`;
+            const card = (cls, ico, title, sub, all, cap, perp, scaleLabel) => `
+                <div class="sum-card ${cls}">
+                    <div class="sum-head">
+                        <span class="sum-ico">${ico}</span>
+                        <div><div class="sum-title">${title}</div><div class="sum-sub">${sub}</div></div>
+                        <span class="sum-count">${all.n} 只</span>
+                    </div>
+                    <div class="sum-hero">
+                        ${hero(fmtAmnt(all.amnt) + '<small>亿元</small>', scaleLabel)}
+                        ${hero(fmtRate(all.wa), '加权平均票面利率', 'is-rate')}
+                        ${hero(fmtRate(all.hi), '最高票面利率', 'is-dim')}
+                        ${hero(fmtRate(all.lo), '最低票面利率', 'is-dim')}
+                    </div>
+                    ${subRow('资本补充债', '#3b7dd8', cap)}
+                    ${subRow('永续债', '#14b8a6', perp)}
+                </div>`;
             const html = `
-                <div class="bo-panel">
-                    <table class="bo-table">
-                        <thead>
-                            <tr><th>口径</th><th>规模(亿元)</th><th>只数</th><th>加权平均票面利率</th><th>最高</th><th>最低</th></tr>
-                        </thead>
-                        <tbody>
-                            ${groupRow('bo-chip-issue', '📊 发行')}
-                            ${dataRow('bo-main bo-issue', '合计', '', g.iAll)}
-                            ${dataRow('bo-sub', '资本补充债', '#3b7dd8', g.iCap)}
-                            ${dataRow('bo-sub', '永续债', '#14b8a6', g.iPerp)}
-                            ${groupRow('bo-chip-live', '💎 存续')}
-                            ${dataRow('bo-main bo-live', '合计', '', g.lAll)}
-                            ${dataRow('bo-sub', '资本补充债', '#2e9e5b', g.lCap)}
-                            ${dataRow('bo-sub', '永续债', '#14b8a6', g.lPerp)}
-                        </tbody>
-                    </table>
+                <div class="sum-cards">
+                    ${card('sum-card-issue', '📊', '发行总览', '资本补充债 + 永续债', g.iAll, g.iCap, g.iPerp, '发行规模')}
+                    ${card('sum-card-live', '💎', '存续总览', '未赎回且未到期', g.lAll, g.lCap, g.lPerp, '存续规模')}
                 </div>
             `;
             document.getElementById('bondSummaryCards').innerHTML = html;
