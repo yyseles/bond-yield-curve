@@ -224,42 +224,31 @@
         .bonds-cards .bcard .bk { font-size: 12px; color: #7a8aa0; margin-bottom: 4px; }
         .bonds-cards .bcard .bv { font-size: 21px; font-weight: 700; color: #1f4a7a; }
         .bonds-cards .bcard .bv small { font-size: 12px; color: #7a8aa0; font-weight: 500; margin-left: 3px; }
-        /* 资本债顶部 3 列分组汇总卡 */
-        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; box-sizing: border-box; }
-        .summary-col { border-radius: 14px; padding: 14px 16px 12px; background: #fff; box-shadow: 0 3px 12px rgba(31,74,122,.08); border: 1px solid #e4e9f0; min-width: 0; position: relative; overflow: hidden; }
-        .summary-col::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
-        .summary-col.col-issue::before { background: linear-gradient(90deg, #1f4a7a, #3b7dd8); }
-        .summary-col.col-live::before { background: linear-gradient(90deg, #1f6d4a, #2e9e5b); }
-        .summary-col.col-rate::before { background: linear-gradient(90deg, #b8651b, #e08a3a); }
-        .summary-col-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-        .summary-col-head .ico { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; }
-        .col-issue .summary-col-head .ico { background: linear-gradient(135deg, #1f4a7a, #3b7dd8); }
-        .col-live .summary-col-head .ico { background: linear-gradient(135deg, #1f6d4a, #2e9e5b); }
-        .col-rate .summary-col-head .ico { background: linear-gradient(135deg, #b8651b, #e08a3a); }
-        .summary-col-head .title { font-size: 14px; font-weight: 700; color: #1f3a5f; letter-spacing: 0.2px; }
-        .summary-col-head .sub { font-size: 11px; color: #94a3b8; margin-left: auto; font-weight: 500; }
-        .summary-rows { display: grid; grid-auto-rows: 1fr; gap: 8px; }
-        .summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px dashed #e9eef5; }
-        .summary-row:first-child { border-top: none; padding-top: 2px; }
-        .summary-row .lk { font-size: 13px; color: #5a6b82; font-weight: 600; white-space: nowrap; }
-        .summary-row .lv { font-size: 20px; font-weight: 700; color: #1f3a5f; font-variant-numeric: tabular-nums; line-height: 1.1; }
-        .summary-row.is-main .lk { font-size: 14px; }
-        .summary-row.is-main .lv { font-size: 24px; }
-        .summary-row.is-sub { padding-left: 8px; }
-        .summary-row.is-group { border-top: 1px solid #f0e0cd; padding-top: 8px; margin-top: 2px; }
-        .summary-row.is-group .lk { font-size: 11px; color: #b8651b; font-weight: 700; letter-spacing: .5px; }
-        .summary-row.is-sub .lk { font-size: 13px; color: #8395ab; font-weight: 600; }
-        .summary-row.is-sub .lv { font-size: 18px; font-weight: 700; }
-        .col-issue .summary-row.is-main .lv { color: #1f4a7a; }
-        .col-issue .summary-row.is-sub .lv { color: #3b7dd8; }
-        .col-live .summary-row.is-main .lv { color: #1f6d4a; }
-        .col-live .summary-row.is-sub .lv { color: #2e9e5b; }
-        .col-rate .summary-row.is-main .lv { color: #b8651b; }
-        .col-rate .summary-row.is-sub .lv { color: #c98a45; }
-        .summary-col.col-issue { background: linear-gradient(180deg, #f5f8fd 0%, #ffffff 65%); }
-        .summary-col.col-live { background: linear-gradient(180deg, #f3faf6 0%, #ffffff 65%); }
-        .summary-col.col-rate { background: linear-gradient(180deg, #fdf6ef 0%, #ffffff 65%); }
-        @media (max-width: 760px) { .summary-grid { grid-template-columns: 1fr; } }
+        /* 资本债顶部「发行/存续」总览矩阵 */
+        .summary-grid { display: block; margin-bottom: 16px; box-sizing: border-box; }
+        .bo-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; box-shadow: 0 3px 12px rgba(31,74,122,.08); padding: 10px 18px 12px; overflow-x: auto; }
+        .bo-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 660px; }
+        .bo-table th { font-size: 11px; color: #94a3b8; font-weight: 600; text-align: right; padding: 6px 12px; white-space: nowrap; letter-spacing: .3px; }
+        .bo-table th:first-child { text-align: left; padding-left: 4px; }
+        .bo-table td { padding: 8px 12px; font-size: 13.5px; border-top: 1px dashed #e9eef5; text-align: right; color: #24405f; white-space: nowrap; }
+        .bo-table td:first-child { text-align: left; padding-left: 4px; }
+        .bo-table .num { font-weight: 700; font-size: 14.5px; }
+        .bo-table .rate { font-weight: 700; color: #b8651b; font-size: 14.5px; }
+        .bo-table .mut { color: #7a8aa0; font-size: 12.5px; }
+        .bo-row-group td { border-top: none; padding: 10px 12px 2px; }
+        .bo-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 20px; letter-spacing: 1px; }
+        .bo-chip-issue { color: #1f4a7a; background: linear-gradient(90deg, #e8f0fb, #f2f7fd); }
+        .bo-chip-live { color: #1f6d4a; background: linear-gradient(90deg, #e4f5ec, #f0faf5); }
+        .bo-main td { font-weight: 700; }
+        .bo-main.bo-issue td { background: linear-gradient(90deg, #f2f7fd 0%, #fbfdff 70%); font-size: 14.5px; }
+        .bo-main.bo-issue td:first-child { border-radius: 8px 0 0 8px; }
+        .bo-main.bo-issue td:last-child { border-radius: 0 8px 8px 0; }
+        .bo-main.bo-live td { background: linear-gradient(90deg, #edf9f3 0%, #fbfefd 70%); font-size: 14.5px; }
+        .bo-main.bo-live td:first-child { border-radius: 8px 0 0 8px; }
+        .bo-main.bo-live td:last-child { border-radius: 0 8px 8px 0; }
+        .bo-sub td { font-size: 13px; color: #41546e; }
+        .bo-sub td:first-child { padding-left: 26px; }
+        .bo-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
         .bonds-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; align-items: stretch; }
         .bonds-row > * { min-width: 0; }
         .bonds-panel { background: #fff; border: 1px solid #e4e9f0; border-radius: 14px; padding: 16px; box-shadow: 0 2px 12px rgba(31,74,122,.05); min-width: 0; display: flex; flex-direction: column; }
@@ -1250,7 +1239,7 @@
     </div>
 
     <script src="discount-loader.js"></script>
-        <script src="bonds.js?v=2026-09-16a" defer></script>
+        <script src="bonds.js?v=2026-09-16b" defer></script>
     <script>
         // ================================================================
         // 核心清洗函数

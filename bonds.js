@@ -112,58 +112,47 @@
         }
 
         function renderBondSummaryCards(rows) {
-            const total = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const cap = rows.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const perp = rows.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            // 「发行/存续」总览矩阵: 行=口径(合计/资补/永续), 列=规模·只数·加权平均·最高·最低
+            const grp = r => ({
+                amnt: r.reduce((s, b) => s + (b.issueAmnt || 0), 0),
+                n: r.length,
+                wa: wavgRate(r), hi: maxRate(r), lo: minRate(r),
+            });
             const live = rows.filter(b => b.status === '存续');
-            const liveTotal = live.reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const liveCap = live.filter(b => b.bondType === '资本补充债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const livePerp = live.filter(b => b.bondType === '永续债').reduce((s, b) => s + (b.issueAmnt || 0), 0);
-            const wa = wavgRate(rows);
-            const hi = maxRate(rows);
-            const lo = minRate(rows);
-            const waL = wavgRate(live), hiL = maxRate(live), loL = minRate(live);
-            const fmtPair = (v, unit) => v + ' <small style="font-size:11px;font-weight:500;color:#94a3b8">' + unit + '</small>';
+            const g = {
+                iAll: grp(rows), iCap: grp(rows.filter(b => b.bondType === '资本补充债')),
+                iPerp: grp(rows.filter(b => b.bondType === '永续债')),
+                lAll: grp(live), lCap: grp(live.filter(b => b.bondType === '资本补充债')),
+                lPerp: grp(live.filter(b => b.bondType === '永续债')),
+            };
+            const groupRow = (cls, label) =>
+                `<tr class="bo-row-group"><td colspan="6"><span class="bo-chip ${cls}">${label}</span></td></tr>`;
+            const dataRow = (cls, name, dot, x) => `
+                <tr class="${cls}">
+                    <td>${dot ? `<span class="bo-dot" style="background:${dot}"></span>` : ''}${name}</td>
+                    <td class="num">${fmtAmnt(x.amnt)}</td>
+                    <td class="${cls === 'bo-main' ? '' : 'mut'}">${x.n}</td>
+                    <td class="rate">${fmtRate(x.wa)}</td>
+                    <td class="${cls === 'bo-main' ? 'num' : ''}">${fmtRate(x.hi)}</td>
+                    <td class="${cls === 'bo-main' ? 'num' : ''}">${fmtRate(x.lo)}</td>
+                </tr>`;
             const html = `
-                <div class="summary-col col-issue">
-                    <div class="summary-col-head">
-                        <span class="ico">📊</span>
-                        <span class="title">发行总额</span>
-                        <span class="sub">亿元 · ${rows.length} 只</span>
-                    </div>
-                    <div class="summary-rows">
-                        <div class="summary-row is-main"><span class="lk">合计</span><span class="lv">${fmtAmnt(total)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">其中 · 资本补充债</span><span class="lv">${fmtAmnt(cap)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">其中 · 永续债</span><span class="lv">${fmtAmnt(perp)}</span></div>
-                    </div>
-                </div>
-                <div class="summary-col col-live">
-                    <div class="summary-col-head">
-                        <span class="ico">💎</span>
-                        <span class="title">存续规模</span>
-                        <span class="sub">亿元 · ${live.length} 只</span>
-                    </div>
-                    <div class="summary-rows">
-                        <div class="summary-row is-main"><span class="lk">合计</span><span class="lv">${fmtAmnt(liveTotal)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">其中 · 资本补充债</span><span class="lv">${fmtAmnt(liveCap)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">其中 · 永续债</span><span class="lv">${fmtAmnt(livePerp)}</span></div>
-                    </div>
-                </div>
-                <div class="summary-col col-rate">
-                    <div class="summary-col-head">
-                        <span class="ico">📈</span>
-                        <span class="title">票面利率</span>
-                        <span class="sub">% · ${rows.length} 只</span>
-                    </div>
-                    <div class="summary-rows">
-                        <div class="summary-row is-main"><span class="lk">加权平均</span><span class="lv">${fmtRate(wa)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">最高</span><span class="lv">${fmtRate(hi)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">最低</span><span class="lv">${fmtRate(lo)}</span></div>
-                        <div class="summary-row is-group"><span class="lk">存续 · ${live.length} 只</span></div>
-                        <div class="summary-row is-main"><span class="lk">加权平均</span><span class="lv">${fmtRate(waL)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">最高</span><span class="lv">${fmtRate(hiL)}</span></div>
-                        <div class="summary-row is-sub"><span class="lk">最低</span><span class="lv">${fmtRate(loL)}</span></div>
-                    </div>
+                <div class="bo-panel">
+                    <table class="bo-table">
+                        <thead>
+                            <tr><th>口径</th><th>规模(亿元)</th><th>只数</th><th>加权平均票面利率</th><th>最高</th><th>最低</th></tr>
+                        </thead>
+                        <tbody>
+                            ${groupRow('bo-chip-issue', '📊 发行')}
+                            ${dataRow('bo-main bo-issue', '合计', '', g.iAll)}
+                            ${dataRow('bo-sub', '资本补充债', '#3b7dd8', g.iCap)}
+                            ${dataRow('bo-sub', '永续债', '#14b8a6', g.iPerp)}
+                            ${groupRow('bo-chip-live', '💎 存续')}
+                            ${dataRow('bo-main bo-live', '合计', '', g.lAll)}
+                            ${dataRow('bo-sub', '资本补充债', '#2e9e5b', g.lCap)}
+                            ${dataRow('bo-sub', '永续债', '#14b8a6', g.lPerp)}
+                        </tbody>
+                    </table>
                 </div>
             `;
             document.getElementById('bondSummaryCards').innerHTML = html;
