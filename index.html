@@ -1129,7 +1129,7 @@
                         <button class="active" data-rtype="spot">即期</button>
                         <button data-rtype="ytm">到期</button>
                     </div>
-                    <span class="toolbar-hint" id="anaSpreadHint">税收溢价 = 国开即期 − 国债即期（bp）｜ 期限利差 = 国债即期两期限之差（bp）｜ MA2500≈约10年，MA750≈近3年；指标均以所选基准日为「最新日」</span>
+                    <span class="toolbar-hint" id="anaSpreadHint">税收溢价 = 国开即期 − 国债即期（bp）｜ 期限利差 = 国债即期两期限之差（bp）｜ MA250≈约1年，MA750≈近3年，MA2500≈约10年；指标均以所选基准日为「最新日」</span>
                 </div>
 
                 <h3 class="ana-subtitle" id="anaTaxSubtitle">① 税收溢价（国开即期 − 国债即期，bp）</h3>
@@ -1142,7 +1142,7 @@
                     <div class="card">
                         <div class="card-title"><span>平均税收溢价水平</span><span class="badge" id="anaTaxAnchor">基准日 —</span></div>
                         <div class="table-wrap"><table id="anaTaxTable"></table></div>
-                        <div class="footnote">MA2500=基准日前约10年均值；MA750=基准日前近3年均值</div>
+                        <div class="footnote">MA250=基准日前约1年均值；MA750=基准日前近3年均值；MA2500=基准日前约10年均值</div>
                     </div>
                 </div>
 
@@ -1161,7 +1161,7 @@
                     <div class="card">
                         <div class="card-title"><span>期限利差最新值与全周期特征</span><span class="badge" id="anaTermAnchor">基准日 —</span></div>
                         <div class="table-wrap"><table id="anaTermTable"></table></div>
-                        <div class="footnote">最新值与特征均截至所选基准日（区间=自数据起点至基准日）</div>
+                        <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日</div>
                     </div>
                 </div>
             </div>
@@ -4807,7 +4807,7 @@
             document.getElementById('anaTaxFootnote').textContent = `10Y 与 9Y 税收溢价（${cdbLabel} − ${govLabel}）；虚线为所选基准日`;
             document.getElementById('anaTermSubtitle').textContent = `② 期限利差（${govLabel}，bp）`;
             document.getElementById('anaTermFootnote').textContent = `10Y−1Y / 30Y−10Y / 5Y−1Y（${govLabel}）+ 自定义；虚线为所选基准日`;
-            document.getElementById('anaSpreadHint').textContent = `税收溢价 = ${cdbLabel} − ${govLabel}（bp）｜ 期限利差 = ${govLabel}两期限之差（bp）｜ MA2500≈约10年，MA750≈近3年；指标均以所选基准日为「最新日」`;
+            document.getElementById('anaSpreadHint').textContent = `税收溢价 = ${cdbLabel} − ${govLabel}（bp）｜ 期限利差 = ${govLabel}两期限之差（bp）｜ MA250≈约1年，MA750≈近3年，MA2500≈约10年；指标均以所选基准日为「最新日」`;
             if (!gs || !cs) return;
             const tiG = t => gs.terms.indexOf(t);
             const tiC = t => cs.terms.indexOf(t);
@@ -4854,8 +4854,10 @@
             const latest9 = ai9 >= 0 ? tax9[ai9][1] : null;
             const ma2500_10 = ai10 >= 0 ? windowMean(tax10, ai10, 2500) : null;
             const ma750_10 = ai10 >= 0 ? windowMean(tax10, ai10, 750) : null;
+            const ma250_10 = ai10 >= 0 ? windowMean(tax10, ai10, 250) : null;
             const ma2500_9 = ai9 >= 0 ? windowMean(tax9, ai9, 2500) : null;
             const ma750_9 = ai9 >= 0 ? windowMean(tax9, ai9, 750) : null;
+            const ma250_9 = ai9 >= 0 ? windowMean(tax9, ai9, 250) : null;
             drawAnaChart('anaTaxChart', {
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
                 series: [
@@ -4868,8 +4870,9 @@
             }, { replace: false });
             let th = '<thead><tr><th>指标</th><th>10Y</th><th>9Y</th></tr></thead><tbody>';
             th += `<tr><td>最新税收溢价（${anchorDateTax || selDate}）</td><td>${fmtBp(latest10)}</td><td>${fmtBp(latest9)}</td></tr>`;
-            th += `<tr><td>平均税收溢价水平（MA2500，约10年）</td><td>${fmtBp(ma2500_10)}</td><td>${fmtBp(ma2500_9)}</td></tr>`;
+            th += `<tr><td>平均税收溢价水平（MA250，约1年）</td><td>${fmtBp(ma250_10)}</td><td>${fmtBp(ma250_9)}</td></tr>`;
             th += `<tr><td>平均税收溢价水平（MA750，近3年）</td><td>${fmtBp(ma750_10)}</td><td>${fmtBp(ma750_9)}</td></tr>`;
+            th += `<tr><td>平均税收溢价水平（MA2500，约10年）</td><td>${fmtBp(ma2500_10)}</td><td>${fmtBp(ma2500_9)}</td></tr>`;
             th += '</tbody>';
             document.getElementById('anaTaxTable').innerHTML = th;
             document.getElementById('anaTaxAnchor').textContent = '基准日 ' + (anchorDateTax || selDate);
@@ -4908,6 +4911,7 @@
             const aiT = anchorIndex(s101, selDate);
             const anchorDateTerm = aiT >= 0 ? s101[aiT][0] : null;
             const latestOf = arr => { const ai = anchorIndex(arr, selDate); return ai >= 0 ? arr[ai][1] : null; };
+            const ma250Of = arr => { const ai = anchorIndex(arr, selDate); return ai >= 0 ? windowMean(arr, ai, 250) : null; };
             // 截至基准日的全周期特征：区间 = [起点, 基准日]
             const statOver = (arr, fn) => {
                 const ai = anchorIndex(arr, selDate); if (ai < 0) return null;
@@ -4932,6 +4936,7 @@
             const colHeaders = ['10Y−1Y', '30Y−10Y', '5Y−1Y'].concat(customTableCols.map(c => c.name));
             let tt = '<thead><tr><th>指标</th>' + colHeaders.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
             tt += `<tr><td>最新利差（${anchorDateTerm || selDate}）</td><td>${fmtBp(latestOf(s101))}</td><td>${fmtBp(latestOf(s3010))}</td><td>${fmtBp(latestOf(s51))}</td>` + customTableCols.map(c => `<td>${fmtBp(latestOf(c.data))}</td>`).join('') + '</tr>';
+            tt += `<tr><td>MA250（约1年）</td><td>${fmtBp(ma250Of(s101))}</td><td>${fmtBp(ma250Of(s3010))}</td><td>${fmtBp(ma250Of(s51))}</td>` + customTableCols.map(c => `<td>${fmtBp(ma250Of(c.data))}</td>`).join('') + '</tr>';
             tt += `<tr><td>截至基准日均值</td><td>${fmtBp(statOver(s101, avgOf))}</td><td>${fmtBp(statOver(s3010, avgOf))}</td><td>${fmtBp(statOver(s51, avgOf))}</td>` + customTableCols.map(c => `<td>${fmtBp(statOver(c.data, avgOf))}</td>`).join('') + '</tr>';
             tt += `<tr><td>截至基准日最小</td><td>${fmtBp(statOver(s101, minOf))}</td><td>${fmtBp(statOver(s3010, minOf))}</td><td>${fmtBp(statOver(s51, minOf))}</td>` + customTableCols.map(c => `<td>${fmtBp(statOver(c.data, minOf))}</td>`).join('') + '</tr>';
             tt += `<tr><td>截至基准日最大</td><td>${fmtBp(statOver(s101, maxOf))}</td><td>${fmtBp(statOver(s3010, maxOf))}</td><td>${fmtBp(statOver(s51, maxOf))}</td>` + customTableCols.map(c => `<td>${fmtBp(statOver(c.data, maxOf))}</td>`).join('') + '</tr>';
