@@ -122,6 +122,7 @@
             const wa = wavgRate(rows);
             const hi = maxRate(rows);
             const lo = minRate(rows);
+            const waL = wavgRate(live), hiL = maxRate(live), loL = minRate(live);
             const fmtPair = (v, unit) => v + ' <small style="font-size:11px;font-weight:500;color:#94a3b8">' + unit + '</small>';
             const html = `
                 <div class="summary-col col-issue">
@@ -158,6 +159,10 @@
                         <div class="summary-row is-main"><span class="lk">加权平均</span><span class="lv">${fmtRate(wa)}</span></div>
                         <div class="summary-row is-sub"><span class="lk">最高</span><span class="lv">${fmtRate(hi)}</span></div>
                         <div class="summary-row is-sub"><span class="lk">最低</span><span class="lv">${fmtRate(lo)}</span></div>
+                        <div class="summary-row is-group"><span class="lk">存续 · ${live.length} 只</span></div>
+                        <div class="summary-row is-main"><span class="lk">加权平均</span><span class="lv">${fmtRate(waL)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">最高</span><span class="lv">${fmtRate(hiL)}</span></div>
+                        <div class="summary-row is-sub"><span class="lk">最低</span><span class="lv">${fmtRate(loL)}</span></div>
                     </div>
                 </div>
             `;
