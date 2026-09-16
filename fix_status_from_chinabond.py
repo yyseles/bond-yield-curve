@@ -10,6 +10,7 @@
 """
 import json
 import os
+import re
 import sys
 from datetime import date, timedelta
 
@@ -45,7 +46,9 @@ def fetch_notices(pages=8, page_size=100):
             t = (x.get("docTitle") or "").strip()
             if t and t not in seen:
                 seen.add(t)
-                out.append({"title": t, "url": x.get("docPubUrl") or "", "date": ""})
+                # shengXiaoShiJian=公告生效时间(如'2021-11-01 15:43:48'), 取日期部分
+                pub = str(x.get("shengXiaoShiJian") or "")[:10]
+                out.append({"title": t, "url": x.get("docPubUrl") or "", "date": pub})
         if len(lst) < page_size:
             break
     return out
@@ -103,6 +106,37 @@ def recompute_status(bonds):
     return changed
 
 
+def revert_redeemed_with_later_coupons(bonds, notices):
+    """回退规则: 已赎回债若 callDate 之后仍有付息公告(赎回后不可能再付息), 改回存续。
+    教训(2026-09-10): 长安责任16年债被中性标题'行权情况公告'误判已赎回,
+    但 2022/2023 年付息公告证明其存续。"""
+    changed = []
+    for b in bonds:
+        if b.get("status") != "已赎回":
+            continue
+        c = _parse(b.get("callDate"))
+        if not c:
+            continue
+        cands = []
+        for n in notices:
+            t = n.get("title") or ""
+            if "付息" not in t or "兑付" in t:
+                continue
+            pub = _parse(n.get("date") or "")
+            # 优先用公告发布日; 缺失时退回标题内年份(如'2022年付息公告')
+            if pub:
+                hit = pub > c
+            else:
+                m = re.search(r"(20\d\d)年付息", t)
+                hit = bool(m and int(m.group(1)) > c.year)
+            if hit and len(F._match_notice_bond([b], t)) == 1:
+                cands.append(t)
+        if cands:
+            b["status"] = "存续"
+            changed.append((b.get("bondShort"), cands[0]))
+    return changed
+
+
 def main():
     d = json.load(open(F.DATA_FILE, encoding="utf-8"))
     bonds = d["bonds"]
@@ -117,6 +151,12 @@ def main():
     notices = fetch_notices()
     red = [n for n in notices if "赎回" in n["title"]]
     print(f"  栏目公告 {len(notices)} 条, 其中赎回类 {len(red)} 条")
+
+    print("=== 2.5 回退: 已赎回但 callDate 后仍有付息公告 -> 存续 ===")
+    rv = revert_redeemed_with_later_coupons(bonds, notices)
+    for s, t in rv:
+        print(f"  [回退] {s:<22} 已赎回 -> 存续 | 证据: {t[:46]}")
+    print(f"  变更 {len(rv)} 条")
 
     print("=== 3. 无公告的重算(仅到期判定, 先跑) ===")
     rec = recompute_status(bonds)

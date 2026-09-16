@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-09-15",
+ "generatedAt": "2026-09-16",
  "source": "中国货币网(chinamoney) 债券信息综合查询",
  "count": 176,
  "bonds": [
@@ -3782,7 +3782,7 @@
    "ratingStr": "BBB+/A-",
    "exerciseFlag": "是",
    "callDate": "2021-12-01",
-   "status": "已赎回"
+   "status": "存续"
   },
   {
    "bondDefinedCode": "1000084141",
