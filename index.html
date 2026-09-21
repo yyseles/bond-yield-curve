@@ -27,6 +27,17 @@
         .ma-export-range select, .ma-export-range input[type="date"] { font-size: 11px; padding: 2px 6px; border: 1px solid #cdd8e6; border-radius: 6px; color: #1a2b44; background: #fff; }
         .ma-export-range input[type="date"] { width: 130px; }
         .btn-download:hover { background: #12345a; }
+        /* 利率监测导出选项 */
+        .expo-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .expo-sel { font-size: 11px; padding: 2px 6px; border: 1px solid #cdd8e6; border-radius: 6px; color: #1a2b44; background: #fff; }
+        .expo-dates { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #6b7c96; }
+        .expo-dates input[type="date"] { width: 118px; font-size: 11px; padding: 2px 4px; border: 1px solid #cdd8e6; border-radius: 6px; color: #1a2b44; background: #fff; }
+        .expo-curves { display: inline-flex; align-items: center; gap: 10px; font-size: 11px; color: #33475f; font-weight: 500; }
+        .expo-curves label { display: inline-flex !important; align-items: center; gap: 3px; cursor: pointer; }
+        .expo-btn { font-size: 12px; background: #1f4a7a; color: #fff; border: none; border-radius: 8px; padding: 4px 12px; cursor: pointer; transition: .15s; white-space: nowrap; }
+        .expo-btn:hover { background: #12345a; }
+        .expo-btn.ghost { background: #fff; color: #1f4a7a; border: 1px solid #1f4a7a; }
+        .expo-btn.ghost:hover { background: #eef4fb; }
         .btn-reset { font-size: 12px; color: #888; background: none; border: 1px solid #ddd; border-radius: 20px; padding: 2px 14px; cursor: pointer; transition: 0.2s; }
         .btn-reset:hover { background: #f0f0f0; color: #555; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; align-items: stretch; }
@@ -497,6 +508,26 @@
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
                     <span class="upload-status" id="uploadStatus">等待加载数据...</span>
                     <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
+                    <div class="expo-wrap">
+                        <select id="expoRange" class="expo-sel" title="导出期间">
+                            <option value="all">全部期间</option>
+                            <option value="90d">近90天</option>
+                            <option value="1y">近1年</option>
+                            <option value="custom">自定义区间</option>
+                        </select>
+                        <span class="expo-dates" id="expoDates" style="display:none;">
+                            <input type="date" id="expoFrom" title="起始日期">
+                            <span>~</span>
+                            <input type="date" id="expoTo" title="结束日期">
+                        </span>
+                        <span class="expo-curves" title="要导出的曲线">
+                            <label><input type="checkbox" class="expo-cv" value="gov_spot" checked> 国债即期</label>
+                            <label><input type="checkbox" class="expo-cv" value="gov_ytm" checked> 国债到期</label>
+                            <label><input type="checkbox" class="expo-cv" value="cdb_spot" checked> 国开即期</label>
+                            <label><input type="checkbox" class="expo-cv" value="cdb_ytm" checked> 国开到期</label>
+                        </span>
+                        <button class="expo-btn" id="downloadSelectedBtn">⬇ 导出所选</button>
+                    </div>
                     <button class="btn-reset" id="resetDataBtn">清空重置</button>
                 </div>
             </div>
@@ -2734,6 +2765,97 @@
             XLSX.writeFile(wb, `利率曲线数据_四条曲线_${today}.xlsx`);
         }
 
+        // 按「所选期间 + 所选曲线」导出
+        async function downloadExcelSelected() {
+            if (!dataStore || !dataStore.dates || dataStore.dates.length === 0) {
+                alert('暂无数据可导出，请等待数据加载完成。');
+                return;
+            }
+            const statusEl = document.getElementById('uploadStatus');
+            const oldText = statusEl ? statusEl.textContent : '';
+            const oldColor = statusEl ? statusEl.style.color : '';
+            if (statusEl) { statusEl.textContent = '正在加载所选曲线...'; statusEl.style.color = '#f57c00'; }
+            try {
+                await ensureAnaData();
+            } catch (e) { console.error(e); }
+            finally {
+                if (statusEl) { statusEl.textContent = oldText; statusEl.style.color = oldColor; }
+            }
+
+            // 1) 曲线选择
+            const types = [...document.querySelectorAll('.expo-cv:checked')].map(c => c.value)
+                .filter(t => anaStores[t] && anaStores[t].dates && anaStores[t].dates.length);
+            if (types.length === 0) { alert('请至少勾选一条要导出的曲线。'); return; }
+
+            // 2) 期间选择
+            const mode = document.getElementById('expoRange').value;
+            const allDates = dataStore.dates;
+            let dateList;
+            const cutStart = allDates[allDates.length - 1];
+            if (mode === 'all') {
+                dateList = allDates;
+            } else if (mode === '90d') {
+                const cutoff = new Date(cutStart); cutoff.setDate(cutoff.getDate() - 90);
+                const cutStr = cutoff.toISOString().slice(0, 10);
+                dateList = allDates.filter(d => d >= cutStr);
+            } else if (mode === '1y') {
+                const cutoff = new Date(cutStart); cutoff.setFullYear(cutoff.getFullYear() - 1);
+                const cutStr = cutoff.toISOString().slice(0, 10);
+                dateList = allDates.filter(d => d >= cutStr);
+            } else { // custom
+                const from = document.getElementById('expoFrom').value || allDates[0];
+                const to = document.getElementById('expoTo').value || allDates[allDates.length - 1];
+                dateList = allDates.filter(d => d >= from && d <= to);
+                if (dateList.length === 0) { alert('所选区间内没有可用数据。'); return; }
+            }
+
+            const wb = XLSX.utils.book_new();
+            const today = new Date().toISOString().slice(0, 10);
+            for (const type of types) {
+                const s = anaStores[type];
+                const idx = new Map(s.dates.map((d, i) => [d, i]));
+                const headerRow = ['日期', ...s.terms];
+                const dataRows = [];
+                for (const d of dateList) {
+                    const i = idx.get(d);
+                    if (i === undefined) continue; // 该曲线当天可能无数据
+                    const rateRow = s.rates[i];
+                    dataRows.push([d, ...s.terms.map((t, ti) => rateRow[ti] != null ? rateRow[ti].toFixed(4) : '')]);
+                }
+                if (dataRows.length === 0) continue;
+                const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+                XLSX.utils.book_append_sheet(wb, ws, bondNames[type]);
+            }
+            if (wb.SheetNames.length === 0) { alert('所选区间内没有可导出的数据。'); return; }
+
+            const rng = mode === 'all' ? '全部'
+                : mode === '90d' ? '近90天' : mode === '1y' ? '近1年'
+                : (dateList[0] + '_' + dateList[dateList.length - 1]);
+            const label = types.map(t => bondNames[t]).join('_');
+            XLSX.writeFile(wb, `利率曲线_${label}_${rng}_${today}.xlsx`);
+        }
+
+        function initExportOptions() {
+            const rangeSel = document.getElementById('expoRange');
+            const datesWrap = document.getElementById('expoDates');
+            if (!rangeSel || !datesWrap) return;
+            // 自定义区间控件的显隐联动
+            const toggle = () => { datesWrap.style.display = rangeSel.value === 'custom' ? 'inline-flex' : 'none'; };
+            rangeSel.addEventListener('change', toggle);
+            // 首次填充起止默认值（仅首个日期范围，避免覆盖用户选择）
+            const fill = () => {
+                const from = document.getElementById('expoFrom'), to = document.getElementById('expoTo');
+                if (from && !from.value && dataStore && dataStore.dates && dataStore.dates.length) {
+                    from.min = dataStore.dates[0]; from.max = dataStore.latestDate;
+                    from.value = dataStore.dates[0];
+                    to.min = dataStore.dates[0]; to.max = dataStore.latestDate;
+                    to.value = dataStore.latestDate;
+                }
+            };
+            fill();
+            rangeSel.addEventListener('change', fill);
+        }
+
         // ================================================================
         // 选择器与渲染
         // ================================================================
@@ -3550,6 +3672,8 @@
 
             // 导出按钮
             document.getElementById('downloadSampleBtn').addEventListener('click', downloadExcel);
+            document.getElementById('downloadSelectedBtn').addEventListener('click', downloadExcelSelected);
+            initExportOptions();
             document.getElementById('maCurveDownloadBtn').addEventListener('click', downloadMACurveExcel);
             document.getElementById('quarterDownloadBtn').addEventListener('click', downloadQuarterExcel);
             document.getElementById('historyDownloadBtn').addEventListener('click', downloadHistoryExcel);
