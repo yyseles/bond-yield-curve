@@ -20,12 +20,13 @@ on:
       mode:
         description: '运行模式'
         required: false
-        default: 'all'
+        default: 'weekly'
         type: choice
         options:
-          - all        # 状态同步 + 上清所新债增量 + 货币网探测 + chinamoney全量尝试
+          - weekly     # 【推荐, 默认】中债登状态同步 + 上清所新债增量, 不碰 chinamoney, 约2分钟
           - notices    # 仅中债登状态同步(约1分钟)
-          - bonds      # 状态同步 + 上清所新债增量 + 货币网探测
+          - all        # 状态同步 + 上清所新债增量 + 货币网探测 + chinamoney全量(慎用: chinamoney 目前对 CI IP 403, 会退避空转 1~2h)
+          - bonds      # 状态同步 + 上清所新债增量 + 货币网探测 + chinamoney行情尝试(同上, chinamoney 403 时亦可能拖)
           - backfill   # 状态同步 + 上清所全历史回溯(一次性, 约8分钟)
           - probe      # 仅连通性自检(约1分钟, 诊断各端点是否可达)
 
