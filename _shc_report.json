@@ -1,11 +1,19 @@
 {
- "runAt": "2026-09-23 11:10:54",
+ "runAt": "2026-09-23 12:18:03",
  "mode": "incremental",
- "pagesFetched": 5,
- "itemsTotal": 50,
- "insFound": 0,
+ "pagesFetched": 10,
+ "itemsTotal": 100,
+ "insFound": 2,
  "newBonds": [],
  "blocked": false,
  "errors": [],
- "insTitles": []
+ "fxItems": 50,
+ "fxIns": 2,
+ "fxInsTitles": [
+  "2026-09-23 北京人寿保险股份有限公司2026年无固定期限资本债券（第一期）发行情况公告",
+  "2026-09-22 人保再保险股份有限公司2026年资本补充债券发行情况公告"
+ ],
+ "ltItems": 50,
+ "ltIns": 0,
+ "ltInsTitles": []
 }

@@ -1,7 +1,7 @@
 {
- "generatedAt": "2026-09-23",
+ "generatedAt": "2026-09-23 12:11:43",
  "source": "中国货币网(chinamoney) 债券信息综合查询",
- "count": 176,
+ "count": 178,
  "bonds": [
   {
    "bondDefinedCode": "afhec7ocsa",
@@ -4197,6 +4197,54 @@
    "exerciseFlag": "是",
    "callDate": "2020-07-28",
    "status": "已赎回"
+  },
+  {
+   "bondDefinedCode": "shc_282680011",
+   "issuer": "北京人寿保险股份有限公司",
+   "bondShort": "26北京人寿永续债01",
+   "bondFull": "北京人寿保险股份有限公司2026年无固定期限资本债券（第一期）",
+   "bondCode": "282680011",
+   "bondType": "永续债",
+   "industry": "寿险",
+   "issueDate": "2026-09-22",
+   "valueDate": "2026-09-24",
+   "mrtyDate": "2031-09-24",
+   "bondPeriod": "5+N年",
+   "planAmnt": 6.0,
+   "issueAmnt": 6.0,
+   "couponRate": 3.5,
+   "couponType": "附息式固定利率",
+   "couponFrqncy": "年",
+   "debtRating": "AA-",
+   "ratingStr": "AA/AA-",
+   "exerciseFlag": "是",
+   "callDate": "2031-09-24",
+   "status": "存续",
+   "source": "上清所发行公告"
+  },
+  {
+   "bondDefinedCode": "shc_272680010",
+   "issuer": "人保再保险股份有限公司",
+   "bondShort": "26人保再保资本补充债01",
+   "bondFull": "人保再保险股份有限公司2026年资本补充债券",
+   "bondCode": "272680010",
+   "bondType": "资本补充债",
+   "industry": "再保",
+   "issueDate": "2026-09-21",
+   "valueDate": "2026-09-23",
+   "mrtyDate": "2036-09-23",
+   "bondPeriod": "5+5年",
+   "planAmnt": 30.0,
+   "issueAmnt": 30.0,
+   "couponRate": 1.85,
+   "couponType": "附息式固定利率",
+   "couponFrqncy": "年",
+   "debtRating": "AA+",
+   "ratingStr": "AAA/AA+",
+   "exerciseFlag": "是",
+   "callDate": "2031-09-23",
+   "status": "存续",
+   "source": "上清所发行公告"
   }
  ]
 }

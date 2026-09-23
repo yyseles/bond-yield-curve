@@ -5,9 +5,12 @@ name: 每周更新保险公司资本补充债/永续债数据
 #   标题标准写明"赎回选择权行使/不行使" -> 已赎回/存续, 是赎回状态的权威依据; 免登录、无限流、约1分钟跑完。
 #   脚本: fix_status_from_chinabond.py (同时修正 5+5年 债 mrtyDate 被错写成第5年的历史错误)
 #
-# 【新债抓取-上清所(每周固定)】金融债券交易流通要素公告栏目(静态HTML, 覆盖2023-11至今)
+# 【新债抓取-上清所(每周固定)】双栏目覆盖（避免新债在"发行后、上市前"漏抓）:
+#   1) 发行情况报告-金融债 fxqkbg/jrz01 (新债主渠道, 发行完成后挂载, 正文为PDF, 走 download.jsp 网关下载+pymupdf解析)
+#   2) 交易流通要素公告 jrz_547       (上市后挂载, 静态HTML表格)
+#   两栏目共用 known={bondCode} 去重, 同一只债先发行后流通只入库一次, 绝不重复。
 #   限流敏感: 高频访问会被软封禁(404), 脚本内置 2.5s 间隔+重试退避, 失败不阻塞主流程。
-#   脚本: fetch_shc_newbonds.py (--backfill 一次性回溯全部67页验证历史完整性)
+#   脚本: fetch_shc_newbonds.py (--backfill 一次性回溯全部历史页; --no-pdf 跳过PDF解析)
 #
 # 【新债抓取-货币网(探测)】chinamoney 2026-09-10 起对 CI IP 全站 403;
 #   每轮跑 probe_chinamoney.py 单次探测(不重试), 恢复后再手动 mode=bonds 全量抓。
@@ -49,7 +52,7 @@ jobs:
           python-version: '3.12'
 
       - name: 安装依赖
-        run: pip install requests openpyxl akshare
+        run: pip install requests openpyxl akshare pymupdf
 
       - name: 连通性自检（mode=probe）
         if: github.event.inputs.mode == 'probe'
