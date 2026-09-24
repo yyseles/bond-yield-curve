@@ -291,6 +291,17 @@
         #bondYearTable, #bondIndustryTable { table-layout: fixed; }
         #bondYearTable .cnt-sub, #bondIndustryTable .cnt-sub { display: block; font-size: 10px; color: #8a99ad; margin-left: 0; margin-top: 2px; font-weight: 400; white-space: normal; line-height: 1.3; }
         #bondYearTable tbody td:nth-child(2), #bondIndustryTable tbody td:nth-child(2) { white-space: normal; }
+        /* 分行业汇总：主行可点击展开/收起 资补/永续 子行 */
+        #bondIndustryTable .ind-master { cursor: pointer; }
+        #bondIndustryTable .ind-master:hover { background: #f0f6ff; }
+        #bondIndustryTable .ind-arrow { display: inline-block; width: 14px; margin-right: 4px; font-size: 11px; color: #4a6b8f; transition: transform .15s ease; }
+        #bondIndustryTable .ind-sub { background: #f7fafc; color: #3d4f66; }
+        #bondIndustryTable .ind-sub:hover { background: #f0f6fa; }
+        #bondIndustryTable .ind-indent { padding-left: 24px !important; }
+        #bondIndustryTable .sub-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+        #bondIndustryTable .sub-dot.cap { background: #5470c6; }
+        #bondIndustryTable .sub-dot.perp { background: #e6a23c; }
+        #bondIndustryTable .ind-sub td { font-size: 13px; padding: 8px 10px; }
         /* 公司×年明细：发行人列固定较窄宽度并省略超长名称，年份列均分剩余空间 */
         #bondCompanyYearTable { table-layout: fixed; }
         #bondCompanyYearTable .col-issuer { width: 22%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1051,7 +1062,7 @@
                     <select id="bondIndustryYear" class="mini-select"><option value="">全部年份</option></select>
                 </div>
                 <div class="tbl-scroll ind-tbl"><table id="bondIndustryTable"></table></div>
-                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分；占比=该行业发行额 / 当前筛选范围总发行额。</p>
+                <p class="bonds-note">行业按发行人名称关键字推断；集团为保险集团/控股公司。可切换年份查看当年拆分；点击行业行可展开资本补充债/永续债明细，展开后两行的各自的占比为占该行业比重（合计100%）。</p>
             </div>
             <div class="bonds-panel">
                 <div class="panel-head">

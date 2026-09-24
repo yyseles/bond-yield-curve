@@ -219,17 +219,50 @@
             const order = ['寿险', '产险', '再保', '集团', '其他'];
             const keys = Object.keys(map).sort((a, b) => order.indexOf(a) - order.indexOf(b));
             const grandTotal = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            // 分组统计：总额/只数/加权利率/最高/最低
+            const stat = g => ({
+                n: g.length,
+                total: g.reduce((s, b) => s + (b.issueAmnt || 0), 0),
+                wavg: wavgRate(g), hi: maxRate(g), lo: minRate(g),
+            });
+            const pctOf = (part, whole) => whole > 0 ? (part / whole * 100).toFixed(1) + '%' : '0.0%';
             let html = '<thead><tr><th class="lft">行业</th><th>只数</th><th>总额(亿)</th><th>占比</th><th>加权利率</th><th>最高</th><th>最低</th></tr></thead><tbody>';
             keys.forEach(k => {
                 const g = map[k];
-                const total = g.reduce((s, b) => s + (b.issueAmnt || 0), 0);
-                const capN = g.filter(b => b.bondType === '资本补充债').length;
-                const perpN = g.filter(b => b.bondType === '永续债').length;
-                const pct = grandTotal > 0 ? (total / grandTotal * 100).toFixed(1) : '0.0';
-                html += `<tr><td class="lft">${k}</td><td><b>${g.length}</b><span class="cnt-sub">（资补${capN}；永续${perpN}）</span></td><td>${fmtAmnt(total)}</td><td>${pct}%</td><td>${fmtRate(wavgRate(g))}</td><td>${fmtRate(maxRate(g))}</td><td>${fmtRate(minRate(g))}</td></tr>`;
+                const tot = stat(g);
+                const cap = stat(g.filter(b => b.bondType === '资本补充债'));
+                const perp = stat(g.filter(b => b.bondType === '永续债'));
+                // 主行：合计汇总（点击展开资补/永续子行）
+                html += `<tr class="ind-master" onclick="toggleIndustryRows(this)" title="点击展开/收起 资本补充债与永续债拆分">
+                    <td class="lft"><span class="ind-arrow">▶</span>${k}</td>
+                    <td><b>${tot.n}</b></td><td>${fmtAmnt(tot.total)}</td><td>${pctOf(tot.total, grandTotal)}</td>
+                    <td>${fmtRate(tot.wavg)}</td><td>${fmtRate(tot.hi)}</td><td>${fmtRate(tot.lo)}</td></tr>`;
+                // 子行：资本补充债 / 永续债（默认收起），占比=占该行业比重（两行合计≈100%）
+                html += `<tr class="ind-sub" style="display:none">
+                    <td class="lft ind-indent"><span class="sub-dot cap"></span>资本补充债</td>
+                    <td>${cap.n}</td><td>${fmtAmnt(cap.total)}</td><td>${pctOf(cap.total, tot.total)}</td>
+                    <td>${fmtRate(cap.wavg)}</td><td>${fmtRate(cap.hi)}</td><td>${fmtRate(cap.lo)}</td></tr>`;
+                html += `<tr class="ind-sub" style="display:none">
+                    <td class="lft ind-indent"><span class="sub-dot perp"></span>永续债</td>
+                    <td>${perp.n}</td><td>${fmtAmnt(perp.total)}</td><td>${pctOf(perp.total, tot.total)}</td>
+                    <td>${fmtRate(perp.wavg)}</td><td>${fmtRate(perp.hi)}</td><td>${fmtRate(perp.lo)}</td></tr>`;
             });
             html += '</tbody>';
             document.getElementById('bondIndustryTable').innerHTML = html;
+        }
+
+        // 分行业汇总：点击主行展开/收起其后紧跟的资补/永续子行
+        function toggleIndustryRows(master) {
+            const arrow = master.querySelector('.ind-arrow');
+            let next = master.nextElementSibling;
+            let anyOpen = false;
+            while (next && next.classList.contains('ind-sub')) {
+                const show = next.style.display === 'none';
+                next.style.display = show ? '' : 'none';
+                if (show) anyOpen = true;
+                next = next.nextElementSibling;
+            }
+            if (arrow) arrow.textContent = anyOpen ? '▼' : '▶';
         }
 
         function renderBondCompanyYear(rows) {
