@@ -651,16 +651,16 @@ def main():
     fetched = 0
     while current <= end:
         ds = current.strftime("%Y-%m-%d")
-        # 跳过周末
-        if current.weekday() < 5:
-            rates, short = fetch_spot_rates_chinabond(ds)
-            if rates:
-                all_new[ds] = rates
-                short_new[ds] = short
-                fetched += 1
-                print(f"  ✓ {ds}: {len(rates)} 个整数年期限, sub-1Y {len(short)} 点")
-            else:
-                skipped += 1
+        # 每天都请求：周末/节假日数据源无更新时，返回的是最近有效日的重复曲线，
+        # 由下方合并阶段的“与前一有效日逐点比对”查重兜底，不会写入
+        rates, short = fetch_spot_rates_chinabond(ds)
+        if rates:
+            all_new[ds] = rates
+            short_new[ds] = short
+            fetched += 1
+            print(f"  ✓ {ds}: {len(rates)} 个整数年期限, sub-1Y {len(short)} 点")
+        else:
+            skipped += 1
         current += timedelta(days=1)
 
     print(f"\n获取: {fetched} 个交易日, 跳过/无数据: {skipped} 天")
@@ -675,9 +675,20 @@ def main():
 
         new_count = 0
         update_count = 0
+        dup_count = 0
         for d in sorted(all_new.keys()):
             rates = all_new[d]
             row = [rates.get(t) for t in ALL_TERMS]
+            # 查重：与该日期之前最近一条已有数据逐点比对。
+            # bxjDownload 对周末/节假日会返回最近有效日的整条曲线（返回体无日期列，无法直接校验归属日），
+            # 曲线完全相同即视为当天无新数据 → 不写入（与官网“非交易日”提示一致）
+            prev_dates = [x for x in date_to_row if x < d]
+            if prev_dates:
+                prev = max(prev_dates)
+                if date_to_row[prev] == row:
+                    print(f"  = {d}: 与前一有效日 {prev} 曲线完全相同（无新数据），不写入")
+                    dup_count += 1
+                    continue
             if d in date_to_row:
                 date_to_row[d] = row
                 update_count += 1
@@ -691,7 +702,7 @@ def main():
         output = {"dates": sorted_dates, "terms": ALL_TERMS, "rows": sorted_rows}
         save_data(output)
 
-        print(f"\n✅ 更新完成: 新增 {new_count} 条, 修正 {update_count} 条")
+        print(f"\n✅ 更新完成: 新增 {new_count} 条, 修正 {update_count} 条, 查重跳过 {dup_count} 条")
         print(f"   总计: {len(sorted_dates)} 条, {sorted_dates[0]} ~ {sorted_dates[-1]}")
 
         # data.json 已更新，重新加载以保证下游步骤使用最新交易日历
