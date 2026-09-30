@@ -642,6 +642,7 @@
                 </div>
                 <div class="chart-box tall" id="forecastChart"></div>
                 <div class="footnote" id="forecastFootnote">预测从最新日期后一个交易日开始，不含最新日期本身</div>
+                <div class="footnote" id="forecastCoverageWarn" style="display:none;color:#b9770e;font-weight:600;"></div>
             </div>
             <div class="card">
                 <div class="card-title">
@@ -782,6 +783,7 @@
                         <label for="discountForecastRefSelect" style="font-size:13px;font-weight:600;color:#b9770e;">平推基准：</label>
                         <select id="discountForecastRefSelect"></select>
                     </span>
+                    <span id="discountCoverageWarn" style="display:none;font-size:12px;color:#b9770e;font-weight:600;"></span>
                 </div>
                 <div class="spot-fwd-toggle" id="discountSFBtnGroup">
                     <button class="active" data-sf="fwd">远期</button>
@@ -1575,7 +1577,16 @@
 
         // ================================================================
         // 中国法定节假日（交易日历辅助）
-        // 注：此为常见节日列表，每年需更新。覆盖 2016-2027 主要节假日。
+        // 【维护说明】
+        //   · CHINA_HOLIDAYS  = 法定休市日 覆盖 2016-2027
+        //       - 2026 已按《国务院办公厅关于2026年部分节假日安排的通知》
+        //         （国办发明电〔2025〕7号，2025-11-26 公布）校对补齐
+        //       - 2027 为预估占位，官方安排尚未发布（每年底公布次年），待发布后校准
+        //   · TRADE_WEEKENDS = 调休补班的周末（周六/周日却是交易日）
+        //       已按官方补足 2026；2027 及以后待官方公布后补充
+        //   · 每年底国务院公布次年节假日安排后，按下述年份分块补充（勿编造日期）
+        //   · 缺失年份的周末判定仍可靠（纯算法），仅节假日/调休无法识别，
+        //     750MA 预测进入未覆盖年份时会有 ⚠ 预警提示（见 forecastCoverageNotice）
         // ================================================================
         const CHINA_HOLIDAYS = new Set([
             // 2016
@@ -1599,12 +1610,13 @@
             // 2025
             '2025-01-01','2025-01-29','2025-01-30','2025-01-31','2025-02-03','2025-02-04','2025-04-04','2025-05-01','2025-05-02','2025-06-02','2025-10-01','2025-10-02','2025-10-03','2025-10-06','2025-10-07','2025-10-08',
             // 2026
-            '2026-01-01','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-23','2026-04-06','2026-05-01','2026-05-04','2026-05-05','2026-06-19','2026-09-25','2026-10-01','2026-10-02','2026-10-05','2026-10-06','2026-10-07',
+            '2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20','2026-02-23','2026-04-06','2026-05-01','2026-05-04','2026-05-05','2026-06-19','2026-09-25','2026-10-01','2026-10-02','2026-10-05','2026-10-06','2026-10-07',
             // 2027
             '2027-01-01','2027-02-08','2027-02-09','2027-02-10','2027-02-11','2027-02-12','2027-03-22','2027-05-03','2027-05-04','2027-05-05','2027-06-09','2027-09-15','2027-10-01','2027-10-04','2027-10-05','2027-10-06','2027-10-07',
         ]);
 
         // 因调休补班的周末（这些日期虽然是周六日但也是交易日）
+        // 【已覆盖至 2026，2026 按国办发明电〔2025〕7号 校对；2027 及以后待官方公布后按年份分块补充】
         const TRADE_WEEKENDS = new Set([
             '2016-01-30','2016-02-14','2016-06-12','2016-09-18','2016-10-08','2016-10-09',
             '2017-01-21','2017-02-04','2017-04-01','2017-05-27','2017-09-30',
@@ -1616,6 +1628,8 @@
             '2023-01-28','2023-01-29','2023-04-23','2023-05-06','2023-06-25','2023-10-07','2023-10-08',
             '2024-02-04','2024-02-18','2024-04-07','2024-04-28','2024-05-11','2024-09-14','2024-09-29','2024-10-12',
             '2025-01-26','2025-02-08','2025-04-27','2025-09-28','2025-10-11',
+            // 2026（国务院2025-11-26公布，国办发明电〔2025〕7号）
+            '2026-01-04','2026-02-14','2026-02-28','2026-05-09','2026-09-20','2026-10-10',
         ]);
 
         function isTradingDay(dateStr) {
@@ -1628,6 +1642,52 @@
             // 正常周末
             if (wd === 0 || wd === 6) return false;
             return true;
+        }
+
+        // ================================================================
+        // 节假日表覆盖范围提示（750MA 预测进入未覆盖年份时预警）
+        //   endYear 传入预测终点年份；返回：'ok'（在覆盖内）或提示文案（超界）
+        // ================================================================
+        function holidayTableCoverage() {
+            let holMax = 0, twMax = 0;
+            CHINA_HOLIDAYS.forEach(d => { const y = parseInt(d.slice(0, 4), 10); if (y > holMax) holMax = y; });
+            TRADE_WEEKENDS.forEach(d => { const y = parseInt(d.slice(0, 4), 10); if (y > twMax) twMax = y; });
+            return { holidayMax: holMax, tradeWeekendMax: twMax };
+        }
+        function forecastCoverageNotice(endYear) {
+            const c = holidayTableCoverage();
+            // 以节假日表覆盖年为准；调休表更滞后时单独提示
+            if (!endYear) return '';
+            if (endYear > c.holidayMax) {
+                return '⚠ 预测进入节假日表未覆盖区间（节假日截至 ' + c.holidayMax +
+                       ' 年，预测终点 ' + endYear + ' 年）：缺失年份仅按"非周末=交易日"处理，' +
+                       (endYear > c.tradeWeekendMax
+                            ? '且调休补班表仅覆盖至 ' + c.tradeWeekendMax + ' 年。'
+                            : '') +
+                       '结果仅供参考。';
+            }
+            if (endYear > c.tradeWeekendMax) {
+                return '⚠ 预测已进入调休补班表未覆盖区间（截至 ' + c.tradeWeekendMax +
+                       ' 年）：补班的周末会被误判为非交易日，仅少数日期受影响。';
+            }
+            return '';
+        }
+
+        // 折现率面板预测预警：终点取预测列表最后一期年份，否则按最新实际日+3年
+        function updateDiscountCoverageWarn() {
+            const warnEl = document.getElementById('discountCoverageWarn');
+            if (!warnEl) return;
+            let endYear = null;
+            if (discountForecastList && discountForecastList.length) {
+                const last = discountForecastList[discountForecastList.length - 1];
+                endYear = parseInt(last.slice(0, 4), 10);
+            } else {
+                const ref = discountForecastRefDate || discountDate || (discGetGov && discGetGov().latestDate);
+                if (ref) endYear = parseInt(ref.slice(0, 4), 10) + 3;
+            }
+            const n = forecastCoverageNotice(endYear);
+            warnEl.textContent = n;
+            warnEl.style.display = n ? '' : 'none';
         }
 
         function avgRates(rates, startTerm, endTerm) {
@@ -2566,6 +2626,13 @@
             }
             document.getElementById('quarterFootnote').textContent = `预测值 = 加权平均后的${period}日移动平均 ｜ 实际行（蓝色）为基准日 ${refDate} 的${period}日均值`;
             document.getElementById('forecastRefBadge').textContent = `平推法 · 起点=${refDate} · 预测${forecastYears}年`;
+            const fcEndYear = parseInt(refDate.slice(0, 4), 10) + forecastYears;
+            const fcWarnEl = document.getElementById('forecastCoverageWarn');
+            if (fcWarnEl) {
+                const n = forecastCoverageNotice(fcEndYear);
+                fcWarnEl.textContent = n;
+                fcWarnEl.style.display = n ? '' : 'none';
+            }
         }
 
         // 季度末预测表导出（仅当前选中基准日对应的表，不做全量）
@@ -3848,11 +3915,14 @@
                     if (ymdWrap) ymdWrap.style.display = 'none';
                     if (fSel) { fSel.style.display = ''; if (!fSel.value && discountForecastList.length) fSel.value = discountForecastList[0]; }
                     this.textContent = '实际';
+                    updateDiscountCoverageWarn();
                     if (fSel && fSel.value) onDiscountDateChanged(fSel.value);
                 } else {
                     if (ymdWrap) ymdWrap.style.display = 'inline-flex';
                     if (fSel) fSel.style.display = 'none';
                     this.textContent = '预测';
+                    const warnEl = document.getElementById('discountCoverageWarn');
+                    if (warnEl) warnEl.style.display = 'none';
                     syncDiscountYMDFromDate(gov, discountDate || gov.latestDate);
                     onDiscountDateChanged(getCurrentDiscountDate());
                 }
