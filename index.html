@@ -15,10 +15,11 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
         .container { max-width: 1600px; margin: 0 auto; }
-        .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 14px 20px; border: 1px solid #e6edf5; margin-bottom: 16px; }
+        .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 14px 20px; border: 1px solid #e6edf5; margin-bottom: 12px; }
         .header-top, .header-nav-row, .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
         .header-top, .header-nav-row { justify-content: space-between; }
-        .header-nav-row { margin-top: 12px; }
+        .sticky-navs { position: sticky; top: 0; z-index: 70; margin: -4px 0 14px; padding: 4px 0 0; background: rgba(240,244,248,.97); backdrop-filter: blur(10px); }
+        .header-nav-row { padding: 8px 10px; background: rgba(255,255,255,.98); border: 1px solid #e6edf5; border-radius: 12px; box-shadow: 0 3px 12px rgba(20,45,75,.06); }
         .header-nav-row .main-nav { margin: 0; }
         h1 { font-size: 22px; font-weight: 600; color: #0b1a33; margin: 0; white-space: nowrap; }
         .header-actions { justify-content: flex-end; color: #5a6e8a; font-size: 13px; }
@@ -31,13 +32,13 @@
         .data-panel[hidden] { display: none; }
         .data-panel .upload-area { padding: 0; border: 0; background: transparent; box-shadow: none; }
         .data-panel .upload-status { max-width: 100%; flex-basis: 100%; }
-        .section-nav { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 6px; margin: -4px 0 14px; padding: 7px 9px; overflow-x: auto; background: rgba(240,244,248,.96); border: 1px solid #dbe5ef; border-radius: 10px; box-shadow: 0 3px 10px rgba(20,45,75,.06); backdrop-filter: blur(8px); }
+        .section-nav { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; padding: 7px 9px; overflow-x: auto; background: rgba(240,244,248,.98); border: 1px solid #dbe5ef; border-radius: 10px; box-shadow: 0 3px 10px rgba(20,45,75,.06); }
         .section-nav[hidden] { display: none; }
         .section-nav-label { flex: none; padding: 0 5px; color: #7a8ba8; font-size: 11px; font-weight: 600; }
         .section-nav button { flex: none; border: none; border-radius: 15px; padding: 5px 13px; background: transparent; color: #3e5a7a; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
         .section-nav button:hover { background: #e2ebf5; }
         .section-nav button.active { background: #1f4a7a; color: #fff; }
-        .section-anchor { scroll-margin-top: 62px; }
+        .section-anchor { scroll-margin-top: calc(var(--sticky-nav-height, 100px) + 12px); }
         .upload-area { display: flex; align-items: center; gap: 12px; background: white; padding: 6px 16px 6px 12px; border-radius: 30px; border: 1px solid #d0dde8; box-shadow: 0 2px 6px rgba(0,0,0,0.02); flex-wrap: wrap; }
         .upload-area label { font-size: 13px; font-weight: 500; color: #1f4a7a; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .upload-area input[type="file"] { display: none; }
@@ -524,7 +525,7 @@
             h1 { flex: 1 1 100%; font-size: 19px; line-height: 1.35; white-space: normal; }
             .header-top { align-items: flex-start; }
             .header-actions { width: 100%; justify-content: flex-start; gap: 8px; }
-            .header-nav-row { margin-top: 10px; }
+            .header-nav-row { padding: 8px; }
             .header-nav-row .main-nav, .main-nav .nav-group { width: 100%; }
             .main-nav .nav-group-primary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
             .main-nav .nav-group-secondary button { width: 100%; }
@@ -534,7 +535,7 @@
             .bond-toggle button { padding: 4px 5px; }
             .data-panel .upload-area, .data-panel .expo-wrap, .data-panel .expo-curves { width: 100%; }
             .data-panel .upload-area { gap: 10px; }
-            .section-nav { margin-bottom: 10px; padding: 5px 6px; }
+            .section-nav { margin-top: 6px; padding: 5px 6px; }
             .section-nav-label { display: none; }
             .chart-box { height: 240px; }
             .chart-box.tall, .ana-panel .ana-chart { height: 280px; }
@@ -559,26 +560,6 @@
                     <span>数据截至 <strong id="latestDateLabel">—</strong></span>
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
                     <button class="data-panel-toggle" id="dataPanelToggle" type="button" aria-expanded="false" aria-controls="dataManagementPanel">数据管理 / 导出</button>
-                </div>
-            </div>
-            <div class="header-nav-row">
-                <div class="main-nav" id="mainNav">
-                    <div class="nav-group nav-group-primary">
-                        <button class="active" data-view="monitor">📊 精算利率监测</button>
-                        <button data-view="analysis">📈 利率曲线分析</button>
-                        <button data-view="discount">💱 折现率曲线</button>
-                        <button data-view="preset">📉 预定利率追踪</button>
-                    </div>
-                    <span class="nav-sep" title="分界线：左侧为利率监测主功能，右侧为行业公开数据补充信息">│</span>
-                    <div class="nav-group nav-group-secondary">
-                        <button data-view="bonds">🏦 保险公司资本补充债发行信息</button>
-                    </div>
-                </div>
-                <div class="bond-toggle" id="bondToggle">
-                    <button class="active" data-bond="gov_spot">国债即期</button>
-                    <button data-bond="gov_ytm">国债到期</button>
-                    <button data-bond="cdb_spot">国开即期</button>
-                    <button data-bond="cdb_ytm">国开到期</button>
                 </div>
             </div>
             <div class="subtitle data-panel" id="dataManagementPanel" hidden>
@@ -609,7 +590,29 @@
                 </div>
             </div>
         </div>
-        <nav class="section-nav" id="sectionNav" aria-label="页内章节导航" hidden></nav>
+        <div class="sticky-navs" id="stickyNavs">
+            <div class="header-nav-row">
+                <div class="main-nav" id="mainNav">
+                    <div class="nav-group nav-group-primary">
+                        <button class="active" data-view="monitor">📊 精算利率监测</button>
+                        <button data-view="analysis">📈 利率曲线分析</button>
+                        <button data-view="discount">💱 折现率曲线</button>
+                        <button data-view="preset">📉 预定利率追踪</button>
+                    </div>
+                    <span class="nav-sep" title="分界线：左侧为利率监测主功能，右侧为行业公开数据补充信息">│</span>
+                    <div class="nav-group nav-group-secondary">
+                        <button data-view="bonds">🏦 保险公司资本补充债发行信息</button>
+                    </div>
+                </div>
+                <div class="bond-toggle" id="bondToggle">
+                    <button class="active" data-bond="gov_spot">国债即期</button>
+                    <button data-bond="gov_ytm">国债到期</button>
+                    <button data-bond="cdb_spot">国开即期</button>
+                    <button data-bond="cdb_ytm">国开到期</button>
+                </div>
+            </div>
+            <nav class="section-nav" id="sectionNav" aria-label="页内章节导航" hidden></nav>
+        </div>
 
         <!-- 总览视图 -->
         <div class="view-overview" id="viewOverview">
@@ -1277,7 +1280,6 @@
 
             <div class="footnote">税收溢价反映国开债相对国债的免税溢价；期限利差反映国债收益率曲线陡平。数据自 2008 起（早期长端可能缺失）。</div>
         </div>
-    </div>
 
     <!-- ═══════════════════════════════════════════════
          预定利率动态追踪（依据金寿险函〔2025〕10号）
@@ -1354,6 +1356,7 @@
                 <div class="footnote">回溯各已公布季度：本平台公式在季末测算的 N，与监管公布研究值对照。</div>
             </div>
         </div>
+    </div>
     </div>
 
     <script src="discount-loader.js"></script>
@@ -3710,6 +3713,16 @@
                 ['bondIndustrySection', '行业与票面'], ['bondCompanySection', '公司明细']
             ]
         };
+
+        function syncStickyNavHeight() {
+            const navs = document.getElementById('stickyNavs');
+            if (!navs) return;
+            document.documentElement.style.setProperty('--sticky-nav-height', Math.ceil(navs.getBoundingClientRect().height) + 'px');
+        }
+        const stickyNavObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncStickyNavHeight) : null;
+        if (stickyNavObserver) stickyNavObserver.observe(document.getElementById('stickyNavs'));
+        window.addEventListener('resize', syncStickyNavHeight);
+        syncStickyNavHeight();
 
         function updateSectionNav(key) {
             const nav = document.getElementById('sectionNav');
