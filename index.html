@@ -577,7 +577,10 @@
             <div class="card" style="display:flex;flex-direction:column;min-height:0;">
                 <div class="card-title">
                     <span>📋 关键期限利率</span>
-                    <span class="badge">所选日期 / 750日平均 · 变动比较</span>
+                    <div class="mini-toggle" id="keyTermsModeToggle">
+                        <button type="button" class="active" data-mode="spot">所选日期</button>
+                        <button type="button" data-mode="ma">750日平均</button>
+                    </div>
                     <div class="date-selector">
                         <label style="font-size:13px;font-weight:400;">查看日期：</label>
                         <span class="ymd-wrap">
@@ -589,21 +592,19 @@
                 </div>
                 <div class="table-wrap" id="keyTermsTableWrap" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;">
                     <table>
-                        <thead>
+                        <thead id="keyTermsHead">
                             <tr>
                                 <th>期限</th>
                                 <th>所选日 (%)</th>
-                                <th>750MA (%)</th>
-                                <th>所选-上月 (bp)</th>
-                                <th>750-上月 (bp)</th>
-                                <th>所选-上年 (bp)</th>
-                                <th>750-上年 (bp)</th>
+                                <th>较上月 (bp)</th>
+                                <th>较上季 (bp)</th>
+                                <th>较上年 (bp)</th>
                             </tr>
                         </thead>
                         <tbody id="keyTermsBody"></tbody>
                     </table>
                 </div>
-                <div class="footnote" id="comparisonFootnote">上月/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)</div>
+                <div class="footnote" id="comparisonFootnote">上月/上季/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)</div>
             </div>
         </div>
 
@@ -1521,6 +1522,7 @@
         let forecastPeriod = 750;        // 预测周期（250/500/750/2500）
         const FORECAST_PERIODS = [250, 500, 750, 2500];
         let historyViewMode = 'spot';    // 历史关键时点对比视图：spot | ma750（仅国债即期）
+        let keyTermsMode = 'spot';       // 关键期限利率表：spot=所选日期 | ma=750日平均
         let curveChart = null,
             forecastChart = null;
         let isPlaying = false;
@@ -1805,7 +1807,27 @@
                 const targetStr = lastYearYear + '-12-31';
                 lastYearTrade = findLastTradeDate(dates, targetStr);
             }
-            return { lastMonthTrade, lastYearTrade };
+
+            // 上一季度末（自然季度）：上季末月(3/6/9/12)的最后一个交易日，缺数据同样回退到该月末之前最近交易日
+            const quarterStartMonth = Math.floor(month / 3) * 3;   // 本季首月 0/3/6/9
+            let lastQYear = year;
+            let lastQMonth = quarterStartMonth - 1;                // 上季末月
+            if (lastQMonth < 0) { lastQMonth = 11; lastQYear = year - 1; }
+            let lastQuarterTrade = null;
+            for (const d of dates) {
+                const dt = new Date(d + 'T00:00:00Z');
+                if (dt.getUTCFullYear() === lastQYear && dt.getUTCMonth() === lastQMonth) {
+                    if (!lastQuarterTrade || d > lastQuarterTrade) lastQuarterTrade = d;
+                }
+            }
+            if (!lastQuarterTrade) {
+                const lastDay = new Date(Date.UTC(lastQYear, lastQMonth + 1, 0));
+                const qy = lastDay.getUTCFullYear();
+                const qm = String(lastDay.getUTCMonth() + 1).padStart(2, '0');
+                const qd = String(lastDay.getUTCDate()).padStart(2, '0');
+                lastQuarterTrade = findLastTradeDate(dates, `${qy}-${qm}-${qd}`);
+            }
+            return { lastMonthTrade, lastYearTrade, lastQuarterTrade };
         }
 
         // ================================================================
@@ -2190,11 +2212,13 @@
             const targetKey = getKeyRates(targetRates);
             const maKey = maTarget ? getKeyRates(maTarget) : {};
 
-            const { lastMonthTrade, lastYearTrade } = getComparisonDatesFor(targetDate);
+            const { lastMonthTrade, lastYearTrade, lastQuarterTrade } = getComparisonDatesFor(targetDate);
             let lastMonthRates = null,
-                lastYearRates = null;
+                lastYearRates = null,
+                lastQuarterRates = null;
             let lastMonthMARates = null,
-                lastYearMARates = null;
+                lastYearMARates = null,
+                lastQuarterMARates = null;
             if (lastMonthTrade) {
                 const lmIdx = dataStore.dates.indexOf(lastMonthTrade);
                 if (lmIdx !== -1) {
@@ -2208,6 +2232,27 @@
                     lastYearRates = dataStore.rates[lyIdx];
                     lastYearMARates = calc750MAForDate(lastYearTrade);
                 }
+            }
+
+            if (lastQuarterTrade) {
+                const lqIdx = dataStore.dates.indexOf(lastQuarterTrade);
+                if (lqIdx !== -1) {
+                    lastQuarterRates = dataStore.rates[lqIdx];
+                    lastQuarterMARates = calc750MAForDate(lastQuarterTrade);
+                }
+            }
+
+            // 显示模式：spot=所选日期 / ma=750日平均（表头与变动列随模式切换）
+            const isMA = (keyTermsMode === 'ma');
+            const curKey = isMA ? maKey : targetKey;
+            const refMonth = isMA ? lastMonthMARates : lastMonthRates;
+            const refQuarter = isMA ? lastQuarterMARates : lastQuarterRates;
+            const refYear = isMA ? lastYearMARates : lastYearRates;
+            const headEl = document.getElementById('keyTermsHead');
+            if (headEl) {
+                headEl.innerHTML = isMA
+                    ? '<tr><th>期限</th><th>750MA (%)</th><th>750-上月 (bp)</th><th>750-上季 (bp)</th><th>750-上年 (bp)</th></tr>'
+                    : '<tr><th>期限</th><th>所选日 (%)</th><th>较上月 (bp)</th><th>较上季 (bp)</th><th>较上年 (bp)</th></tr>';
             }
 
             function getRateValue(ratesObj, key) {
@@ -2225,13 +2270,11 @@
             let html = '';
             for (let i = 0; i < keys.length; i++) {
                 const k = keys[i];
-                const todayVal = targetKey[k];
-                const maVal = maKey[k];
+                const todayVal = curKey ? curKey[k] : null;
 
-                const diffTodayLM = safeDiffBp(todayVal, getRateValue(lastMonthRates, k));
-                const diffMALM = safeDiffBp(maVal, getRateValue(lastMonthMARates, k));
-                const diffTodayLY = safeDiffBp(todayVal, getRateValue(lastYearRates, k));
-                const diffMALY = safeDiffBp(maVal, getRateValue(lastYearMARates, k));
+                const diffLM = safeDiffBp(todayVal, getRateValue(refMonth, k));
+                const diffLQ = safeDiffBp(todayVal, getRateValue(refQuarter, k));
+                const diffLY = safeDiffBp(todayVal, getRateValue(refYear, k));
 
                 const fmtDiff = (diff) => {
                     if (diff === null) return '—';
@@ -2243,19 +2286,18 @@
 
                 html += '<tr>';
                 html += '<td><strong>' + labels[i] + '</strong></td>';
-                html += '<td>' + (todayVal !== null ? todayVal.toFixed(4) : '—') + '</td>';
-                html += '<td>' + (maVal !== null ? maVal.toFixed(4) : '—') + '</td>';
-                html += '<td>' + fmtDiff(diffTodayLM) + '</td>';
-                html += '<td>' + fmtDiff(diffMALM) + '</td>';
-                html += '<td>' + fmtDiff(diffTodayLY) + '</td>';
-                html += '<td>' + fmtDiff(diffMALY) + '</td>';
+                html += '<td>' + (todayVal != null ? todayVal.toFixed(4) : '—') + '</td>';
+                html += '<td>' + fmtDiff(diffLM) + '</td>';
+                html += '<td>' + fmtDiff(diffLQ) + '</td>';
+                html += '<td>' + fmtDiff(diffLY) + '</td>';
                 html += '</tr>';
             }
             tbody.innerHTML = html;
 
             const footnote = document.getElementById('comparisonFootnote');
-            let msg = '上月/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)';
+            let msg = '上月/上季/上年末均为最后一个交易日 ｜ bp = 基点 (1bp=0.01%)';
             if (lastMonthTrade) msg += ` ｜ 上月末: ${lastMonthTrade}`;
+            if (lastQuarterTrade) msg += ` ｜ 上季末: ${lastQuarterTrade}`;
             if (lastYearTrade) msg += ` ｜ 上年末: ${lastYearTrade}`;
             footnote.textContent = msg;
         }
@@ -3697,6 +3739,17 @@
         // 初始化
         // ================================================================
         function setupEventListeners() {
+            // 关键期限利率表：所选日期 / 750日平均 切换
+            const ktToggle = document.getElementById('keyTermsModeToggle');
+            if (ktToggle) {
+                ktToggle.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        keyTermsMode = this.dataset.mode;
+                        ktToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === this));
+                        renderKeyTermsTable();
+                    });
+                });
+            }
             // 视图切换
             document.querySelectorAll('#forecastViewBtnGroup button').forEach(btn => {
                 btn.addEventListener('click', function() {
