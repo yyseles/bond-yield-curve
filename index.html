@@ -15,9 +15,29 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; padding: 20px; color: #1a2332; }
         .container { max-width: 1600px; margin: 0 auto; }
-        .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 16px 24px; border: 1px solid #e6edf5; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .header-card { background: #ffffff; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,20,50,0.08); padding: 14px 20px; border: 1px solid #e6edf5; margin-bottom: 16px; }
+        .header-top, .header-nav-row, .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+        .header-top, .header-nav-row { justify-content: space-between; }
+        .header-nav-row { margin-top: 12px; }
+        .header-nav-row .main-nav { margin: 0; }
         h1 { font-size: 22px; font-weight: 600; color: #0b1a33; margin: 0; white-space: nowrap; }
-        .subtitle { font-size: 13px; color: #5a6e8a; border-left: none; padding-left: 0; background: transparent; border-radius: 0; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 0; }
+        .header-actions { justify-content: flex-end; color: #5a6e8a; font-size: 13px; }
+        .data-panel-toggle { border: 1px solid #cbd5e1; background: #f3f6fa; color: #3e5a7a; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .data-panel-toggle:hover, .data-panel-toggle[aria-expanded="true"] { background: #e8eef5; border-color: #9fb4ca; }
+        .data-panel-toggle::after { content: '▾'; margin-left: 6px; display: inline-block; transition: transform .15s; }
+        .data-panel-toggle[aria-expanded="true"]::after { transform: rotate(180deg); }
+        .subtitle { font-size: 13px; color: #5a6e8a; line-height: 1.6; }
+        .data-panel { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dce4ed; }
+        .data-panel[hidden] { display: none; }
+        .data-panel .upload-area { padding: 0; border: 0; background: transparent; box-shadow: none; }
+        .data-panel .upload-status { max-width: 100%; flex-basis: 100%; }
+        .section-nav { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 6px; margin: -4px 0 14px; padding: 7px 9px; overflow-x: auto; background: rgba(240,244,248,.96); border: 1px solid #dbe5ef; border-radius: 10px; box-shadow: 0 3px 10px rgba(20,45,75,.06); backdrop-filter: blur(8px); }
+        .section-nav[hidden] { display: none; }
+        .section-nav-label { flex: none; padding: 0 5px; color: #7a8ba8; font-size: 11px; font-weight: 600; }
+        .section-nav button { flex: none; border: none; border-radius: 15px; padding: 5px 13px; background: transparent; color: #3e5a7a; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .section-nav button:hover { background: #e2ebf5; }
+        .section-nav button.active { background: #1f4a7a; color: #fff; }
+        .section-anchor { scroll-margin-top: 62px; }
         .upload-area { display: flex; align-items: center; gap: 12px; background: white; padding: 6px 16px 6px 12px; border-radius: 30px; border: 1px solid #d0dde8; box-shadow: 0 2px 6px rgba(0,0,0,0.02); flex-wrap: wrap; }
         .upload-area label { font-size: 13px; font-weight: 500; color: #1f4a7a; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .upload-area input[type="file"] { display: none; }
@@ -474,6 +494,10 @@
         /* 利率曲线分析 视图 */
         .view-analysis { padding-top: 6px; }
         .ana-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .ana-toolbar .btn-group { display: flex; gap: 4px; background: #eef3fa; border-radius: 20px; padding: 2px; }
+        .ana-toolbar .btn-group button { border: none; background: transparent; padding: 4px 14px; border-radius: 18px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: .2s; white-space: nowrap; }
+        .ana-toolbar .btn-group button.active { background: #fff; color: #1f4a7a; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+        .ana-toolbar .btn-group button:hover:not(.active) { background: rgba(255,255,255,.5); }
         .ana-curves { display: flex; gap: 16px; flex-wrap: wrap; }
         .ana-curves label { font-size: 13px; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
         .ana-controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 13px; }
@@ -494,36 +518,71 @@
         .custom-spread-row select { padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #fff; }
         .custom-spread-row .rm-btn { border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; border-radius: 4px; }
         .custom-spread-row .rm-btn:hover { color: #e74c3c; background: #fef0f0; }
+
+        /* 响应式终态规则：置于各板块样式之后，避免通用高度再次覆盖移动端 */
+        @media (max-width: 640px) {
+            h1 { flex: 1 1 100%; font-size: 19px; line-height: 1.35; white-space: normal; }
+            .header-top { align-items: flex-start; }
+            .header-actions { width: 100%; justify-content: flex-start; gap: 8px; }
+            .header-nav-row { margin-top: 10px; }
+            .header-nav-row .main-nav, .main-nav .nav-group { width: 100%; }
+            .main-nav .nav-group-primary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+            .main-nav .nav-group-secondary button { width: 100%; }
+            .main-nav .nav-sep { display: none; }
+            .main-nav button { min-height: 36px; padding: 6px 8px; }
+            .bond-toggle { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .bond-toggle button { padding: 4px 5px; }
+            .data-panel .upload-area, .data-panel .expo-wrap, .data-panel .expo-curves { width: 100%; }
+            .data-panel .upload-area { gap: 10px; }
+            .section-nav { margin-bottom: 10px; padding: 5px 6px; }
+            .section-nav-label { display: none; }
+            .chart-box { height: 240px; }
+            .chart-box.tall, .ana-panel .ana-chart { height: 280px; }
+            .ana-toolbar .btn-group { width: 100%; flex-wrap: wrap; }
+            .ana-toolbar .btn-group button { flex: 1 1 calc(50% - 4px); min-height: 36px; }
+            .ana-curves { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .card-title .date-selector { width: 100%; margin-left: 0; flex-wrap: wrap; }
+            .preset-toolbar .toolbar-hint { margin-left: 0; }
+            button, select, input[type="date"], input[type="number"] { min-height: 36px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .bond-ticker-icon, .bond-ticker-track { animation: none; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header-card">
-            <h1 id="mainTitle">📊 精算利率监测与利率曲线分析平台</h1>
-            <div class="main-nav" id="mainNav">
-                <div class="nav-group nav-group-primary">
-                    <button class="active" data-view="monitor">📊 精算利率监测</button>
-                    <button data-view="analysis">📈 利率曲线分析</button>
-                    <button data-view="discount">💱 折现率曲线</button>
-                    <button data-view="preset">📉 预定利率追踪</button>
-                </div>
-                <span class="nav-sep" title="分界线：左侧为利率监测主功能，右侧为行业公开数据补充信息">│</span>
-                <div class="nav-group nav-group-secondary">
-                    <button data-view="bonds">🏦 保险公司资本补充债发行信息</button>
-                </div>
-            </div>
-            <div class="bond-toggle" id="bondToggle">
-                <button class="active" data-bond="gov_spot">国债即期</button>
-                <button data-bond="gov_ytm">国债到期</button>
-                <button data-bond="cdb_spot">国开即期</button>
-                <button data-bond="cdb_ytm">国开到期</button>
-            </div>
-            <div class="subtitle">
-                <span>
-                    数据截至 <strong id="latestDateLabel">—</strong>
-                </span>
-                <div class="upload-area">
+            <div class="header-top">
+                <h1 id="mainTitle">📊 精算利率监测与利率曲线分析平台</h1>
+                <div class="header-actions">
+                    <span>数据截至 <strong id="latestDateLabel">—</strong></span>
                     <span class="server-status online" id="serverStatus"><span class="dot"></span> 线上数据</span>
+                    <button class="data-panel-toggle" id="dataPanelToggle" type="button" aria-expanded="false" aria-controls="dataManagementPanel">数据管理 / 导出</button>
+                </div>
+            </div>
+            <div class="header-nav-row">
+                <div class="main-nav" id="mainNav">
+                    <div class="nav-group nav-group-primary">
+                        <button class="active" data-view="monitor">📊 精算利率监测</button>
+                        <button data-view="analysis">📈 利率曲线分析</button>
+                        <button data-view="discount">💱 折现率曲线</button>
+                        <button data-view="preset">📉 预定利率追踪</button>
+                    </div>
+                    <span class="nav-sep" title="分界线：左侧为利率监测主功能，右侧为行业公开数据补充信息">│</span>
+                    <div class="nav-group nav-group-secondary">
+                        <button data-view="bonds">🏦 保险公司资本补充债发行信息</button>
+                    </div>
+                </div>
+                <div class="bond-toggle" id="bondToggle">
+                    <button class="active" data-bond="gov_spot">国债即期</button>
+                    <button data-bond="gov_ytm">国债到期</button>
+                    <button data-bond="cdb_spot">国开即期</button>
+                    <button data-bond="cdb_ytm">国开到期</button>
+                </div>
+            </div>
+            <div class="subtitle data-panel" id="dataManagementPanel" hidden>
+                <div class="upload-area">
                     <span class="upload-status" id="uploadStatus">等待加载数据...</span>
                     <button class="btn-download" id="downloadSampleBtn">📥 导出数据</button>
                     <div class="expo-wrap">
@@ -550,6 +609,7 @@
                 </div>
             </div>
         </div>
+        <nav class="section-nav" id="sectionNav" aria-label="页内章节导航" hidden></nav>
 
         <!-- 总览视图 -->
         <div class="view-overview" id="viewOverview">
@@ -563,7 +623,7 @@
         <button class="btn-back" id="btnBackToOverview" onclick="showOverview()">← 返回总览</button>
 
         <!-- 第一行：即期曲线 | 关键期限利率 -->
-        <div class="grid-2">
+        <div class="grid-2 section-anchor" id="monitorCurveSection">
             <div class="card">
                 <div class="card-title">
                     <span class="bond-name">📊 中债国债即期利率曲线</span>
@@ -616,7 +676,7 @@
         </div>
 
         <!-- 第二行：750预测 | 季度末750预测 -->
-        <div class="grid-2">
+        <div class="grid-2 section-anchor" id="monitorForecastSection">
             <div class="card">
                 <div class="card-title">
                     <span>🔮 移动平均利率预测</span>
@@ -684,7 +744,7 @@
         </div>
 
         <!-- 第三行 -->
-        <div class="card">
+        <div class="card section-anchor" id="monitorHistorySection">
             <div class="card-title">
                 <span>📆 历史关键时点对比</span>
                 <span class="badge">年末 / 月末 · 按列独立着色</span>
@@ -704,7 +764,7 @@
         </div>
 
         <!-- 第四行：移动平均分析 -->
-        <div class="grid-2" style="margin-top: 20px;">
+        <div class="grid-2 section-anchor" id="monitorMASection" style="margin-top: 20px;">
             <!-- 子图A：时间序列 -->
             <div class="card">
                 <div class="card-title">
@@ -770,7 +830,7 @@
         </div><!-- /view-detail -->
         <!-- 折现率曲线视图 -->
         <div class="view-discount" id="viewDiscount" style="display:none;">
-            <div class="ma-controls discount-controls">
+            <div class="ma-controls discount-controls section-anchor" id="discountControlsSection">
                 <div class="rule-toggle" id="ruleToggle">
                     <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
                     <button class="active" data-rule="c2_2">CROSS</button>
@@ -973,7 +1033,7 @@
                     <p class="footnote">修改任意参数后自动重算。UFR上升 = 基础×(1+上升幅度)、UFR下降 = 基础×(1+下降幅度)。</p>
                 </div>
             </div>
-            <div id="discountSummaryView">
+            <div id="discountSummaryView" class="section-anchor">
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-title">
@@ -1044,10 +1104,10 @@
             </div>
         </div>
 
-        <div class="summary-grid" id="bondSummaryCards"></div>
+        <div class="summary-grid section-anchor" id="bondSummaryCards"></div>
 
         <!-- 上部：年度发行汇总 组合图 + 年度汇总表 -->
-        <div class="bonds-row is-top">
+        <div class="bonds-row is-top section-anchor" id="bondYearSection">
             <div class="bonds-panel">
                 <div class="panel-head">
                     <h4><span class="accent"></span>年度发行汇总（组合图）</h4>
@@ -1065,7 +1125,7 @@
         </div>
 
         <!-- 中部：左=分行业汇总表（含占比），右=票面利率散点 -->
-        <div class="bonds-row is-mid">
+        <div class="bonds-row is-mid section-anchor" id="bondIndustrySection">
             <div class="bonds-panel">
                 <div class="panel-head">
                     <h4><span class="accent"></span>分行业汇总（产 / 寿 / 再保 / 集团）</h4>
@@ -1085,7 +1145,7 @@
         </div>
 
         <!-- 下部：公司 × 年 发行总额明细 -->
-        <div class="bonds-panel">
+        <div class="bonds-panel section-anchor" id="bondCompanySection">
             <div class="panel-head">
                 <h4><span class="accent"></span>公司 × 年 发行总额明细（亿元）</h4>
                 <span class="dot-legend">圆点大小 / 颜色深浅代表发行额
@@ -1244,7 +1304,7 @@
         </div>
         <div class="preset-cards" id="presetSummary"></div>
 
-        <div class="grid-2">
+        <div class="grid-2 section-anchor" id="presetChartsSection">
             <div class="card">
                 <div class="card-title"><span>① 利率走廊</span><span class="badge">LPR5Y · 定存5Y · 中值 · 6MMA</span></div>
                 <div class="chart-box" id="presetChartCorridor"></div>
@@ -1270,7 +1330,7 @@
             </div>
         </div>
 
-        <div class="grid-2">
+        <div class="grid-2 section-anchor" id="presetTablesSection">
             <div class="card input-table-compact">
                 <div class="card-title"><span>📋 输入数据源（LPR / 定存 调整历史 + 衍生走廊）</span><span class="badge">行政利率 · 仅调整日变动</span></div>
                 <div class="table-wrap scrollable-y" style="max-height:300px;"><table id="presetInputTable"></table></div>
@@ -1282,12 +1342,12 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card section-anchor" id="presetRulesSection">
             <div class="card-title"><span>📋 M → N 分段调节对照</span><span class="badge">当前 M 落入区间高亮</span></div>
             <div class="table-wrap"><table id="presetMNTable"></table></div>
         </div>
 
-        <div class="preset-forecast-area">
+        <div class="preset-forecast-area section-anchor" id="presetBacktestSection">
             <div class="area-title">🟢 公式值 vs 监管公布值（回溯）</div>
             <div class="card">
                 <div class="table-wrap scrollable-y" style="max-height:360px;"><table id="presetBacktestTable"></table></div>
@@ -3633,10 +3693,66 @@
         }
 
         // ================================================================
-        // 视图切换：总览 ↔ 详情
+        // 页内导航、响应式图表与视图切换
         // ================================================================
+        const SECTION_NAV_ITEMS = {
+            detail: [
+                ['monitorCurveSection', '利率曲线'], ['monitorForecastSection', '移动平均预测'],
+                ['monitorHistorySection', '历史时点'], ['monitorMASection', 'MA分析']
+            ],
+            discount: [['discountControlsSection', '参数与规则'], ['discountSummaryView', '曲线与汇总']],
+            preset: [
+                ['presetChartsSection', '核心图表'], ['presetTablesSection', '数据与预测'],
+                ['presetRulesSection', '调节规则'], ['presetBacktestSection', '监管回溯']
+            ],
+            bonds: [
+                ['bondSummaryCards', '发行总览'], ['bondYearSection', '年度汇总'],
+                ['bondIndustrySection', '行业与票面'], ['bondCompanySection', '公司明细']
+            ]
+        };
+
+        function updateSectionNav(key) {
+            const nav = document.getElementById('sectionNav');
+            const items = (SECTION_NAV_ITEMS[key] || []).filter(([id]) => document.getElementById(id));
+            nav.hidden = items.length === 0;
+            nav.innerHTML = items.length ? '<span class="section-nav-label">本页章节</span>' + items.map(([id, label], i) =>
+                `<button type="button" data-target="${id}" class="${i === 0 ? 'active' : ''}">${label}</button>`).join('') : '';
+        }
+
+        function applyResponsiveChartDefaults() {
+            if (typeof echarts === 'undefined') return;
+            const mobile = window.innerWidth <= 640;
+            document.querySelectorAll('.chart-box, .ana-chart').forEach(el => {
+                const chart = echarts.getInstanceByDom(el);
+                if (!chart) return;
+                chart.setOption({ tooltip: { confine: true }, legend: { type: mobile ? 'scroll' : 'plain' } });
+                chart.resize();
+            });
+        }
+        let responsiveChartTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(responsiveChartTimer);
+            responsiveChartTimer = setTimeout(applyResponsiveChartDefaults, 120);
+        });
+
+        async function handleHashChange() {
+            const type = decodeURIComponent(location.hash.replace(/^#/, ''));
+            if (!type) {
+                if (currentMainView === 'monitor' && currentMonitorSubview === 'detail') showOverview();
+                return;
+            }
+            if (!['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'].includes(type)) return;
+            if (!dataStore || !dataStore.latestDate) return;
+            if (currentMainView !== 'monitor') {
+                currentMonitorSubview = 'detail';
+                showMainView('monitor');
+            }
+            await showDetail(type);
+        }
+
         function showOverview() {
             currentMonitorSubview = 'overview';
+            updateSectionNav('');
             if (currentMainView === 'discount') { document.getElementById('viewOverview').style.display = 'none'; return; }
             document.getElementById('viewOverview').style.display = '';
             document.getElementById('viewDetail').style.display = 'none';
@@ -3646,6 +3762,7 @@
 
         async function showDetail(type) {
             currentMonitorSubview = 'detail';
+            updateSectionNav('detail');
             if (currentMainView === 'discount') return;
             document.getElementById('viewOverview').style.display = 'none';
             document.getElementById('viewDetail').style.display = '';
@@ -3656,7 +3773,8 @@
                 if (forecastChart) forecastChart.resize();
                 if (maTimeSeriesChart) maTimeSeriesChart.resize();
                 if (maCurveChartEcharts) maCurveChartEcharts.resize();
-            }, 50);
+                applyResponsiveChartDefaults();
+            }, 80);
             // 切换曲线类型
             if (type !== currentBondType) {
                 await switchBondType(type);
@@ -3693,6 +3811,7 @@
 
         function showMainView(v) {
             currentMainView = v;
+            updateSectionNav('');
             document.querySelectorAll('#mainNav button').forEach(b => b.classList.toggle('active', b.dataset.view === v));
             const bt = document.getElementById('bondToggle');
             // 先隐藏所有主视图，避免切换时互相叠加（如资本补充债视图底部残留预定利率追踪内容）
@@ -3707,31 +3826,34 @@
                 document.querySelector('.container').classList.remove('overview-mode');
                 document.getElementById('viewPreset').style.display = '';
                 renderPreset();
-                setTimeout(() => { for (const k in presetCharts) if (presetCharts[k]) presetCharts[k].resize(); }, 60);
+                updateSectionNav('preset');
+                setTimeout(() => { for (const k in presetCharts) if (presetCharts[k]) presetCharts[k].resize(); applyResponsiveChartDefaults(); }, 80);
                 return;
             }
             if (v === 'bonds') {
                 document.querySelector('.container').classList.remove('overview-mode');
                 document.getElementById('viewBonds').style.display = '';
                 renderBondsView();
-                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); }, 60);
+                updateSectionNav('bonds');
+                setTimeout(() => { if (bondScatterChart) bondScatterChart.resize(); if (bondComboChart) bondComboChart.resize(); applyResponsiveChartDefaults(); }, 80);
                 return;
             }
             if (v === 'analysis') {
                 document.getElementById('viewAnalysis').style.display = '';
                 renderAnalysis();
-                setTimeout(() => { for (const k in anaCharts) if (anaCharts[k]) anaCharts[k].resize(); }, 60);
+                setTimeout(() => { for (const k in anaCharts) if (anaCharts[k]) anaCharts[k].resize(); applyResponsiveChartDefaults(); }, 80);
                 return;
             }
             if (v === 'discount') {
                 document.getElementById('viewDiscount').style.display = '';
+                updateSectionNav('discount');
                 if (!discountDate) discountDate = dataStore.latestDate;
                 requestDiscountAccess(function () {
                     if (!discountDatePopulated) populateDiscountDateSelect();
                     else syncDiscountDatePickerMode(discGetGov());
                     syncDiscountForecastRefUI();
                     renderDiscount();
-                    setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); }, 60);
+                    setTimeout(() => { if (discountChart) discountChart.resize(); if (discountCompareChart) discountCompareChart.resize(); applyResponsiveChartDefaults(); }, 80);
                 });
             } else {
                 bt.style.display = '';
@@ -3746,6 +3868,21 @@
         // 初始化
         // ================================================================
         function setupEventListeners() {
+            const dataPanelToggle = document.getElementById('dataPanelToggle');
+            const dataPanel = document.getElementById('dataManagementPanel');
+            dataPanelToggle.addEventListener('click', () => {
+                dataPanel.hidden = !dataPanel.hidden;
+                dataPanelToggle.setAttribute('aria-expanded', String(!dataPanel.hidden));
+            });
+            document.getElementById('sectionNav').addEventListener('click', event => {
+                const btn = event.target.closest('button[data-target]');
+                if (!btn) return;
+                const target = document.getElementById(btn.dataset.target);
+                if (!target) return;
+                btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+                const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+            });
             // 关键期限利率表：所选日期 / 750日平均 切换
             const ktToggle = document.getElementById('keyTermsModeToggle');
             if (ktToggle) {
@@ -5283,9 +5420,11 @@
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
+            const initialHash = location.hash;
             await init();
-            // 初始化完成后处理 URL hash（支持刷新/分享链接直接进入详情页）
-            handleHashChange();
+            // init 的总览渲染会清理 hash；先恢复初始值，再进入分享链接指定的详情页
+            if (initialHash && !location.hash) history.replaceState(null, '', initialHash);
+            await handleHashChange();
         });
         window.addEventListener('hashchange', handleHashChange);
     </script>
