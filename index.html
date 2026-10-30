@@ -363,8 +363,12 @@
         @media (max-width: 760px) { .bonds-toolbar { flex-direction: column; align-items: flex-start; } .btn-download { margin-left: 0; } }
         /* 折现率曲线视图 */
         .view-discount { padding-top: 4px; }
-        .discount-controls { justify-content: space-between; align-items: center; }
-        .discount-controls > div { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .discount-controls { justify-content: space-between; align-items: center; gap: 10px; }
+        .discount-controls .dc-group { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .discount-controls .dc-group > div { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        @media (min-width: 900px) {
+            .discount-controls .dc-group-right { border-left: 1px solid #e2e8f0; padding-left: 16px; }
+        }
         .discount-controls button:disabled { opacity: .45; cursor: not-allowed; }
         .discount-controls .sub-view-toggle button,
         .discount-controls .spot-fwd-toggle button { padding: 4px 14px; border-radius: 7px; border: 1px solid #cbd5e1; background: white; color: #3e5a7a; font-size: 13px; cursor: pointer; }
@@ -834,6 +838,7 @@
         <!-- 折现率曲线视图 -->
         <div class="view-discount" id="viewDiscount" style="display:none;">
             <div class="ma-controls discount-controls section-anchor" id="discountControlsSection">
+                <div class="dc-group dc-group-left">
                 <div class="rule-toggle" id="ruleToggle">
                     <span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>
                     <button class="active" data-rule="c2_2">CROSS</button>
@@ -856,6 +861,8 @@
                     </span>
                     <span id="discountCoverageWarn" style="display:none;font-size:12px;color:#b9770e;font-weight:600;"></span>
                 </div>
+                </div>
+                <div class="dc-group dc-group-right">
                 <div class="spot-fwd-toggle" id="discountSFBtnGroup">
                     <button class="active" data-sf="fwd">远期</button>
                     <button data-sf="spot">即期</button>
@@ -864,6 +871,7 @@
                     <button class="btn-download" id="discountSummaryBtn">📥 汇总</button>
                     <button class="btn-download" id="discountOutputBtn">📥 输出</button>
                     <button class="btn-download" id="discountWorkingBtn">📥 底稿</button>
+                </div>
                 </div>
             </div>
             <details class="discount-rules" id="discountRules">
@@ -1056,10 +1064,10 @@
                             </span>
                         </div>
                         <div class="chart-box tall" id="discountCompareChart"></div>
-                        <div class="footnote">当前日（实线）与对比日（虚线）的负债中档 + 利率基础曲线 · 期限单位：年 ｜ 利率单位：%</div>
+                        <div class="footnote">当前日（实线）与对比日（虚线）的负债中档 + 利率上升/下降曲线 · 期限单位：年 ｜ 利率单位：%</div>
                     </div>
                 </div>
-                <div class="card">
+                <div class="card section-anchor" id="discountTableSection">
                     <div class="card-title"><span>汇总数据表</span></div>
                     <div class="table-wrap" id="discountSummaryTableWrap" style="overflow:auto;max-height:560px;">
                         <table>
@@ -3703,7 +3711,7 @@
                 ['monitorCurveSection', '利率曲线'], ['monitorForecastSection', '移动平均预测'],
                 ['monitorHistorySection', '历史时点'], ['monitorMASection', 'MA分析']
             ],
-            discount: [['discountControlsSection', '参数与规则'], ['discountSummaryView', '曲线与汇总']],
+            discount: [['discountControlsSection', '参数与规则'], ['discountSummaryView', '曲线对比'], ['discountTableSection', '汇总数据表']],
             preset: [
                 ['presetChartsSection', '核心图表'], ['presetTablesSection', '数据与预测'],
                 ['presetRulesSection', '调节规则'], ['presetBacktestSection', '监管回溯']

@@ -883,7 +883,7 @@
                 yAxis: { type:'value', name:'%', axisLabel:{ formatter: v => v.toFixed(2) } },
                 series: series
             }, true);
-            // 右图：曲线对比（当前日 vs 对比日），仅负债中档 + 利率基础
+            // 右图：曲线对比（当前日 vs 对比日），仅负债中档 + 利率上升/下降
             const cmpDom = document.getElementById('discountCompareChart');
             if (cmpDom) {
                 const cmpDate = getEffectiveCompareDate(gov, d.latestDate);
@@ -914,7 +914,6 @@
                     lineStyle:{ width:1.8, type: g.dash?'dashed':'solid', color:g.color },
                     itemStyle:{ color:g.color }, emphasis:{ focus:'series' }
                 }));
-                console.log('[discountCompare] cmpDate=', cmpDate, 'mode=', mode, 'seriesCount=', cmpSeries.length, 'firstSeriesSample=', cmpSeries[0] && cmpSeries[0].data.slice(0,5));
                 discountCompareChart.setOption({
                     title:{ text:'曲线对比 · 当前 '+d.latestDate+' vs '+cmpDate, left:'center', textStyle:{fontSize:14} },
                     tooltip:{ trigger:'axis' },
