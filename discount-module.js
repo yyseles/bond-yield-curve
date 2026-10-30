@@ -875,10 +875,10 @@
             const chartDom = document.getElementById('discountSummaryChart');
             if (!discountChart) discountChart = echarts.init(chartDom);
             discountChart.setOption({
-                title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· ' + ruleLabel(), left:'center', textStyle:{fontSize:14} },
+                title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· ' + ruleLabel(), left:'center', top: 4, textStyle:{fontSize:14} },
                 tooltip: { trigger:'axis' },
-                legend: { type:'scroll', bottom: 0, textStyle:{fontSize:11} },
-                grid: { left: 52, right: 22, top: 42, bottom: 62 },
+                legend: { type:'scroll', top: 26, left:'center', textStyle:{fontSize:11} },
+                grid: { left: 52, right: 22, top: 58, bottom: 50 },
                 xAxis: { type:'category', data: years, name:'年', nameLocation:'middle', nameGap: 28 },
                 yAxis: { type:'value', name:'%', axisLabel:{ formatter: v => v.toFixed(2) } },
                 series: series
@@ -915,10 +915,10 @@
                     itemStyle:{ color:g.color }, emphasis:{ focus:'series' }
                 }));
                 discountCompareChart.setOption({
-                    title:{ text:'曲线对比 · 当前 '+d.latestDate+' vs '+cmpDate, left:'center', textStyle:{fontSize:14} },
+                    title:{ text:'曲线对比 · 当前 '+d.latestDate+' vs '+cmpDate, left:'center', top: 4, textStyle:{fontSize:14} },
                     tooltip:{ trigger:'axis' },
-                    legend:{ type:'scroll', bottom:0, textStyle:{fontSize:11} },
-                    grid:{ left:52, right:22, top:42, bottom:62 },
+                    legend:{ type:'scroll', top: 26, left:'center', textStyle:{fontSize:11} },
+                    grid:{ left:52, right:22, top:58, bottom:50 },
                     xAxis:{ type:'category', data:years, name:'年', nameLocation:'middle', nameGap:28 },
                     yAxis:{ type:'value', name:'%', axisLabel:{ formatter: v=>v.toFixed(2) } },
                     series: cmpSeries
