@@ -1051,7 +1051,7 @@
                             <span id="discountSummaryTitle">负债折现率曲线（汇总）</span>
                             <span class="badge" id="discountSummaryBadge"></span>
                         </div>
-                        <div class="chart-box tall" id="discountSummaryChart"></div>
+                        <div class="chart-box tall" id="discountSummaryChart" data-legend-lock="scroll"></div>
                         <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
                     </div>
                     <div class="card">
@@ -1063,7 +1063,7 @@
                                 <select id="discountCompareDateSelect"></select>
                             </span>
                         </div>
-                        <div class="chart-box tall" id="discountCompareChart"></div>
+                        <div class="chart-box tall" id="discountCompareChart" data-legend-lock="scroll"></div>
                         <div class="footnote">当前日（实线）与对比日（虚线）的负债中档 + 利率上升/下降曲线 · 期限单位：年 ｜ 利率单位：%</div>
                     </div>
                 </div>
@@ -3746,7 +3746,16 @@
             document.querySelectorAll('.chart-box, .ana-chart').forEach(el => {
                 const chart = echarts.getInstanceByDom(el);
                 if (!chart) return;
-                chart.setOption({ tooltip: { confine: true }, legend: { type: mobile ? 'scroll' : 'plain' } });
+                // ECharts 的 plain/scroll 是两种不同 legend 组件：切换 type 会整体重建组件并丢弃
+                // 原有 top/left/textStyle 等配置（曾导致折现率两图图例回落 top:0 压住标题）。
+                // 因此切换前先读当前配置，把位置与样式字段一并带回；data-legend-lock 可锁定类型。
+                const cur = (chart.getOption().legend || [])[0] || {};
+                const patch = { type: el.dataset.legendLock || (mobile ? 'scroll' : 'plain') };
+                ['top', 'right', 'bottom', 'left', 'orient', 'align', 'padding', 'itemWidth', 'itemHeight', 'itemGap'].forEach(k => {
+                    if (cur[k] !== undefined && cur[k] !== null && cur[k] !== 'auto') patch[k] = cur[k];
+                });
+                if (cur.textStyle) patch.textStyle = cur.textStyle;
+                chart.setOption({ tooltip: { confine: true }, legend: patch });
                 chart.resize();
             });
         }
