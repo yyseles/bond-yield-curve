@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-03",
+ "generatedAt": "2026-11-10",
  "source": "中国货币网(chinamoney) 债券信息综合查询",
  "count": 179,
  "bonds": [
@@ -2415,7 +2415,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "否",
    "callDate": "2026-12-07",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {
@@ -2439,7 +2439,7 @@
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "否",
    "callDate": "7638-12-06",
-   "status": "存续",
+   "status": "已赎回",
    "source": "Excel(用户维护)"
   },
   {

@@ -1,8 +1,8 @@
 {
- "runAt": "2026-11-03 04:34:48",
+ "runAt": "2026-11-10 05:11:54",
  "mode": "incremental",
- "pagesFetched": 7,
- "itemsTotal": 70,
+ "pagesFetched": 6,
+ "itemsTotal": 60,
  "insFound": 0,
  "newBonds": [],
  "blocked": false,
@@ -10,7 +10,7 @@
  "fxItems": 30,
  "fxIns": 0,
  "fxInsTitles": [],
- "ltItems": 40,
+ "ltItems": 30,
  "ltIns": 0,
  "ltInsTitles": []
 }
