@@ -598,11 +598,24 @@ def main():
                         help='仅做数据源时效性自检（不抓取/生成），落后即返回非零退出码')
     parser.add_argument('--list-commit-files', action='store_true',
                         help='打印本 CI 应提交的文件清单（空格分隔），供 workflow git add 使用')
+    parser.add_argument('--check-today', action='store_true',
+                        help='检查 data.json 最新日期是否为今天，是则返回0（已更新），否则返回1')
     args = parser.parse_args()
 
     if args.list_commit_files:
         print(' '.join(COMMIT_FILES))
         return
+
+    if args.check_today:
+        existing = load_existing_data()
+        today_bj = now_beijing().strftime('%Y-%m-%d')
+        latest = existing['dates'][-1] if existing.get('dates') else None
+        if latest == today_bj:
+            print(f'✅ 今天({today_bj})已更新，最新日期={latest}')
+            sys.exit(0)
+        else:
+            print(f'⏳ 今天({today_bj})尚未更新，最新日期={latest}')
+            sys.exit(1)
 
     if args.self_check:
         sys.exit(self_check())

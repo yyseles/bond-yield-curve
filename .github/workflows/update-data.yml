@@ -2,16 +2,8 @@ name: 每日自动更新国债利率数据并部署
 
 on:
   schedule:
-    # 北京时间 18:13 (UTC 10:13) —— 避开整点高峰，用奇数分钟
-    - cron: '13 10 * * *'
-    # 北京时间 19:37 (UTC 11:37) —— 第二次尝试
-    - cron: '37 11 * * *'
-    # 北京时间 20:23 (UTC 12:23) —— 主运行
-    - cron: '23 12 * * *'
-    # 北京时间 21:47 (UTC 13:47) —— 兜底
-    - cron: '47 13 * * *'
-    # 北京时间 22:19 (UTC 14:19) —— 最后兜底
-    - cron: '19 14 * * *'
+    # 北京时间 17:45 (UTC 09:45) —— 第一次尝试，提前于中债网常规发布时间
+    - cron: '45 9 * * *'
   workflow_dispatch:  # 允许手动触发
   push:               # 每次推送也自动部署
     branches: [main]
@@ -47,22 +39,46 @@ jobs:
       - name: 安装依赖
         run: pip install requests openpyxl
 
-      - name: 抓取最新国债利率数据
-        run: python ci_update.py
+      - name: 循环抓取（最多5次，间隔25分钟）
+        id: fetch_loop
+        run: |
+          MAX_ATTEMPTS=5
+          INTERVAL_SEC=1500  # 25分钟 = 1500秒
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "=== 第 $attempt / $MAX_ATTEMPTS 次尝试 ==="
+            # 先检查今天是否已更新（可能前一次已成功）
+            if python ci_update.py --check-today; then
+              echo "今天已更新，无需继续"
+              echo "updated=true" >> $GITHUB_OUTPUT
+              break
+            fi
+            # 执行抓取
+            python ci_update.py
+            # 再次检查是否更新成功
+            if python ci_update.py --check-today; then
+              echo "本次抓取成功"
+              echo "updated=true" >> $GITHUB_OUTPUT
+              break
+            fi
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "未获取到今天数据，等待 ${INTERVAL_SEC} 秒后重试..."
+              sleep $INTERVAL_SEC
+            else
+              echo "⚠ 已达最大重试次数，今天数据仍未获取"
+              echo "updated=false" >> $GITHUB_OUTPUT
+            fi
+          done
 
       - name: 提交并推送更新（含 keepalive 保活）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 由 ci_update.py 的 DATA_SOURCES 注册表驱动 git add（新增数据源只需改一处，杜绝漏 add）
+          # 由 ci_update.py 的 DATA_SOURCES 注册表驱动 git add
           FILES=$(python -c "import ci_update; print(' '.join(ci_update.COMMIT_FILES))")
           for f in $FILES; do git add "$f" 2>/dev/null || true; done
           echo "已暂存注册表文件: $FILES"
-          # 检查 data.json 是否有实质变化
           if git diff --cached --quiet; then
             echo "数据无变化，检查是否需要 keepalive 保活..."
-            # 距离上次 commit 超过 23 小时则提交一次空 commit 保活
-            # 防止 GitHub 因 60 天无活动禁用 scheduled workflows
             LAST_COMMIT_TS=$(git log -1 --format="%ct")
             NOW_TS=$(date +%s)
             DIFF_HOURS=$(( (NOW_TS - LAST_COMMIT_TS) / 3600 ))
