@@ -2,8 +2,16 @@ name: 每日自动更新国债利率数据并部署
 
 on:
   schedule:
-    # 北京时间 17:45 (UTC 09:45) —— 第一次尝试，提前于中债网常规发布时间
-    - cron: '45 9 * * *'
+    # 北京时间 18:13 (UTC 10:13) —— 第一次尝试
+    - cron: '13 10 * * *'
+    # 北京时间 19:37 (UTC 11:37) —— 第二次尝试
+    - cron: '37 11 * * *'
+    # 北京时间 20:23 (UTC 12:23) —— 第三次尝试
+    - cron: '23 12 * * *'
+    # 北京时间 21:47 (UTC 13:47) —— 第四次尝试
+    - cron: '47 13 * * *'
+    # 北京时间 22:19 (UTC 14:19) —— 最后兜底
+    - cron: '19 14 * * *'
   workflow_dispatch:  # 允许手动触发
   push:               # 每次推送也自动部署
     branches: [main]
@@ -39,35 +47,20 @@ jobs:
       - name: 安装依赖
         run: pip install requests openpyxl
 
-      - name: 循环抓取（最多5次，间隔25分钟）
-        id: fetch_loop
+      - name: 检查今天是否已更新
+        id: check_today
         run: |
-          MAX_ATTEMPTS=5
-          INTERVAL_SEC=1500  # 25分钟 = 1500秒
-          for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            echo "=== 第 $attempt / $MAX_ATTEMPTS 次尝试 ==="
-            # 先检查今天是否已更新（可能前一次已成功）
-            if python ci_update.py --check-today; then
-              echo "今天已更新，无需继续"
-              echo "updated=true" >> $GITHUB_OUTPUT
-              break
-            fi
-            # 执行抓取
-            python ci_update.py
-            # 再次检查是否更新成功
-            if python ci_update.py --check-today; then
-              echo "本次抓取成功"
-              echo "updated=true" >> $GITHUB_OUTPUT
-              break
-            fi
-            if [ $attempt -lt $MAX_ATTEMPTS ]; then
-              echo "未获取到今天数据，等待 ${INTERVAL_SEC} 秒后重试..."
-              sleep $INTERVAL_SEC
-            else
-              echo "⚠ 已达最大重试次数，今天数据仍未获取"
-              echo "updated=false" >> $GITHUB_OUTPUT
-            fi
-          done
+          if python ci_update.py --check-today; then
+            echo "today_updated=true" >> $GITHUB_OUTPUT
+            echo "今天已更新，跳过抓取"
+          else
+            echo "today_updated=false" >> $GITHUB_OUTPUT
+            echo "今天尚未更新，继续抓取"
+          fi
+
+      - name: 抓取最新国债利率数据
+        if: steps.check_today.outputs.today_updated == 'false'
+        run: python ci_update.py
 
       - name: 提交并推送更新（含 keepalive 保活）
         run: |
