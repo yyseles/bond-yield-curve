@@ -174,7 +174,10 @@ def extract_pdf_field(doc_txt_orig):
         except (IndexError, ValueError):
             return None
 
-    vd = _zh_date(g1(r"起息日\s*([0-9年月日]+)"))
+    vd = _zh_date(g1(r"起息日[期]?\s*[:：]?\s*([0-9年月日]+)"))
+    if not vd:
+        # 回退：匹配"本期债券起息日为XXXX年X月X日"
+        vd = _zh_date(g1(r"起息日[期为]\s*([0-9年月日]+)"))
     # 发行日优先取"发行日"，其次"簿记建档日"，都没有则回退 None（由调用方用公告日兜底）
     idate = _zh_date(g1(r"发行日\s*([0-9年月日]+)")) or _zh_date(g1(r"簿记建档日\s*([0-9年月日]+)"))
 
@@ -270,7 +273,8 @@ def build_record_from_pdf(f, title):
     else:
         industry = "寿险"
 
-    value_date = f["valueDate"]
+    value_date = f["valueDate"] or f["issueDate"]
+    issue_date = f["issueDate"] or f["valueDate"]
     if perpetual := f["perpetual"]:
         bond_type, period = "永续债", "5+N年"
         call = None
@@ -293,6 +297,12 @@ def build_record_from_pdf(f, title):
                 mrty = vd.replace(year=vd.year + 10).strftime("%Y-%m-%d")
             except ValueError:
                 pass
+            try:
+                vd = datetime.strptime(value_date, "%Y-%m-%d")
+                call = vd.replace(year=vd.year + 5).strftime("%Y-%m-%d")
+                mrty = vd.replace(year=vd.year + 10).strftime("%Y-%m-%d")
+            except ValueError:
+                pass
 
     return {
         "bondDefinedCode": "shc_" + code,
@@ -302,7 +312,7 @@ def build_record_from_pdf(f, title):
         "bondCode": code,
         "bondType": bond_type,
         "industry": industry,
-        "issueDate": f["issueDate"] or None,  # 优先 PDF 内发行日/簿记建档日
+        "issueDate": issue_date or None,  # 优先 PDF 内发行日/簿记建档日，回退起息日
         "valueDate": value_date,
         "mrtyDate": mrty,
         "bondPeriod": period,

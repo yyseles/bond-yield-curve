@@ -37,7 +37,7 @@
    "industry": "寿险",
    "issueDate": "2026-09-22",
    "valueDate": "2026-09-22",
-   "mrtyDate": null,
+   "mrtyDate": "2036-09-22",
    "bondPeriod": "5+5年",
    "planAmnt": 35.0,
    "issueAmnt": 35.0,
@@ -47,7 +47,7 @@
    "debtRating": "AAA",
    "ratingStr": "AA+/AAA",
    "exerciseFlag": "是",
-   "callDate": null,
+   "callDate": "2031-09-22",
    "status": "存续",
    "source": "上清所发行公告"
   },
