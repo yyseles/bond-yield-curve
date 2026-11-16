@@ -1,16 +1,16 @@
 {
- "runAt": "2026-11-10 05:11:54",
+ "runAt": "2026-11-17 04:44:52",
  "mode": "incremental",
- "pagesFetched": 6,
- "itemsTotal": 60,
+ "pagesFetched": 8,
+ "itemsTotal": 80,
  "insFound": 0,
  "newBonds": [],
  "blocked": false,
  "errors": [],
- "fxItems": 30,
+ "fxItems": 40,
  "fxIns": 0,
  "fxInsTitles": [],
- "ltItems": 30,
+ "ltItems": 40,
  "ltIns": 0,
  "ltInsTitles": []
 }
