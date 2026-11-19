@@ -1303,21 +1303,6 @@
             const cross = _call('c2_2');
             const sii   = _call('c2_new');
             const alm   = _call('alm');
-
-            // CROSS/ALM 50年后平推50年值
-            [cross, alm].forEach(d => {
-                if (!d || !d.liab) return;
-                ['spot','fwd'].forEach(kind => {
-                    ['high','mid','low'].forEach(lvl => {
-                        const obj = d.liab[kind][lvl];
-                        if (!obj) return;
-                        const v50 = obj[50];
-                        if (v50 == null) return;
-                        for (let t = 51; t <= 120; t++) obj[t] = v50;
-                    });
-                });
-            });
-
             return { cross, sii, alm, date: endDateStr, ref };
         }
 
@@ -1390,7 +1375,7 @@
                 { key:'alm',   name:'ALM',    colorHigh:'#1e8449', colorMid:'#27ae60', colorLow:'#58d68d' },
             ];
             const years120 = [];
-            for (let t=1; t<=120; t++) years120.push(t);
+            for (let t=1; t<=50; t++) years120.push(t);
 
             const activeRules = f.rule === 'all' ? rules : rules.filter(r => r.key === f.rule);
             const activeLevels = f.level === 'all' ? ['high','mid','low'] : [f.level];
@@ -1421,7 +1406,7 @@
             let chart = echarts.getInstanceByDom(chartDom);
             if (!chart) chart = echarts.init(chartDom);
             chart.setOption({
-                title:{ text:'负债' + (mode==='spot'?'即期':'远期') + '折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
+                title:{ text:'负债' + (mode==='spot'?'即期':'远期') + '折现率 · 三规则对比(1-50年)', left:'center', top:4, textStyle:{fontSize:13} },
                 tooltip:{ trigger:'axis' },
                 legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
                 grid:{ left:52, right:22, top:58, bottom:50 },
@@ -1475,7 +1460,9 @@
                 const aMid = keyData.alm[mode].mid[m.k];
                 const d1 = (cMid!=null && sMid!=null) ? ((cMid-sMid)*10000).toFixed(2) : '—';
                 const d2 = (cMid!=null && aMid!=null) ? ((cMid-aMid)*10000).toFixed(2) : '—';
-                kb += '<td>' + d1 + '</td><td>' + d2 + '</td></tr>';
+                const d1Cls = (d1!=='—' && parseFloat(d1)<0) ? 'diff-td neg' : 'diff-td';
+                const d2Cls = (d2!=='—' && parseFloat(d2)<0) ? 'diff-td neg' : 'diff-td';
+                kb += '<td class="' + d1Cls + '">' + d1 + '</td><td class="' + d2Cls + '">' + d2 + '</td></tr>';
             });
             document.getElementById('discountOverviewKeyBody').innerHTML = kb;
 
@@ -1550,7 +1537,8 @@
                     const cv = cData ? cData[k] : null;
                     const sv = sData[k];
                     const d = (cv!=null && sv!=null) ? ((sv-cv)*10000).toFixed(2) : '—';
-                    fb += '<td>' + d + '</td>';
+                    const cls = (d!=='—' && parseFloat(d)<0) ? 'diff-td neg' : 'diff-td';
+                    fb += '<td class="' + cls + '">' + d + '</td>';
                 });
                 fb += '</tr>';
             });

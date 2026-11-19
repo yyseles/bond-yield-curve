@@ -76,6 +76,18 @@
         .table-wrap th { background: #f2f6fc; color: #1e385a; font-weight: 600; padding: 8px 10px; text-align: center; border-bottom: 2px solid #d0ddea; font-size: 12px; white-space: nowrap; }
         .table-wrap td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #e9eef4; font-size: 13px; white-space: nowrap; }
         .table-wrap tr:hover td { background: #f6faff; }
+        /* 总括摘要表格美化 */
+        .ov-table { font-size: 12.5px; }
+        .ov-table thead th { background: linear-gradient(180deg,#e8f0f9 0%,#dbe7f5 100%); border-bottom: 2px solid #b8cce4; font-size: 11.5px; padding: 6px 8px; }
+        .ov-table tbody tr:nth-child(even) td { background: #f8fbfe; }
+        .ov-table tbody tr:nth-child(odd) td { background: #ffffff; }
+        .ov-table tbody tr:hover td { background: #eef5fd !important; }
+        .ov-table td { padding: 6px 8px; font-variant-numeric: tabular-nums; }
+        .ov-table td:first-child { font-weight: 600; color: #1e385a; background: #f0f5fb !important; border-right: 2px solid #d0ddea; }
+        .ov-table .diff-td { background: #fdf6ec !important; color: #8a5a00; font-weight: 600; }
+        .ov-table .diff-td.neg { color: #1a7a3a; }
+        .ovf-btn { padding: 4px 12px; border: 1px solid #c8d6e8; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all .15s; }
+        .ovf-btn:hover { background: #e8f0f9; }
         /* 季度预测 / 历史时点：冻结首行与日期列，交叉单元格保持最高层级 */
         .sticky-table table { border-collapse: separate; border-spacing: 0; }
         .sticky-table thead th { position: sticky; top: 0; z-index: 3; background: #f2f6fc; background-clip: padding-box; }
@@ -1054,7 +1066,7 @@
                 </div>
                 <div class="card">
                     <div class="card-title"><span>关键期限对比</span></div>
-                    <div class="table-wrap" id="discountOverviewKeyTableWrap" style="overflow:auto;">
+                    <div class="table-wrap ov-table" id="discountOverviewKeyTableWrap" style="overflow:auto;">
                         <table>
                             <thead id="discountOverviewKeyHead"></thead>
                             <tbody id="discountOverviewKeyBody"></tbody>
@@ -1069,7 +1081,7 @@
                             <input type="date" id="discountOverviewFcStart" style="font-size:12px;padding:2px 4px;">
                         </span>
                     </div>
-                    <div class="table-wrap" id="discountOverviewForecastWrap" style="overflow:auto;">
+                    <div class="table-wrap ov-table" id="discountOverviewForecastWrap" style="overflow:auto;">
                         <table>
                             <thead id="discountOverviewForecastHead"></thead>
                             <tbody id="discountOverviewForecastBody"></tbody>
