@@ -782,6 +782,7 @@
             return 'CROSS';
         }
         function renderDiscount() {
+            if (discountRule === 'overview') { renderDiscountOverview(); return; }
             if (discountRule === 'c2_new') syncSWParamsFromInputs();
             const d = ensureDiscountData();
             if (!d) { alert('国债即期数据尚未加载，无法生成折现率曲线'); return; }
@@ -1271,7 +1272,10 @@
         // ================================================================
         // 折现率总括摘要 — 三规则对比（CROSS / Solvency II / ALM）
         // ================================================================
+        // 折现率总括摘要 — 三规则对比（CROSS / Solvency II / ALM）
+        // ================================================================
         let overviewCache = null;
+        let overviewFilter = { rule: 'all', level: 'all', mode: 'spot' };
 
         function computeAllRulesForDate(endDateStr) {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
@@ -1318,8 +1322,6 @@
         }
 
         function _overviewKeyMetrics(d) {
-            // 返回 { spot: { high:{}, mid:{}, low:{} }, fwd: {...} }
-            // 每个指标含 10Y,20Y,40Y,avg1_20,avg21_40,avg41_120
             const out = { spot: {}, fwd: {} };
             ['spot','fwd'].forEach(kind => {
                 ['high','mid','low'].forEach(lvl => {
@@ -1343,6 +1345,30 @@
             return out;
         }
 
+        function _renderOverviewFilterButtons() {
+            const wrap = document.getElementById('discountOverviewFilter');
+            if (!wrap) return;
+            const f = overviewFilter;
+            wrap.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>' +
+                ['all','cross','sii','alm'].map(k => '<button class="ovf-btn" data-f="rule" data-v="' + k + '" ' + (f.rule===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
+                    (k==='all'?'全部':k==='cross'?'CROSS':k==='sii'?'SII':'ALM') + '</button>').join('') +
+                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;margin-left:12px;">档次：</span>' +
+                ['all','high','mid','low'].map(k => '<button class="ovf-btn" data-f="level" data-v="' + k + '" ' + (f.level===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
+                    (k==='all'?'全部':k==='high'?'高':k==='mid'?'中':'低') + '</button>').join('') +
+                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;margin-left:12px;">即/远：</span>' +
+                ['spot','fwd'].map(k => '<button class="ovf-btn" data-f="mode" data-v="' + k + '" ' + (f.mode===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
+                    (k==='spot'?'即期':'远期') + '</button>').join('') +
+                '</div>';
+            wrap.querySelectorAll('.ovf-btn').forEach(b => {
+                b.addEventListener('click', function() {
+                    overviewFilter[this.dataset.f] = this.dataset.v;
+                    _renderOverviewFilterButtons();
+                    renderDiscountOverview();
+                });
+            });
+        }
+
         function renderDiscountOverview() {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
             const endDate = discountDate || gov.latestDate;
@@ -1353,62 +1379,73 @@
             }
             if (!overviewCache) return;
             const { cross, sii, alm } = overviewCache;
+            const f = overviewFilter;
+
+            _renderOverviewFilterButtons();
 
             // ---------- 组件A：120年对比图 ----------
             const rules = [
                 { key:'cross', name:'CROSS',  colorHigh:'#c0392b', colorMid:'#e67e22', colorLow:'#f5b041' },
-                { key:'sii',   name:'Solvency II', colorHigh:'#1f618d', colorMid:'#2980b9', colorLow:'#5dade2' },
+                { key:'sii',   name:'SII', colorHigh:'#1f618d', colorMid:'#2980b9', colorLow:'#5dade2' },
                 { key:'alm',   name:'ALM',    colorHigh:'#1e8449', colorMid:'#27ae60', colorLow:'#58d68d' },
             ];
             const years120 = [];
             for (let t=1; t<=120; t++) years120.push(t);
 
-            function buildSeries(mode) {
-                const series = [];
-                rules.forEach(r => {
-                    const d = overviewCache[r.key];
-                    if (!d || !d.liab) return;
-                    const src = d.liab[mode];
-                    ['high','mid','low'].forEach((lvl, i) => {
-                        const color = i===0 ? r.colorHigh : i===1 ? r.colorMid : r.colorLow;
-                        const data = years120.map(t => {
-                            const v = src[lvl][t];
-                            return v==null ? null : +(v*100).toFixed(4);
-                        });
-                        series.push({
-                            name: r.name + '-' + (lvl==='high'?'高':lvl==='mid'?'中':'低'),
-                            type:'line', showSymbol:false,
-                            data, lineStyle:{ width:1.5, type:'solid', color },
-                            itemStyle:{ color }, emphasis:{ focus:'series' }
-                        });
+            const activeRules = f.rule === 'all' ? rules : rules.filter(r => r.key === f.rule);
+            const activeLevels = f.level === 'all' ? ['high','mid','low'] : [f.level];
+            const mode = f.mode;
+
+            const series = [];
+            activeRules.forEach(r => {
+                const d = overviewCache[r.key];
+                if (!d || !d.liab) return;
+                const src = d.liab[mode];
+                activeLevels.forEach((lvl, i) => {
+                    const color = lvl==='high' ? r.colorHigh : lvl==='mid' ? r.colorMid : r.colorLow;
+                    const data = years120.map(t => {
+                        const v = src[lvl][t];
+                        return v==null ? null : +(v*100).toFixed(4);
+                    });
+                    series.push({
+                        name: r.name + '-' + (lvl==='high'?'高':lvl==='mid'?'中':'低'),
+                        type:'line', showSymbol:false,
+                        data, lineStyle:{ width:1.8, type:'solid', color },
+                        itemStyle:{ color }, emphasis:{ focus:'series' }
                     });
                 });
-                return series;
-            }
+            });
 
-            const spotChart = echarts.init(document.getElementById('discountOverviewSpotChart'));
-            spotChart.setOption({
-                title:{ text:'负债即期折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
+            const chartDom = document.getElementById('discountOverviewChart');
+            if (!chartDom) return;
+            let chart = echarts.getInstanceByDom(chartDom);
+            if (!chart) chart = echarts.init(chartDom);
+            chart.setOption({
+                title:{ text:'负债' + (mode==='spot'?'即期':'远期') + '折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
                 tooltip:{ trigger:'axis' },
                 legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
                 grid:{ left:52, right:22, top:58, bottom:50 },
                 xAxis:{ type:'category', data:years120, name:'年', nameLocation:'middle', nameGap:28 },
                 yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
-                series: buildSeries('spot')
-            }, true);
-
-            const fwdChart = echarts.init(document.getElementById('discountOverviewFwdChart'));
-            fwdChart.setOption({
-                title:{ text:'负债远期折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
-                tooltip:{ trigger:'axis' },
-                legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
-                grid:{ left:52, right:22, top:58, bottom:50 },
-                xAxis:{ type:'category', data:years120, name:'年', nameLocation:'middle', nameGap:28 },
-                yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
-                series: buildSeries('fwd')
+                series
             }, true);
 
             // ---------- 组件B：关键期限对比表 ----------
+            const keyData = {
+                cross: _overviewKeyMetrics(cross),
+                sii:   _overviewKeyMetrics(sii),
+                alm:   _overviewKeyMetrics(alm),
+            };
+
+            let kh = '<tr><th rowspan="2">指标</th><th colspan="9">' + (mode==='spot'?'即期':'远期') + '折现率 (%)</th><th colspan="2" rowspan="2">差异 (bp)</th></tr>';
+            kh += '<tr>';
+            rules.forEach(r => kh += '<th colspan="3">' + r.name + '</th>');
+            kh += '<th>CROSS-SII</th><th>CROSS-ALM</th></tr>';
+            kh += '<tr><th></th>';
+            rules.forEach(() => kh += '<th>高</th><th>中</th><th>低</th>');
+            kh += '<th></th><th></th></tr>';
+            document.getElementById('discountOverviewKeyHead').innerHTML = kh;
+
             const metrics = [
                 { k:'y10', label:'10年期' },
                 { k:'y20', label:'20年期' },
@@ -1417,70 +1454,65 @@
                 { k:'avg21_40', label:'21-40年平均' },
                 { k:'avg41_120', label:'41-120年平均' },
             ];
-            const keyData = {
-                cross: _overviewKeyMetrics(cross),
-                sii:   _overviewKeyMetrics(sii),
-                alm:   _overviewKeyMetrics(alm),
-            };
-
-            let kh = '<tr><th>指标</th>';
-            rules.forEach(r => {
-                kh += '<th colspan="3">' + r.name + '</th>';
-            });
-            kh += '</tr><tr><th></th>';
-            rules.forEach(() => {
-                kh += '<th>高</th><th>中</th><th>低</th>';
-            });
-            kh += '</tr>';
-            document.getElementById('discountOverviewKeyHead').innerHTML = kh;
 
             let kb = '';
             metrics.forEach(m => {
                 kb += '<tr><td>' + m.label + '</td>';
                 rules.forEach(r => {
-                    const d = keyData[r.key].spot;
+                    const d = keyData[r.key][mode];
                     ['high','mid','low'].forEach(lvl => {
                         const v = d[lvl][m.k];
                         kb += '<td>' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
                     });
                 });
-                kb += '</tr>';
+                // 差异: CROSS - SII, CROSS - ALM (取中档)
+                const cMid = keyData.cross[mode].mid[m.k];
+                const sMid = keyData.sii[mode].mid[m.k];
+                const aMid = keyData.alm[mode].mid[m.k];
+                const d1 = (cMid!=null && sMid!=null) ? ((cMid-sMid)*10000).toFixed(2) : '—';
+                const d2 = (cMid!=null && aMid!=null) ? ((cMid-aMid)*10000).toFixed(2) : '—';
+                kb += '<td>' + d1 + '</td><td>' + d2 + '</td></tr>';
             });
             document.getElementById('discountOverviewKeyBody').innerHTML = kb;
 
             // ---------- 组件C：未来三年季度预测表 ----------
-            // 生成12个季度末日期
-            function _quarterEndDates(refDate) {
+            // 会计季度末: 3/31, 6/30, 9/30, 12/31
+            function _quarterEnds(refDate) {
                 const [y,m] = refDate.split('-').map(Number);
                 const out = [];
-                let cy=y, cm=m;
+                const qe = [[3,31],[6,30],[9,30],[12,31]];
+                let qIdx = 0;
+                for (let i=0; i<4; i++) if (qe[i][0] > m) { qIdx = i; break; }
+                if (qIdx === 0 && m >= 12) qIdx = 4;
                 for (let i=0; i<12; i++) {
-                    cm += 3;
-                    if (cm > 12) { cm -= 12; cy++; }
-                    const lastDay = new Date(cy, cm, 0).getDate();
-                    out.push(cy + '-' + String(cm).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0'));
+                    const qi = (qIdx + i) % 4;
+                    const cy = y + Math.floor((qIdx + i) / 4);
+                    out.push(cy + '-' + String(qe[qi][0]).padStart(2,'0') + '-' + String(qe[qi][1]).padStart(2,'0'));
                 }
                 return out;
             }
-            const qDates = _quarterEndDates(endDate);
+            const qDates = _quarterEnds(endDate);
 
-            // CROSS预测：逐季度末计算（利用现有预测机制）
+            // CROSS预测：逐季度末计算
             const crossFc = qDates.map(qd => {
                 const d = computeAllRulesForDate(qd);
                 return d ? _overviewKeyMetrics(d.cross) : null;
             });
-            // SII：所有季度复用当前SII结果（用户明确"和当前时点水平一样"）
+            // SII：所有季度复用当前
             const siiNow = _overviewKeyMetrics(sii);
 
-            let fh = '<tr><th>季度</th>';
-            ['高','中','低'].forEach(l=>{
-                fh += '<th colspan="3">CROSS-' + l + '</th>';
-            });
-            fh += '<th colspan="3">Solvency II(当前水平)</th><th colspan="3">差异(SII-CROSS)</th></tr>';
-            fh += '<tr><th></th>';
-            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
-            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
-            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
+            // 预测表也受 overviewFilter.level / mode 控制
+            const activeLvl = f.level === 'all' ? 'mid' : f.level;
+            const fcMode = f.mode;
+
+            let fh = '<tr><th rowspan="2">季度末</th>';
+            fh += '<th colspan="6">CROSS-' + (activeLvl==='high'?'高':activeLvl==='mid'?'中':'低') + '</th>';
+            fh += '<th colspan="6">SII-' + (activeLvl==='high'?'高':activeLvl==='mid'?'中':'低') + '</th>';
+            fh += '<th colspan="6">差异(SII-CROSS) bp</th></tr>';
+            fh += '<tr>';
+            for (let i=0;i<3;i++) {
+                fh += '<th>10Y</th><th>20Y</th><th>40Y</th><th>1-20avg</th><th>21-40avg</th><th>41-120avg</th>';
+            }
             fh += '</tr>';
             document.getElementById('discountOverviewForecastHead').innerHTML = fh;
 
@@ -1488,37 +1520,26 @@
             qDates.forEach((qd, qi) => {
                 fb += '<tr><td>' + qd + '</td>';
                 const c = crossFc[qi];
-                // CROSS 高/中/低
-                ['high','mid','low'].forEach(lvl => {
-                    if (c && c.spot && c.spot[lvl]) {
-                        fb += '<td>' + (c.spot[lvl].y10==null?'—':(c.spot[lvl].y10*100).toFixed(4)) + '</td>';
-                        fb += '<td>' + (c.spot[lvl].y20==null?'—':(c.spot[lvl].y20*100).toFixed(4)) + '</td>';
-                        fb += '<td>' + (c.spot[lvl].y40==null?'—':(c.spot[lvl].y40*100).toFixed(4)) + '</td>';
-                    } else {
-                        fb += '<td>—</td><td>—</td><td>—</td>';
-                    }
+                const cData = c ? c[fcMode][activeLvl] : null;
+                const sData = siiNow[fcMode][activeLvl];
+                // CROSS
+                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                    const v = cData ? cData[k] : null;
+                    fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
                 });
-                // SII 高/中/低（当前水平，所有季度相同）
-                ['high','mid','low'].forEach(lvl => {
-                    fb += '<td>' + (siiNow.spot[lvl].y10==null?'—':(siiNow.spot[lvl].y10*100).toFixed(4)) + '</td>';
-                    fb += '<td>' + (siiNow.spot[lvl].y20==null?'—':(siiNow.spot[lvl].y20*100).toFixed(4)) + '</td>';
-                    fb += '<td>' + (siiNow.spot[lvl].y40==null?'—':(siiNow.spot[lvl].y40*100).toFixed(4)) + '</td>';
+                // SII
+                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                    const v = sData[k];
+                    fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
                 });
-                // 差异 SII - CROSS
-                ['high','mid','low'].forEach(lvl => {
-                    if (c && c.spot && c.spot[lvl]) {
-                        const d10 = (siiNow.spot[lvl].y10||0) - (c.spot[lvl].y10||0);
-                        const d20 = (siiNow.spot[lvl].y20||0) - (c.spot[lvl].y20||0);
-                        const d40 = (siiNow.spot[lvl].y40||0) - (c.spot[lvl].y40||0);
-                        fb += '<td>' + (d10*100).toFixed(2) + '</td>';
-                        fb += '<td>' + (d20*100).toFixed(2) + '</td>';
-                        fb += '<td>' + (d40*100).toFixed(2) + '</td>';
-                    } else {
-                        fb += '<td>—</td><td>—</td><td>—</td>';
-                    }
+                // 差异 bp
+                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                    const cv = cData ? cData[k] : null;
+                    const sv = sData[k];
+                    const d = (cv!=null && sv!=null) ? ((sv-cv)*10000).toFixed(2) : '—';
+                    fb += '<td>' + d + '</td>';
                 });
                 fb += '</tr>';
             });
             document.getElementById('discountOverviewForecastBody').innerHTML = fb;
         }
-

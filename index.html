@@ -844,6 +844,7 @@
                     <button class="active" data-rule="c2_2">CROSS</button>
                     <button data-rule="c2_new">Solvency II</button>
                     <button data-rule="alm">ALM（现行）</button>
+                    <button data-rule="overview">总括</button>
                 </div>
                 <div class="discount-date-row">
                     <label style="font-size:13px;font-weight:600;color:#3e5a7a;">基准日：</label>
@@ -1044,13 +1045,11 @@
                     <p class="footnote">修改任意参数后自动重算。UFR上升 = 基础×(1+上升幅度)、UFR下降 = 基础×(1+下降幅度)。</p>
                 </div>
             </div>
-            <div id="discountOverviewView" class="section-anchor">
+            <div id="discountOverviewView" style="display:none;">
                 <div class="card">
                     <div class="card-title"><span>折现率总括摘要 · 三规则对比</span></div>
-                    <div class="grid-2">
-                        <div class="chart-box tall" id="discountOverviewSpotChart"></div>
-                        <div class="chart-box tall" id="discountOverviewFwdChart"></div>
-                    </div>
+                    <div id="discountOverviewFilter" style="margin:8px 0;"></div>
+                    <div class="chart-box tall" id="discountOverviewChart"></div>
                     <div class="footnote">CROSS/ALM 50年后平推50年值 · 期限单位：年 ｜ 利率单位：%</div>
                 </div>
                 <div class="card">
@@ -3748,7 +3747,7 @@
                 ['monitorCurveSection', '利率曲线'], ['monitorForecastSection', '移动平均预测'],
                 ['monitorHistorySection', '历史时点'], ['monitorMASection', 'MA分析']
             ],
-            discount: [['discountControlsSection', '参数与规则'], ['discountOverviewView', '总括摘要'], ['discountSummaryView', '曲线对比'], ['discountTableSection', '汇总数据表']],
+            discount: [['discountControlsSection', '参数与规则'], ['discountSummaryView', '曲线对比'], ['discountTableSection', '汇总数据表']],
             preset: [
                 ['presetChartsSection', '核心图表'], ['presetTablesSection', '数据与预测'],
                 ['presetRulesSection', '调节规则'], ['presetBacktestSection', '监管回溯']
@@ -4115,10 +4114,14 @@
                     if (this.disabled) return;
                     discountRule = this.dataset.rule;
                     document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b === this));
+                    const isOverview = discountRule === 'overview';
                     document.getElementById('discountRules').style.display = (discountRule === 'c2_2') ? '' : 'none';
                     document.getElementById('discountRulesNew').style.display = (discountRule === 'c2_new') ? '' : 'none';
                     document.getElementById('discountRulesALM').style.display = (discountRule === 'alm') ? '' : 'none';
                     document.getElementById('swParamsPanel').style.display = (discountRule === 'c2_new') ? '' : 'none';
+                    document.getElementById('discountOverviewView').style.display = isOverview ? '' : 'none';
+                    document.getElementById('discountSummaryView').style.display = isOverview ? 'none' : '';
+                    document.getElementById('discountOutputView').style.display = 'none';
                     if (discountRule === 'c2_new') { syncSWParamsFromInputs(); renderSwLiquidGrid(); }
                     discountDataCache = null;
                     renderDiscount();
