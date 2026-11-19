@@ -1476,7 +1476,8 @@
                     const d = keyData[r.key][kMode];
                     kLvls.forEach(lvl => {
                         const v = d[lvl][m.k];
-                        kb += '<td>' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
+                        const bg = r.key==='cross' ? '#fdf3f0' : r.key==='sii' ? '#f0f6fc' : '#f0faf3';
+                        kb += '<td style="background:' + bg + ';">' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
                     });
                 });
                 // 差异取中档
@@ -1500,17 +1501,18 @@
                 fcStartEl.addEventListener('change', () => renderDiscountOverview());
             }
 
+            // 会计季度末，一直到 refDate 年份+3 的年末（与精算利率监测保持一致）
             function _quarterEnds(refDate) {
                 const [y,m] = refDate.split('-').map(Number);
                 const out = [];
                 const qe = [[3,31],[6,30],[9,30],[12,31]];
-                let qIdx = 0;
-                for (let i=0; i<4; i++) if (qe[i][0] > m) { qIdx = i; break; }
-                if (qIdx === 0 && m >= 12) qIdx = 4;
-                for (let i=0; i<12; i++) {
-                    const qi = (qIdx + i) % 4;
-                    const cy = y + Math.floor((qIdx + i) / 4);
-                    out.push(cy + '-' + String(qe[qi][0]).padStart(2,'0') + '-' + String(qe[qi][1]).padStart(2,'0'));
+                const endYear = y + 3;
+                for (let cy = y; cy <= endYear; cy++) {
+                    for (const [qm, qd] of qe) {
+                        if (cy === y && qm <= m) continue;
+                        if (cy === endYear && qm > 12) continue;
+                        out.push(cy + '-' + String(qm).padStart(2,'0') + '-' + String(qd).padStart(2,'0'));
+                    }
                 }
                 return out;
             }
@@ -1527,8 +1529,8 @@
 
             // 表头
             let fh = '<tr><th rowspan="2">季度末</th>';
-            fLvls.forEach(l => fh += '<th colspan="6">CROSS-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
-            fLvls.forEach(l => fh += '<th colspan="6">SII-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
+            fLvls.forEach(l => fh += '<th colspan="6" style="background:#f6e2db;">CROSS-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
+            fLvls.forEach(l => fh += '<th colspan="6" style="background:#dceaf7;">SII-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
             fh += '<th colspan="' + (6*fLvls.length) + '">差异(SII-CROSS) bp</th></tr>';
             fh += '<tr>';
             for (let i=0; i<fLvls.length*2+1; i++) {
@@ -1546,7 +1548,7 @@
                     const cData = c ? c[fMode][l] : null;
                     ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
                         const v = cData ? cData[k] : null;
-                        fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                        fb += '<td style="background:#fdf3f0;">' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
                     });
                 });
                 // SII
@@ -1554,7 +1556,7 @@
                     const sData = siiNow[fMode][l];
                     ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
                         const v = sData[k];
-                        fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                        fb += '<td style="background:#f0f6fc;">' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
                     });
                 });
                 // 差异 bp

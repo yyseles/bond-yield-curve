@@ -89,6 +89,9 @@
         .ovf-btn { padding: 4px 12px; border: 1px solid #c8d6e8; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all .15s; }
         .ovf-btn:hover { background: #e8f0f9; }
         .ovf-btn.ovf-on { background: #3e5a7a; color: #fff; border-color: #3e5a7a; }
+        .subnav-btn { padding: 3px 10px; margin-right: 6px; border: 1px solid #c8d6e8; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all .15s; }
+        .subnav-btn:hover { background: #e8f0f9; }
+        .subnav-btn.subnav-on { background: #3e5a7a; color: #fff; border-color: #3e5a7a; }
         /* 季度预测 / 历史时点：冻结首行与日期列，交叉单元格保持最高层级 */
         .sticky-table table { border-collapse: separate; border-spacing: 0; }
         .sticky-table thead th { position: sticky; top: 0; z-index: 3; background: #f2f6fc; background-clip: padding-box; }
@@ -888,6 +891,12 @@
                 </div>
                 </div>
             </div>
+            <div id="discountSubNav" style="display:none;margin:4px 0 8px;padding:6px 10px;background:#f6faff;border:1px solid #e0e9f2;border-radius:6px;font-size:12.5px;">
+                <span style="font-weight:600;color:#3e5a7a;margin-right:6px;">本规则章节：</span>
+                <button type="button" data-target="discountControlsSection" class="subnav-btn">参数与规则</button>
+                <button type="button" data-target="discountSummaryView" class="subnav-btn">曲线对比</button>
+                <button type="button" data-target="discountTableSection" class="subnav-btn">汇总数据表</button>
+            </div>
             <details class="discount-rules" id="discountRules">
                 <summary><span class="rules-chevron">▸</span> 折现率规则说明（CROSS）</summary>
                 <div class="rules-body">
@@ -1061,13 +1070,15 @@
             <div id="discountOverviewView" style="display:none;">
                 <div class="card">
                     <div class="card-title">
-                        <span>折现率总括摘要 · 三规则对比</span>
+                        <span>折现率总括摘要 · 负债即期</span>
                         <span id="discountOverviewChartFilter" style="margin-left:auto;display:inline-flex;gap:4px;align-items:center;"></span>
                     </div>
-                    <div class="grid-2">
-                        <div class="chart-box tall" id="discountOverviewSpotChart"></div>
-                        <div class="chart-box tall" id="discountOverviewFwdChart"></div>
-                    </div>
+                    <div class="chart-box tall" id="discountOverviewSpotChart"></div>
+                    <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>折现率总括摘要 · 负债远期</span></div>
+                    <div class="chart-box tall" id="discountOverviewFwdChart"></div>
                     <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
                 </div>
                 <div class="card">
@@ -3799,14 +3810,9 @@
         function updateSectionNav(key) {
             const nav = document.getElementById('sectionNav');
             let items = (SECTION_NAV_ITEMS[key] || []).filter(([id]) => document.getElementById(id));
-            // 折现率板块：根据当前 tab 动态显示子章节
+            // 折现率板块：隐藏全局章节导航，改用板块内部二级导航
             if (key === 'discount') {
-                if (discountRule === 'overview') {
-                    items = [['discountOverviewView', '总括']];
-                } else {
-                    const ruleName = discountRule === 'c2_2' ? 'CROSS' : discountRule === 'c2_new' ? 'Solvency II' : 'ALM';
-                    items = [['discountControlsSection', ruleName + ' · 参数与规则'], ['discountSummaryView', ruleName + ' · 曲线对比'], ['discountTableSection', ruleName + ' · 汇总数据表']];
-                }
+                items = [];
             }
             nav.hidden = items.length === 0;
             nav.innerHTML = items.length ? '<span class="section-nav-label">本页章节</span>' + items.map(([id, label], i) =>
@@ -3893,7 +3899,7 @@
         let discountCompareChart = null;
         let currentMainView = 'monitor';
         let currentMonitorSubview = 'overview';
-        let discountRule = 'c2_2';
+        let discountRule = 'overview';
         let discountSF = 'fwd';
         let discountDate = null;          // 基准日（实际或预测日期）
         let discountDatePopulated = false;
@@ -3949,17 +3955,22 @@
             }
             if (v === 'discount') {
                 document.getElementById('viewDiscount').style.display = '';
-                updateSectionNav('discount');
-                if (!discountDate) discountDate = dataStore.latestDate;
-                // 首次进入折现率板块默认显示"总括"tab
-                if (!discountRule) discountRule = 'overview';
-                document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b.dataset.rule === discountRule));
-                const isOv = discountRule === 'overview';
-                document.getElementById('discountOverviewView').style.display = isOv ? '' : 'none';
-                document.getElementById('discountSummaryView').style.display = isOv ? 'none' : '';
+                // 每次进入折现率板块默认重置为"总括"tab
+                discountRule = 'overview';
+                document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b.dataset.rule === 'overview'));
+                document.getElementById('discountRules').style.display = 'none';
+                document.getElementById('discountRulesNew').style.display = 'none';
+                document.getElementById('discountRulesALM').style.display = 'none';
+                document.getElementById('swParamsPanel').style.display = 'none';
+                document.getElementById('discountOverviewView').style.display = '';
+                document.getElementById('discountSummaryView').style.display = 'none';
                 document.getElementById('discountOutputView').style.display = 'none';
                 const dl = document.querySelector('.discount-downloads');
-                if (dl) dl.style.display = isOv ? 'none' : '';
+                if (dl) dl.style.display = 'none';
+                const subNav = document.getElementById('discountSubNav');
+                if (subNav) subNav.style.display = 'none';
+                updateSectionNav('discount');
+                if (!discountDate) discountDate = dataStore.latestDate;
                 requestDiscountAccess(function () {
                     if (!discountDatePopulated) populateDiscountDateSelect();
                     else syncDiscountDatePickerMode(discGetGov());
@@ -3992,6 +4003,16 @@
                 const target = document.getElementById(btn.dataset.target);
                 if (!target) return;
                 btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+                const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+            });
+            // 折现率板块内部二级导航
+            document.getElementById('discountSubNav').addEventListener('click', event => {
+                const btn = event.target.closest('button[data-target]');
+                if (!btn) return;
+                const target = document.getElementById(btn.dataset.target);
+                if (!target) return;
+                btn.parentElement.querySelectorAll('.subnav-btn').forEach(b => b.classList.toggle('subnav-on', b === btn));
                 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                 target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
             });
@@ -4170,6 +4191,8 @@
                     document.getElementById('discountOutputView').style.display = 'none';
                     const dl = document.querySelector('.discount-downloads');
                     if (dl) dl.style.display = isOverview ? 'none' : '';
+                    const subNav = document.getElementById('discountSubNav');
+                    if (subNav) subNav.style.display = isOverview ? 'none' : '';
                     updateSectionNav('discount');
                     if (discountRule === 'c2_new') { syncSWParamsFromInputs(); renderSwLiquidGrid(); }
                     discountDataCache = null;
