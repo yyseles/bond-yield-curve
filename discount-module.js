@@ -1429,6 +1429,9 @@
                 yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
                 series
             }, true);
+            // 视图从 display:none 恢复后需延迟 resize，否则高度计算错误
+            setTimeout(() => chart.resize(), 0);
+            setTimeout(() => chart.resize(), 100);
 
             // ---------- 组件B：关键期限对比表 ----------
             const keyData = {
@@ -1437,13 +1440,14 @@
                 alm:   _overviewKeyMetrics(alm),
             };
 
-            let kh = '<tr><th rowspan="2">指标</th><th colspan="9">' + (mode==='spot'?'即期':'远期') + '折现率 (%)</th><th colspan="2" rowspan="2">差异 (bp)</th></tr>';
+            // 三层表头：指标(rowspan=3) + 即期/远期(colspan=9) + 差异(colspan=2)
+            let kh = '<tr><th rowspan="3">指标</th><th colspan="9">' + (mode==='spot'?'即期':'远期') + '折现率 (%)</th><th colspan="2">差异 (bp)</th></tr>';
             kh += '<tr>';
             rules.forEach(r => kh += '<th colspan="3">' + r.name + '</th>');
-            kh += '<th>CROSS-SII</th><th>CROSS-ALM</th></tr>';
-            kh += '<tr><th></th>';
+            kh += '<th rowspan="2">CROSS-SII</th><th rowspan="2">CROSS-ALM</th></tr>';
+            kh += '<tr>';
             rules.forEach(() => kh += '<th>高</th><th>中</th><th>低</th>');
-            kh += '<th></th><th></th></tr>';
+            kh += '</tr>';
             document.getElementById('discountOverviewKeyHead').innerHTML = kh;
 
             const metrics = [
@@ -1476,6 +1480,15 @@
             document.getElementById('discountOverviewKeyBody').innerHTML = kb;
 
             // ---------- 组件C：未来三年季度预测表 ----------
+            // 预测起点：默认当前 discountDate，可通过日期选择器修改
+            const fcStartEl = document.getElementById('discountOverviewFcStart');
+            if (fcStartEl && !fcStartEl.value) fcStartEl.value = endDate;
+            const fcStart = (fcStartEl && fcStartEl.value) ? fcStartEl.value : endDate;
+            if (fcStartEl && !fcStartEl._bound) {
+                fcStartEl._bound = true;
+                fcStartEl.addEventListener('change', () => renderDiscountOverview());
+            }
+
             // 会计季度末: 3/31, 6/30, 9/30, 12/31
             function _quarterEnds(refDate) {
                 const [y,m] = refDate.split('-').map(Number);
@@ -1491,7 +1504,7 @@
                 }
                 return out;
             }
-            const qDates = _quarterEnds(endDate);
+            const qDates = _quarterEnds(fcStart);
 
             // CROSS预测：逐季度末计算
             const crossFc = qDates.map(qd => {

@@ -1062,7 +1062,13 @@
                     </div>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>未来三年季度预测 · CROSS vs Solvency II</span></div>
+                    <div class="card-title">
+                        <span>未来三年季度预测 · CROSS vs Solvency II</span>
+                        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;">
+                            <label for="discountOverviewFcStart" style="font-size:12px;font-weight:600;color:#3e5a7a;">预测起点：</label>
+                            <input type="date" id="discountOverviewFcStart" style="font-size:12px;padding:2px 4px;">
+                        </span>
+                    </div>
                     <div class="table-wrap" id="discountOverviewForecastWrap" style="overflow:auto;">
                         <table>
                             <thead id="discountOverviewForecastHead"></thead>
@@ -3914,6 +3920,15 @@
                 document.getElementById('viewDiscount').style.display = '';
                 updateSectionNav('discount');
                 if (!discountDate) discountDate = dataStore.latestDate;
+                // 首次进入折现率板块默认显示"总括"tab
+                if (!discountRule) discountRule = 'overview';
+                document.querySelectorAll('#ruleToggle button').forEach(b => b.classList.toggle('active', b.dataset.rule === discountRule));
+                const isOv = discountRule === 'overview';
+                document.getElementById('discountOverviewView').style.display = isOv ? '' : 'none';
+                document.getElementById('discountSummaryView').style.display = isOv ? 'none' : '';
+                document.getElementById('discountOutputView').style.display = 'none';
+                const dl = document.querySelector('.discount-downloads');
+                if (dl) dl.style.display = isOv ? 'none' : '';
                 requestDiscountAccess(function () {
                     if (!discountDatePopulated) populateDiscountDateSelect();
                     else syncDiscountDatePickerMode(discGetGov());
@@ -4122,6 +4137,8 @@
                     document.getElementById('discountOverviewView').style.display = isOverview ? '' : 'none';
                     document.getElementById('discountSummaryView').style.display = isOverview ? 'none' : '';
                     document.getElementById('discountOutputView').style.display = 'none';
+                    const dl = document.querySelector('.discount-downloads');
+                    if (dl) dl.style.display = isOverview ? 'none' : '';
                     if (discountRule === 'c2_new') { syncSWParamsFromInputs(); renderSwLiquidGrid(); }
                     discountDataCache = null;
                     renderDiscount();
