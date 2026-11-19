@@ -811,6 +811,7 @@
             const outTitleEl = document.getElementById('discountOutputTitle');
             if (outTitleEl) outTitleEl.textContent = '假设表（DISC_PC）· 基准日 ' + d.latestDate + (isForecast ? '（预测）' : '') + refTxt;
             renderDiscountSummary(discountSF);
+            renderDiscountOverview();
         }
 
         function populateDiscountForecastRefSelect(gov) {
@@ -1266,3 +1267,258 @@
         // 故改为模块加载（用户输入访问码后）时自调用，保证表格在用户进入折现率板块前已就绪。
         // 函数体内已做 if (!tb) return 防护，对隐藏元素安全。
         renderSwStressTable();
+
+        // ================================================================
+        // 折现率总括摘要 — 三规则对比（CROSS / Solvency II / ALM）
+        // ================================================================
+        let overviewCache = null;
+
+        function computeAllRulesForDate(endDateStr) {
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            if (!gov || !gov.dates || gov.dates.length === 0) return null;
+            const fc = isForecastDate(gov, endDateStr);
+            const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
+
+            function _call(rule) {
+                let d;
+                if (rule === 'alm') {
+                    const spot = spotAsOfDate(gov, endDateStr, ref);
+                    d = computeDiscountCurvesALM(spot, endDateStr);
+                } else if (rule === 'c2_new') {
+                    const spot = spotAsOfDate(gov, endDateStr, ref);
+                    d = computeDiscountCurvesNew(spot, endDateStr, SW_PARAMS);
+                } else {
+                    const ma750 = maAsOfDate(gov, 750, endDateStr, ref);
+                    const ma60 = maAsOfDate(gov, 60, endDateStr, ref);
+                    d = computeDiscountCurves(ma750, ma60, endDateStr);
+                }
+                d._date = endDateStr; d._ref = ref;
+                return d;
+            }
+
+            const cross = _call('c2_2');
+            const sii   = _call('c2_new');
+            const alm   = _call('alm');
+
+            // CROSS/ALM 50年后平推50年值
+            [cross, alm].forEach(d => {
+                if (!d || !d.liab) return;
+                ['spot','fwd'].forEach(kind => {
+                    ['high','mid','low'].forEach(lvl => {
+                        const obj = d.liab[kind][lvl];
+                        if (!obj) return;
+                        const v50 = obj[50];
+                        if (v50 == null) return;
+                        for (let t = 51; t <= 120; t++) obj[t] = v50;
+                    });
+                });
+            });
+
+            return { cross, sii, alm, date: endDateStr, ref };
+        }
+
+        function _overviewKeyMetrics(d) {
+            // 返回 { spot: { high:{}, mid:{}, low:{} }, fwd: {...} }
+            // 每个指标含 10Y,20Y,40Y,avg1_20,avg21_40,avg41_120
+            const out = { spot: {}, fwd: {} };
+            ['spot','fwd'].forEach(kind => {
+                ['high','mid','low'].forEach(lvl => {
+                    const obj = d.liab[kind][lvl];
+                    if (!obj) return;
+                    const avg = (a,b) => {
+                        let s=0,c=0;
+                        for (let t=a; t<=b; t++) if (obj[t]!=null){ s+=obj[t]; c++; }
+                        return c>0 ? s/c : null;
+                    };
+                    out[kind][lvl] = {
+                        y10: obj[10] ?? null,
+                        y20: obj[20] ?? null,
+                        y40: obj[40] ?? null,
+                        avg1_20: avg(1,20),
+                        avg21_40: avg(21,40),
+                        avg41_120: avg(41,120),
+                    };
+                });
+            });
+            return out;
+        }
+
+        function renderDiscountOverview() {
+            const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
+            const endDate = discountDate || gov.latestDate;
+            const cacheKey = endDate + '|' + (discountForecastRefDate || '');
+            if (!overviewCache || overviewCache._key !== cacheKey) {
+                overviewCache = computeAllRulesForDate(endDate);
+                if (overviewCache) overviewCache._key = cacheKey;
+            }
+            if (!overviewCache) return;
+            const { cross, sii, alm } = overviewCache;
+
+            // ---------- 组件A：120年对比图 ----------
+            const rules = [
+                { key:'cross', name:'CROSS',  colorHigh:'#c0392b', colorMid:'#e67e22', colorLow:'#f5b041' },
+                { key:'sii',   name:'Solvency II', colorHigh:'#1f618d', colorMid:'#2980b9', colorLow:'#5dade2' },
+                { key:'alm',   name:'ALM',    colorHigh:'#1e8449', colorMid:'#27ae60', colorLow:'#58d68d' },
+            ];
+            const years120 = [];
+            for (let t=1; t<=120; t++) years120.push(t);
+
+            function buildSeries(mode) {
+                const series = [];
+                rules.forEach(r => {
+                    const d = overviewCache[r.key];
+                    if (!d || !d.liab) return;
+                    const src = d.liab[mode];
+                    ['high','mid','low'].forEach((lvl, i) => {
+                        const color = i===0 ? r.colorHigh : i===1 ? r.colorMid : r.colorLow;
+                        const data = years120.map(t => {
+                            const v = src[lvl][t];
+                            return v==null ? null : +(v*100).toFixed(4);
+                        });
+                        series.push({
+                            name: r.name + '-' + (lvl==='high'?'高':lvl==='mid'?'中':'低'),
+                            type:'line', showSymbol:false,
+                            data, lineStyle:{ width:1.5, type:'solid', color },
+                            itemStyle:{ color }, emphasis:{ focus:'series' }
+                        });
+                    });
+                });
+                return series;
+            }
+
+            const spotChart = echarts.init(document.getElementById('discountOverviewSpotChart'));
+            spotChart.setOption({
+                title:{ text:'负债即期折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
+                tooltip:{ trigger:'axis' },
+                legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
+                grid:{ left:52, right:22, top:58, bottom:50 },
+                xAxis:{ type:'category', data:years120, name:'年', nameLocation:'middle', nameGap:28 },
+                yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
+                series: buildSeries('spot')
+            }, true);
+
+            const fwdChart = echarts.init(document.getElementById('discountOverviewFwdChart'));
+            fwdChart.setOption({
+                title:{ text:'负债远期折现率 · 三规则对比(120年)', left:'center', top:4, textStyle:{fontSize:13} },
+                tooltip:{ trigger:'axis' },
+                legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
+                grid:{ left:52, right:22, top:58, bottom:50 },
+                xAxis:{ type:'category', data:years120, name:'年', nameLocation:'middle', nameGap:28 },
+                yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
+                series: buildSeries('fwd')
+            }, true);
+
+            // ---------- 组件B：关键期限对比表 ----------
+            const metrics = [
+                { k:'y10', label:'10年期' },
+                { k:'y20', label:'20年期' },
+                { k:'y40', label:'40年期' },
+                { k:'avg1_20', label:'1-20年平均' },
+                { k:'avg21_40', label:'21-40年平均' },
+                { k:'avg41_120', label:'41-120年平均' },
+            ];
+            const keyData = {
+                cross: _overviewKeyMetrics(cross),
+                sii:   _overviewKeyMetrics(sii),
+                alm:   _overviewKeyMetrics(alm),
+            };
+
+            let kh = '<tr><th>指标</th>';
+            rules.forEach(r => {
+                kh += '<th colspan="3">' + r.name + '</th>';
+            });
+            kh += '</tr><tr><th></th>';
+            rules.forEach(() => {
+                kh += '<th>高</th><th>中</th><th>低</th>';
+            });
+            kh += '</tr>';
+            document.getElementById('discountOverviewKeyHead').innerHTML = kh;
+
+            let kb = '';
+            metrics.forEach(m => {
+                kb += '<tr><td>' + m.label + '</td>';
+                rules.forEach(r => {
+                    const d = keyData[r.key].spot;
+                    ['high','mid','low'].forEach(lvl => {
+                        const v = d[lvl][m.k];
+                        kb += '<td>' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
+                    });
+                });
+                kb += '</tr>';
+            });
+            document.getElementById('discountOverviewKeyBody').innerHTML = kb;
+
+            // ---------- 组件C：未来三年季度预测表 ----------
+            // 生成12个季度末日期
+            function _quarterEndDates(refDate) {
+                const [y,m] = refDate.split('-').map(Number);
+                const out = [];
+                let cy=y, cm=m;
+                for (let i=0; i<12; i++) {
+                    cm += 3;
+                    if (cm > 12) { cm -= 12; cy++; }
+                    const lastDay = new Date(cy, cm, 0).getDate();
+                    out.push(cy + '-' + String(cm).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0'));
+                }
+                return out;
+            }
+            const qDates = _quarterEndDates(endDate);
+
+            // CROSS预测：逐季度末计算（利用现有预测机制）
+            const crossFc = qDates.map(qd => {
+                const d = computeAllRulesForDate(qd);
+                return d ? _overviewKeyMetrics(d.cross) : null;
+            });
+            // SII：所有季度复用当前SII结果（用户明确"和当前时点水平一样"）
+            const siiNow = _overviewKeyMetrics(sii);
+
+            let fh = '<tr><th>季度</th>';
+            ['高','中','低'].forEach(l=>{
+                fh += '<th colspan="3">CROSS-' + l + '</th>';
+            });
+            fh += '<th colspan="3">Solvency II(当前水平)</th><th colspan="3">差异(SII-CROSS)</th></tr>';
+            fh += '<tr><th></th>';
+            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
+            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
+            for (let i=0;i<3;i++) fh += '<th>10Y</th><th>20Y</th><th>40Y</th>';
+            fh += '</tr>';
+            document.getElementById('discountOverviewForecastHead').innerHTML = fh;
+
+            let fb = '';
+            qDates.forEach((qd, qi) => {
+                fb += '<tr><td>' + qd + '</td>';
+                const c = crossFc[qi];
+                // CROSS 高/中/低
+                ['high','mid','low'].forEach(lvl => {
+                    if (c && c.spot && c.spot[lvl]) {
+                        fb += '<td>' + (c.spot[lvl].y10==null?'—':(c.spot[lvl].y10*100).toFixed(4)) + '</td>';
+                        fb += '<td>' + (c.spot[lvl].y20==null?'—':(c.spot[lvl].y20*100).toFixed(4)) + '</td>';
+                        fb += '<td>' + (c.spot[lvl].y40==null?'—':(c.spot[lvl].y40*100).toFixed(4)) + '</td>';
+                    } else {
+                        fb += '<td>—</td><td>—</td><td>—</td>';
+                    }
+                });
+                // SII 高/中/低（当前水平，所有季度相同）
+                ['high','mid','low'].forEach(lvl => {
+                    fb += '<td>' + (siiNow.spot[lvl].y10==null?'—':(siiNow.spot[lvl].y10*100).toFixed(4)) + '</td>';
+                    fb += '<td>' + (siiNow.spot[lvl].y20==null?'—':(siiNow.spot[lvl].y20*100).toFixed(4)) + '</td>';
+                    fb += '<td>' + (siiNow.spot[lvl].y40==null?'—':(siiNow.spot[lvl].y40*100).toFixed(4)) + '</td>';
+                });
+                // 差异 SII - CROSS
+                ['high','mid','low'].forEach(lvl => {
+                    if (c && c.spot && c.spot[lvl]) {
+                        const d10 = (siiNow.spot[lvl].y10||0) - (c.spot[lvl].y10||0);
+                        const d20 = (siiNow.spot[lvl].y20||0) - (c.spot[lvl].y20||0);
+                        const d40 = (siiNow.spot[lvl].y40||0) - (c.spot[lvl].y40||0);
+                        fb += '<td>' + (d10*100).toFixed(2) + '</td>';
+                        fb += '<td>' + (d20*100).toFixed(2) + '</td>';
+                        fb += '<td>' + (d40*100).toFixed(2) + '</td>';
+                    } else {
+                        fb += '<td>—</td><td>—</td><td>—</td>';
+                    }
+                });
+                fb += '</tr>';
+            });
+            document.getElementById('discountOverviewForecastBody').innerHTML = fb;
+        }
+

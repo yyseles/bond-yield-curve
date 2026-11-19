@@ -1044,6 +1044,34 @@
                     <p class="footnote">修改任意参数后自动重算。UFR上升 = 基础×(1+上升幅度)、UFR下降 = 基础×(1+下降幅度)。</p>
                 </div>
             </div>
+            <div id="discountOverviewView" class="section-anchor">
+                <div class="card">
+                    <div class="card-title"><span>折现率总括摘要 · 三规则对比</span></div>
+                    <div class="grid-2">
+                        <div class="chart-box tall" id="discountOverviewSpotChart"></div>
+                        <div class="chart-box tall" id="discountOverviewFwdChart"></div>
+                    </div>
+                    <div class="footnote">CROSS/ALM 50年后平推50年值 · 期限单位：年 ｜ 利率单位：%</div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>关键期限对比</span></div>
+                    <div class="table-wrap" id="discountOverviewKeyTableWrap" style="overflow:auto;">
+                        <table>
+                            <thead id="discountOverviewKeyHead"></thead>
+                            <tbody id="discountOverviewKeyBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>未来三年季度预测 · CROSS vs Solvency II</span></div>
+                    <div class="table-wrap" id="discountOverviewForecastWrap" style="overflow:auto;">
+                        <table>
+                            <thead id="discountOverviewForecastHead"></thead>
+                            <tbody id="discountOverviewForecastBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
             <div id="discountSummaryView" class="section-anchor">
                 <div class="grid-2">
                     <div class="card">
@@ -3720,7 +3748,7 @@
                 ['monitorCurveSection', '利率曲线'], ['monitorForecastSection', '移动平均预测'],
                 ['monitorHistorySection', '历史时点'], ['monitorMASection', 'MA分析']
             ],
-            discount: [['discountControlsSection', '参数与规则'], ['discountSummaryView', '曲线对比'], ['discountTableSection', '汇总数据表']],
+            discount: [['discountControlsSection', '参数与规则'], ['discountOverviewView', '总括摘要'], ['discountSummaryView', '曲线对比'], ['discountTableSection', '汇总数据表']],
             preset: [
                 ['presetChartsSection', '核心图表'], ['presetTablesSection', '数据与预测'],
                 ['presetRulesSection', '调节规则'], ['presetBacktestSection', '监管回溯']
