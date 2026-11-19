@@ -78,6 +78,7 @@
         .table-wrap tr:hover td { background: #f6faff; }
         /* 总括摘要表格美化 */
         .ov-table { font-size: 12.5px; }
+        .ov-table th, .ov-table td { white-space: nowrap; }
         .ov-table thead th { background: linear-gradient(180deg,#e8f0f9 0%,#dbe7f5 100%); border-bottom: 2px solid #b8cce4; font-size: 11.5px; padding: 6px 8px; }
         .ov-table tbody tr:nth-child(even) td { background: #f8fbfe; }
         .ov-table tbody tr:nth-child(odd) td { background: #ffffff; }
@@ -1068,6 +1069,7 @@
                 </div>
             </div>
             <div id="discountOverviewView" style="display:none;">
+                <div class="grid-2">
                 <div class="card">
                     <div class="card-title">
                         <span>折现率总括摘要 · 负债即期</span>
@@ -1080,6 +1082,7 @@
                     <div class="card-title"><span>折现率总括摘要 · 负债远期</span></div>
                     <div class="chart-box tall" id="discountOverviewFwdChart"></div>
                     <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
+                </div>
                 </div>
                 <div class="card">
                     <div class="card-title">
