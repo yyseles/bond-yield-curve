@@ -1270,12 +1270,13 @@
         renderSwStressTable();
 
         // ================================================================
-        // 折现率总括摘要 — 三规则对比（CROSS / Solvency II / ALM）
         // ================================================================
         // 折现率总括摘要 — 三规则对比（CROSS / Solvency II / ALM）
         // ================================================================
         let overviewCache = null;
-        let overviewFilter = { rule: 'all', level: 'all', mode: 'spot' };
+        let chartFilter = { level: 'all' };
+        let keyFilter = { level: 'all', mode: 'spot' };
+        let fcFilter = { level: 'all', mode: 'spot' };
 
         function computeAllRulesForDate(endDateStr) {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
@@ -1330,28 +1331,49 @@
             return out;
         }
 
-        function _renderOverviewFilterButtons() {
-            const wrap = document.getElementById('discountOverviewFilter');
-            if (!wrap) return;
-            const f = overviewFilter;
-            wrap.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
-                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;">规则：</span>' +
-                ['all','cross','sii','alm'].map(k => '<button class="ovf-btn" data-f="rule" data-v="' + k + '" ' + (f.rule===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
-                    (k==='all'?'全部':k==='cross'?'CROSS':k==='sii'?'SII':'ALM') + '</button>').join('') +
-                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;margin-left:12px;">档次：</span>' +
-                ['all','high','mid','low'].map(k => '<button class="ovf-btn" data-f="level" data-v="' + k + '" ' + (f.level===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
-                    (k==='all'?'全部':k==='high'?'高':k==='mid'?'中':'低') + '</button>').join('') +
-                '<span style="font-size:13px;font-weight:600;color:#3e5a7a;margin-left:12px;">即/远：</span>' +
-                ['spot','fwd'].map(k => '<button class="ovf-btn" data-f="mode" data-v="' + k + '" ' + (f.mode===k?'style="background:#3e5a7a;color:#fff;"':'') + '>' +
-                    (k==='spot'?'即期':'远期') + '</button>').join('') +
-                '</div>';
+        // 通用小按钮渲染
+        function _mkBtns(options, current, group) {
+            return options.map(([v,label]) =>
+                '<button class="ovf-btn' + (current===v?' ovf-on':'') + '" data-g="' + group + '" data-v="' + v + '">' + label + '</button>'
+            ).join('');
+        }
+        function _bindBtns(wrap, onChange) {
             wrap.querySelectorAll('.ovf-btn').forEach(b => {
                 b.addEventListener('click', function() {
-                    overviewFilter[this.dataset.f] = this.dataset.v;
-                    _renderOverviewFilterButtons();
-                    renderDiscountOverview();
+                    onChange(this.dataset.g, this.dataset.v);
                 });
             });
+        }
+
+        function _renderChartFilter() {
+            const wrap = document.getElementById('discountOverviewChartFilter');
+            if (!wrap) return;
+            wrap.innerHTML =
+                '<span style="font-size:12px;font-weight:600;color:#3e5a7a;">档次：</span>' +
+                _mkBtns([['all','全部'],['high','高'],['mid','中'],['low','低']], chartFilter.level, 'level');
+            _bindBtns(wrap, (g,v) => { chartFilter[g]=v; renderDiscountOverview(); });
+        }
+
+        function _renderKeyFilter() {
+            const wrap = document.getElementById('discountOverviewKeyFilter');
+            if (!wrap) return;
+            wrap.innerHTML =
+                '<span style="font-size:12px;font-weight:600;color:#3e5a7a;">档次：</span>' +
+                _mkBtns([['all','全部'],['high','高'],['mid','中'],['low','低']], keyFilter.level, 'level') +
+                '<span style="font-size:12px;font-weight:600;color:#3e5a7a;margin-left:8px;">即/远：</span>' +
+                _mkBtns([['spot','即期'],['fwd','远期']], keyFilter.mode, 'mode');
+            _bindBtns(wrap, (g,v) => { keyFilter[g]=v; renderDiscountOverview(); });
+        }
+
+        function _renderFcFilter() {
+            const wrap = document.getElementById('discountOverviewFcFilter');
+            if (!wrap) return;
+            wrap.innerHTML =
+                '<span style="font-size:12px;font-weight:600;color:#3e5a7a;">档次：</span>' +
+                _mkBtns([['all','全部'],['high','高'],['mid','中'],['low','低']], fcFilter.level, 'level') +
+                '<span style="font-size:12px;font-weight:600;color:#3e5a7a;margin-left:8px;">即/远：</span>' +
+                _mkBtns([['spot','即期'],['fwd','远期']], fcFilter.mode, 'mode');
+            _bindBtns(wrap, (g,v) => { fcFilter[g]=v; renderDiscountOverview(); });
         }
 
         function renderDiscountOverview() {
@@ -1364,59 +1386,62 @@
             }
             if (!overviewCache) return;
             const { cross, sii, alm } = overviewCache;
-            const f = overviewFilter;
 
-            _renderOverviewFilterButtons();
+            _renderChartFilter();
+            _renderKeyFilter();
+            _renderFcFilter();
 
-            // ---------- 组件A：120年对比图 ----------
             const rules = [
                 { key:'cross', name:'CROSS',  colorHigh:'#c0392b', colorMid:'#e67e22', colorLow:'#f5b041' },
                 { key:'sii',   name:'SII', colorHigh:'#1f618d', colorMid:'#2980b9', colorLow:'#5dade2' },
                 { key:'alm',   name:'ALM',    colorHigh:'#1e8449', colorMid:'#27ae60', colorLow:'#58d68d' },
             ];
-            const years120 = [];
-            for (let t=1; t<=50; t++) years120.push(t);
+            const years50 = [];
+            for (let t=1; t<=50; t++) years50.push(t);
 
-            const activeRules = f.rule === 'all' ? rules : rules.filter(r => r.key === f.rule);
-            const activeLevels = f.level === 'all' ? ['high','mid','low'] : [f.level];
-            const mode = f.mode;
-
-            const series = [];
-            activeRules.forEach(r => {
-                const d = overviewCache[r.key];
-                if (!d || !d.liab) return;
-                const src = d.liab[mode];
-                activeLevels.forEach((lvl, i) => {
-                    const color = lvl==='high' ? r.colorHigh : lvl==='mid' ? r.colorMid : r.colorLow;
-                    const data = years120.map(t => {
-                        const v = src[lvl][t];
-                        return v==null ? null : +(v*100).toFixed(4);
-                    });
-                    series.push({
-                        name: r.name + '-' + (lvl==='high'?'高':lvl==='mid'?'中':'低'),
-                        type:'line', showSymbol:false,
-                        data, lineStyle:{ width:1.8, type:'solid', color },
-                        itemStyle:{ color }, emphasis:{ focus:'series' }
+            // ---------- 组件A：即期/远期并排 ----------
+            function _chartSeries(mode) {
+                const lvls = chartFilter.level === 'all' ? ['high','mid','low'] : [chartFilter.level];
+                const series = [];
+                rules.forEach(r => {
+                    const d = overviewCache[r.key];
+                    if (!d || !d.liab) return;
+                    const src = d.liab[mode];
+                    lvls.forEach(lvl => {
+                        const color = lvl==='high' ? r.colorHigh : lvl==='mid' ? r.colorMid : r.colorLow;
+                        const data = years50.map(t => {
+                            const v = src[lvl][t];
+                            return v==null ? null : +(v*100).toFixed(4);
+                        });
+                        series.push({
+                            name: r.name + '-' + (lvl==='high'?'高':lvl==='mid'?'中':'低'),
+                            type:'line', showSymbol:false,
+                            data, lineStyle:{ width:1.8, type:'solid', color },
+                            itemStyle:{ color }, emphasis:{ focus:'series' }
+                        });
                     });
                 });
-            });
-
-            const chartDom = document.getElementById('discountOverviewChart');
-            if (!chartDom) return;
-            let chart = echarts.getInstanceByDom(chartDom);
-            if (!chart) chart = echarts.init(chartDom);
-            chart.setOption({
-                title:{ text:'负债' + (mode==='spot'?'即期':'远期') + '折现率 · 三规则对比(1-50年)', left:'center', top:4, textStyle:{fontSize:13} },
-                tooltip:{ trigger:'axis' },
-                legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
-                grid:{ left:52, right:22, top:58, bottom:50 },
-                xAxis:{ type:'category', data:years120, name:'年', nameLocation:'middle', nameGap:28 },
-                yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
-                series
-            }, true);
-            // 视图从 display:none 恢复后需延迟 resize，否则高度计算错误
-            setTimeout(() => chart.resize(), 0);
-            setTimeout(() => chart.resize(), 100);
+                return series;
+            }
+            function _drawChart(domId, mode, title) {
+                const dom = document.getElementById(domId);
+                if (!dom) return;
+                let ch = echarts.getInstanceByDom(dom);
+                if (!ch) ch = echarts.init(dom);
+                ch.setOption({
+                    title:{ text:title, left:'center', top:4, textStyle:{fontSize:12} },
+                    tooltip:{ trigger:'axis' },
+                    legend:{ type:'scroll', top:26, left:'center', textStyle:{fontSize:10} },
+                    grid:{ left:52, right:22, top:58, bottom:50 },
+                    xAxis:{ type:'category', data:years50, name:'年', nameLocation:'middle', nameGap:28 },
+                    yAxis:{ type:'value', name:'%', axisLabel:{ formatter:v=>v.toFixed(2) } },
+                    series: _chartSeries(mode)
+                }, true);
+                setTimeout(() => ch.resize(), 0);
+                setTimeout(() => ch.resize(), 100);
+            }
+            _drawChart('discountOverviewSpotChart', 'spot', '负债即期折现率 · 三规则对比(1-50年)');
+            _drawChart('discountOverviewFwdChart', 'fwd', '负债远期折现率 · 三规则对比(1-50年)');
 
             // ---------- 组件B：关键期限对比表 ----------
             const keyData = {
@@ -1424,15 +1449,15 @@
                 sii:   _overviewKeyMetrics(sii),
                 alm:   _overviewKeyMetrics(alm),
             };
+            const kMode = keyFilter.mode;
+            const kLvls = keyFilter.level === 'all' ? ['high','mid','low'] : [keyFilter.level];
 
-            // 三层表头：指标(rowspan=3) + 即期/远期(colspan=9) + 差异(colspan=2)
-            let kh = '<tr><th rowspan="3">指标</th><th colspan="9">' + (mode==='spot'?'即期':'远期') + '折现率 (%)</th><th colspan="2">差异 (bp)</th></tr>';
+            let kh = '<tr><th rowspan="2">指标</th>';
+            rules.forEach(r => kh += '<th colspan="' + kLvls.length + '">' + r.name + '</th>');
+            kh += '<th colspan="2">差异 (bp)</th></tr>';
             kh += '<tr>';
-            rules.forEach(r => kh += '<th colspan="3">' + r.name + '</th>');
-            kh += '<th rowspan="2">CROSS-SII</th><th rowspan="2">CROSS-ALM</th></tr>';
-            kh += '<tr>';
-            rules.forEach(() => kh += '<th>高</th><th>中</th><th>低</th>');
-            kh += '</tr>';
+            rules.forEach(() => kLvls.forEach(l => kh += '<th>' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>'));
+            kh += '<th>CROSS-SII</th><th>CROSS-ALM</th></tr>';
             document.getElementById('discountOverviewKeyHead').innerHTML = kh;
 
             const metrics = [
@@ -1448,16 +1473,16 @@
             metrics.forEach(m => {
                 kb += '<tr><td>' + m.label + '</td>';
                 rules.forEach(r => {
-                    const d = keyData[r.key][mode];
-                    ['high','mid','low'].forEach(lvl => {
+                    const d = keyData[r.key][kMode];
+                    kLvls.forEach(lvl => {
                         const v = d[lvl][m.k];
                         kb += '<td>' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
                     });
                 });
-                // 差异: CROSS - SII, CROSS - ALM (取中档)
-                const cMid = keyData.cross[mode].mid[m.k];
-                const sMid = keyData.sii[mode].mid[m.k];
-                const aMid = keyData.alm[mode].mid[m.k];
+                // 差异取中档
+                const cMid = keyData.cross[kMode].mid[m.k];
+                const sMid = keyData.sii[kMode].mid[m.k];
+                const aMid = keyData.alm[kMode].mid[m.k];
                 const d1 = (cMid!=null && sMid!=null) ? ((cMid-sMid)*10000).toFixed(2) : '—';
                 const d2 = (cMid!=null && aMid!=null) ? ((cMid-aMid)*10000).toFixed(2) : '—';
                 const d1Cls = (d1!=='—' && parseFloat(d1)<0) ? 'diff-td neg' : 'diff-td';
@@ -1467,7 +1492,6 @@
             document.getElementById('discountOverviewKeyBody').innerHTML = kb;
 
             // ---------- 组件C：未来三年季度预测表 ----------
-            // 预测起点：默认当前 discountDate，可通过日期选择器修改
             const fcStartEl = document.getElementById('discountOverviewFcStart');
             if (fcStartEl && !fcStartEl.value) fcStartEl.value = endDate;
             const fcStart = (fcStartEl && fcStartEl.value) ? fcStartEl.value : endDate;
@@ -1476,7 +1500,6 @@
                 fcStartEl.addEventListener('change', () => renderDiscountOverview());
             }
 
-            // 会计季度末: 3/31, 6/30, 9/30, 12/31
             function _quarterEnds(refDate) {
                 const [y,m] = refDate.split('-').map(Number);
                 const out = [];
@@ -1493,24 +1516,22 @@
             }
             const qDates = _quarterEnds(fcStart);
 
-            // CROSS预测：逐季度末计算
             const crossFc = qDates.map(qd => {
                 const d = computeAllRulesForDate(qd);
                 return d ? _overviewKeyMetrics(d.cross) : null;
             });
-            // SII：所有季度复用当前
             const siiNow = _overviewKeyMetrics(sii);
 
-            // 预测表也受 overviewFilter.level / mode 控制
-            const activeLvl = f.level === 'all' ? 'mid' : f.level;
-            const fcMode = f.mode;
+            const fMode = fcFilter.mode;
+            const fLvls = fcFilter.level === 'all' ? ['high','mid','low'] : [fcFilter.level];
 
+            // 表头
             let fh = '<tr><th rowspan="2">季度末</th>';
-            fh += '<th colspan="6">CROSS-' + (activeLvl==='high'?'高':activeLvl==='mid'?'中':'低') + '</th>';
-            fh += '<th colspan="6">SII-' + (activeLvl==='high'?'高':activeLvl==='mid'?'中':'低') + '</th>';
-            fh += '<th colspan="6">差异(SII-CROSS) bp</th></tr>';
+            fLvls.forEach(l => fh += '<th colspan="6">CROSS-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
+            fLvls.forEach(l => fh += '<th colspan="6">SII-' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>');
+            fh += '<th colspan="' + (6*fLvls.length) + '">差异(SII-CROSS) bp</th></tr>';
             fh += '<tr>';
-            for (let i=0;i<3;i++) {
+            for (let i=0; i<fLvls.length*2+1; i++) {
                 fh += '<th>10Y</th><th>20Y</th><th>40Y</th><th>1-20avg</th><th>21-40avg</th><th>41-120avg</th>';
             }
             fh += '</tr>';
@@ -1520,25 +1541,33 @@
             qDates.forEach((qd, qi) => {
                 fb += '<tr><td>' + qd + '</td>';
                 const c = crossFc[qi];
-                const cData = c ? c[fcMode][activeLvl] : null;
-                const sData = siiNow[fcMode][activeLvl];
                 // CROSS
-                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
-                    const v = cData ? cData[k] : null;
-                    fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                fLvls.forEach(l => {
+                    const cData = c ? c[fMode][l] : null;
+                    ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                        const v = cData ? cData[k] : null;
+                        fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                    });
                 });
                 // SII
-                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
-                    const v = sData[k];
-                    fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                fLvls.forEach(l => {
+                    const sData = siiNow[fMode][l];
+                    ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                        const v = sData[k];
+                        fb += '<td>' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
+                    });
                 });
                 // 差异 bp
-                ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
-                    const cv = cData ? cData[k] : null;
-                    const sv = sData[k];
-                    const d = (cv!=null && sv!=null) ? ((sv-cv)*10000).toFixed(2) : '—';
-                    const cls = (d!=='—' && parseFloat(d)<0) ? 'diff-td neg' : 'diff-td';
-                    fb += '<td class="' + cls + '">' + d + '</td>';
+                fLvls.forEach(l => {
+                    const cData = c ? c[fMode][l] : null;
+                    const sData = siiNow[fMode][l];
+                    ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
+                        const cv = cData ? cData[k] : null;
+                        const sv = sData[k];
+                        const d = (cv!=null && sv!=null) ? ((sv-cv)*10000).toFixed(2) : '—';
+                        const cls = (d!=='—' && parseFloat(d)<0) ? 'diff-td neg' : 'diff-td';
+                        fb += '<td class="' + cls + '">' + d + '</td>';
+                    });
                 });
                 fb += '</tr>';
             });

@@ -88,6 +88,7 @@
         .ov-table .diff-td.neg { color: #1a7a3a; }
         .ovf-btn { padding: 4px 12px; border: 1px solid #c8d6e8; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all .15s; }
         .ovf-btn:hover { background: #e8f0f9; }
+        .ovf-btn.ovf-on { background: #3e5a7a; color: #fff; border-color: #3e5a7a; }
         /* 季度预测 / 历史时点：冻结首行与日期列，交叉单元格保持最高层级 */
         .sticky-table table { border-collapse: separate; border-spacing: 0; }
         .sticky-table thead th { position: sticky; top: 0; z-index: 3; background: #f2f6fc; background-clip: padding-box; }
@@ -1059,13 +1060,21 @@
             </div>
             <div id="discountOverviewView" style="display:none;">
                 <div class="card">
-                    <div class="card-title"><span>折现率总括摘要 · 三规则对比</span></div>
-                    <div id="discountOverviewFilter" style="margin:8px 0;"></div>
-                    <div class="chart-box tall" id="discountOverviewChart"></div>
-                    <div class="footnote">CROSS/ALM 50年后平推50年值 · 期限单位：年 ｜ 利率单位：%</div>
+                    <div class="card-title">
+                        <span>折现率总括摘要 · 三规则对比</span>
+                        <span id="discountOverviewChartFilter" style="margin-left:auto;display:inline-flex;gap:4px;align-items:center;"></span>
+                    </div>
+                    <div class="grid-2">
+                        <div class="chart-box tall" id="discountOverviewSpotChart"></div>
+                        <div class="chart-box tall" id="discountOverviewFwdChart"></div>
+                    </div>
+                    <div class="footnote">期限单位：年 ｜ 利率单位：%</div>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>关键期限对比</span></div>
+                    <div class="card-title">
+                        <span>关键期限对比</span>
+                        <span id="discountOverviewKeyFilter" style="margin-left:auto;display:inline-flex;gap:4px;align-items:center;"></span>
+                    </div>
                     <div class="table-wrap ov-table" id="discountOverviewKeyTableWrap" style="overflow:auto;">
                         <table>
                             <thead id="discountOverviewKeyHead"></thead>
@@ -1076,7 +1085,8 @@
                 <div class="card">
                     <div class="card-title">
                         <span>未来三年季度预测 · CROSS vs Solvency II</span>
-                        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;">
+                        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span id="discountOverviewFcFilter" style="display:inline-flex;gap:4px;align-items:center;"></span>
                             <label for="discountOverviewFcStart" style="font-size:12px;font-weight:600;color:#3e5a7a;">预测起点：</label>
                             <input type="date" id="discountOverviewFcStart" style="font-size:12px;padding:2px 4px;">
                         </span>
@@ -3788,7 +3798,16 @@
 
         function updateSectionNav(key) {
             const nav = document.getElementById('sectionNav');
-            const items = (SECTION_NAV_ITEMS[key] || []).filter(([id]) => document.getElementById(id));
+            let items = (SECTION_NAV_ITEMS[key] || []).filter(([id]) => document.getElementById(id));
+            // 折现率板块：根据当前 tab 动态显示子章节
+            if (key === 'discount') {
+                if (discountRule === 'overview') {
+                    items = [['discountOverviewView', '总括']];
+                } else {
+                    const ruleName = discountRule === 'c2_2' ? 'CROSS' : discountRule === 'c2_new' ? 'Solvency II' : 'ALM';
+                    items = [['discountControlsSection', ruleName + ' · 参数与规则'], ['discountSummaryView', ruleName + ' · 曲线对比'], ['discountTableSection', ruleName + ' · 汇总数据表']];
+                }
+            }
             nav.hidden = items.length === 0;
             nav.innerHTML = items.length ? '<span class="section-nav-label">本页章节</span>' + items.map(([id, label], i) =>
                 `<button type="button" data-target="${id}" class="${i === 0 ? 'active' : ''}">${label}</button>`).join('') : '';
@@ -4151,6 +4170,7 @@
                     document.getElementById('discountOutputView').style.display = 'none';
                     const dl = document.querySelector('.discount-downloads');
                     if (dl) dl.style.display = isOverview ? 'none' : '';
+                    updateSectionNav('discount');
                     if (discountRule === 'c2_new') { syncSWParamsFromInputs(); renderSwLiquidGrid(); }
                     discountDataCache = null;
                     renderDiscount();
