@@ -1275,14 +1275,15 @@
         // ================================================================
         let overviewCache = null;
         let chartFilter = { level: 'all' };
-        let keyFilter = { level: 'all', mode: 'spot' };
-        let fcFilter = { level: 'all', mode: 'spot' };
+        let keyFilter = { level: 'mid', mode: 'spot' };
+        let fcFilter = { level: 'mid', mode: 'spot' };
 
-        function computeAllRulesForDate(endDateStr) {
+        function computeAllRulesForDate(endDateStr, refOverride) {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
             if (!gov || !gov.dates || gov.dates.length === 0) return null;
             const fc = isForecastDate(gov, endDateStr);
-            const ref = fc ? (discountForecastRefDate || gov.latestDate) : null;
+            // refOverride（预测起点）优先；否则沿用旧逻辑
+            const ref = (refOverride != null) ? refOverride : (fc ? (discountForecastRefDate || gov.latestDate) : null);
 
             function _call(rule) {
                 let d;
@@ -1359,7 +1360,7 @@
             if (!wrap) return;
             wrap.innerHTML =
                 '<span style="font-size:12px;font-weight:600;color:#3e5a7a;">档次：</span>' +
-                _mkBtns([['all','全部'],['high','高'],['mid','中'],['low','低']], keyFilter.level, 'level') +
+                _mkBtns([['high','高'],['mid','中'],['low','低']], keyFilter.level, 'level') +
                 '<span style="font-size:12px;font-weight:600;color:#3e5a7a;margin-left:8px;">即/远：</span>' +
                 _mkBtns([['spot','即期'],['fwd','远期']], keyFilter.mode, 'mode');
             _bindBtns(wrap, (g,v) => { keyFilter[g]=v; renderDiscountOverview(); });
@@ -1370,7 +1371,7 @@
             if (!wrap) return;
             wrap.innerHTML =
                 '<span style="font-size:12px;font-weight:600;color:#3e5a7a;">档次：</span>' +
-                _mkBtns([['all','全部'],['high','高'],['mid','中'],['low','低']], fcFilter.level, 'level') +
+                _mkBtns([['high','高'],['mid','中'],['low','低']], fcFilter.level, 'level') +
                 '<span style="font-size:12px;font-weight:600;color:#3e5a7a;margin-left:8px;">即/远：</span>' +
                 _mkBtns([['spot','即期'],['fwd','远期']], fcFilter.mode, 'mode');
             _bindBtns(wrap, (g,v) => { fcFilter[g]=v; renderDiscountOverview(); });
@@ -1480,12 +1481,13 @@
                         kb += '<td style="background:' + bg + ';">' + (v==null ? '—' : (v*100).toFixed(4)) + '</td>';
                     });
                 });
-                // 差异取中档
-                const cMid = keyData.cross[kMode].mid[m.k];
-                const sMid = keyData.sii[kMode].mid[m.k];
-                const aMid = keyData.alm[kMode].mid[m.k];
-                const d1 = (cMid!=null && sMid!=null) ? ((cMid-sMid)*10000).toFixed(2) : '—';
-                const d2 = (cMid!=null && aMid!=null) ? ((cMid-aMid)*10000).toFixed(2) : '—';
+                // 差异按当前选中档次计算（与展示档次一致）
+                const curLvl = kLvls[0];
+                const cCur = keyData.cross[kMode][curLvl][m.k];
+                const sCur = keyData.sii[kMode][curLvl][m.k];
+                const aCur = keyData.alm[kMode][curLvl][m.k];
+                const d1 = (cCur!=null && sCur!=null) ? ((cCur-sCur)*10000).toFixed(2) : '—';
+                const d2 = (cCur!=null && aCur!=null) ? ((cCur-aCur)*10000).toFixed(2) : '—';
                 const d1Cls = (d1!=='—' && parseFloat(d1)<0) ? 'diff-td neg' : 'diff-td';
                 const d2Cls = (d2!=='—' && parseFloat(d2)<0) ? 'diff-td neg' : 'diff-td';
                 kb += '<td class="' + d1Cls + '">' + d1 + '</td><td class="' + d2Cls + '">' + d2 + '</td></tr>';
@@ -1518,14 +1520,22 @@
             }
             const qDates = _quarterEnds(fcStart);
 
+            // 预测起点 → 最近实际交易日（作为 MA / 即期平推的统一基准）
+            const actualDates = gov && gov.dates ? gov.dates : [];
+            let baseRef = actualDates[actualDates.length - 1] || fcStart;
+            for (const ad of actualDates) { if (ad <= fcStart) baseRef = ad; else break; }
+
+            // SII：保持"选择的当前时点（预测起点）"水平不变；CROSS：从该起点滚动预测到各季度末
+            // 两者共用同一平推基准 baseRef，差异才有意义
+            const siiBase = computeAllRulesForDate(fcStart, baseRef);
+            const siiNow = siiBase ? _overviewKeyMetrics(siiBase.sii) : null;
             const crossFc = qDates.map(qd => {
-                const d = computeAllRulesForDate(qd);
+                const d = computeAllRulesForDate(qd, baseRef);
                 return d ? _overviewKeyMetrics(d.cross) : null;
             });
-            const siiNow = _overviewKeyMetrics(sii);
 
             const fMode = fcFilter.mode;
-            const fLvls = fcFilter.level === 'all' ? ['high','mid','low'] : [fcFilter.level];
+            const fLvls = [fcFilter.level];
 
             // 表头
             let fh = '<tr><th rowspan="2">季度末</th>';
@@ -1553,19 +1563,19 @@
                 });
                 // SII
                 fLvls.forEach(l => {
-                    const sData = siiNow[fMode][l];
+                    const sData = siiNow ? siiNow[fMode][l] : null;
                     ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
-                        const v = sData[k];
+                        const v = sData ? sData[k] : null;
                         fb += '<td style="background:#f0f6fc;">' + (v==null?'—':(v*100).toFixed(4)) + '</td>';
                     });
                 });
                 // 差异 bp
                 fLvls.forEach(l => {
                     const cData = c ? c[fMode][l] : null;
-                    const sData = siiNow[fMode][l];
+                    const sData = siiNow ? siiNow[fMode][l] : null;
                     ['y10','y20','y40','avg1_20','avg21_40','avg41_120'].forEach(k => {
                         const cv = cData ? cData[k] : null;
-                        const sv = sData[k];
+                        const sv = sData ? sData[k] : null;
                         const d = (cv!=null && sv!=null) ? ((sv-cv)*10000).toFixed(2) : '—';
                         const cls = (d!=='—' && parseFloat(d)<0) ? 'diff-td neg' : 'diff-td';
                         fb += '<td class="' + cls + '">' + d + '</td>';
