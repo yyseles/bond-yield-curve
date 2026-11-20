@@ -1277,6 +1277,7 @@
         let chartFilter = { level: 'all' };
         let keyFilter = { level: 'mid', mode: 'spot' };
         let fcFilter = { level: 'mid', mode: 'spot' };
+        let keyDataCache = null;   // 关键期限表独立日期缓存
 
         function computeAllRulesForDate(endDateStr, refOverride) {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
@@ -1446,14 +1447,29 @@
             _drawChart('discountOverviewSpotChart', 'spot', '负债即期折现率 · 三规则对比(1-50年)');
             _drawChart('discountOverviewFwdChart', 'fwd', '负债远期折现率 · 三规则对比(1-50年)');
 
-            // ---------- 组件B：关键期限对比表 ----------
-            const keyData = {
-                cross: _overviewKeyMetrics(cross),
-                sii:   _overviewKeyMetrics(sii),
-                alm:   _overviewKeyMetrics(alm),
-            };
+            // ---------- 组件B：关键期限对比表（独立日期，不与曲线图联动）----------
+            const keyDateEl = document.getElementById('discountOverviewKeyDate');
+            if (keyDateEl && !keyDateEl.value) keyDateEl.value = endDate;
+            const keyDate = (keyDateEl && keyDateEl.value) ? keyDateEl.value : endDate;
+            if (keyDateEl && !keyDateEl._bound) {
+                keyDateEl._bound = true;
+                keyDateEl.addEventListener('change', () => renderDiscountOverview());
+            }
+            // 独立计算三规则（用关键期限自己的日期），缓存键含日期与参数指纹
+            const kdCacheKey = keyDate + '|' + swFingerprint;
+            if (!keyDataCache || keyDataCache._key !== kdCacheKey) {
+                const kdAll = computeAllRulesForDate(keyDate);
+                keyDataCache = kdAll ? {
+                    cross: _overviewKeyMetrics(kdAll.cross),
+                    sii:   _overviewKeyMetrics(kdAll.sii),
+                    alm:   _overviewKeyMetrics(kdAll.alm),
+                    _key: kdCacheKey
+                } : null;
+            }
+            if (!keyDataCache) return;
+            const keyData = keyDataCache;
             const kMode = keyFilter.mode;
-            const kLvls = keyFilter.level === 'all' ? ['high','mid','low'] : [keyFilter.level];
+            const kLvls = [keyFilter.level];
 
             let kh = '<tr><th rowspan="2">指标</th>';
             rules.forEach(r => kh += '<th colspan="' + kLvls.length + '">' + r.name + '</th>');

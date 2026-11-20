@@ -1087,7 +1087,11 @@
                 <div class="card">
                     <div class="card-title">
                         <span>关键期限对比</span>
-                        <span id="discountOverviewKeyFilter" style="margin-left:auto;display:inline-flex;gap:4px;align-items:center;"></span>
+                        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span id="discountOverviewKeyFilter" style="display:inline-flex;gap:4px;align-items:center;"></span>
+                            <label for="discountOverviewKeyDate" style="font-size:12px;font-weight:600;color:#3e5a7a;">日期：</label>
+                            <input type="date" id="discountOverviewKeyDate" style="font-size:12px;padding:2px 4px;">
+                        </span>
                     </div>
                     <div class="table-wrap ov-table" id="discountOverviewKeyTableWrap" style="overflow:auto;">
                         <table>
