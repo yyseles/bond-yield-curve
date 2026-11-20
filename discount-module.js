@@ -1380,7 +1380,9 @@
         function renderDiscountOverview() {
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
             const endDate = discountDate || gov.latestDate;
-            const cacheKey = endDate + '|' + (discountForecastRefDate || '');
+            // 缓存键纳入 SII 参数指纹：改参数（如溢价）后自动失效，三组件联动重算
+            const swFingerprint = (typeof SW_PARAMS !== 'undefined') ? JSON.stringify(SW_PARAMS) : '';
+            const cacheKey = endDate + '|' + (discountForecastRefDate || '') + '|' + swFingerprint;
             if (!overviewCache || overviewCache._key !== cacheKey) {
                 overviewCache = computeAllRulesForDate(endDate);
                 if (overviewCache) overviewCache._key = cacheKey;

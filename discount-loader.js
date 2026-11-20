@@ -138,8 +138,15 @@
     return overlay;
   }
 
+  // 访问码门控总开关：false = 暂时取消（直接进入），true = 恢复访问码校验
+  var GATE_ENABLED = false;
+
   // 入口：已解锁（本次标签 sessionStorage）则直接加载模块并执行回调；否则弹码门（输对后写 sessionStorage 解锁，本次访问免重复输入）。
   function requestDiscountAccess(cb) {
+    if (!GATE_ENABLED) {
+      loadModule().then(function () { cb(); }).catch(function () { cb(); });
+      return;
+    }
     var unlocked = false;
     try { unlocked = sessionStorage.getItem('discount_unlocked') === '1'; } catch (e) {}
     if (unlocked) {
