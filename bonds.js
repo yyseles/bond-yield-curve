@@ -13,7 +13,11 @@
         let industryYear = '';
         let comboEndYear = '';
         let summaryYear = 'all';
+        let issuerSel = '';
+        let issuerType = '';
+        let issuerStatus = '';
         const zhCollator = new Intl.Collator('zh-Hans-CN');
+        const STATUS_COLOR = { '存续': '#2e9e5b', '已赎回': '#d9534f', '已到期': '#9aa7b8' };
 
         // 全量债券（顶部汇总卡 / 公司×年表 使用，不受截止年份影响）
         function allBonds() {
@@ -109,6 +113,9 @@
             renderBondIndustryTable(industryRows());
             // 散点图：始终显示全部年份
             renderBondScatter(allBonds());
+            // 公司发行明细（全档案）：填充发行人下拉并渲染（保留当前筛选）
+            populateIssuerSelect();
+            renderIssuerDetail();
         }
 
         function renderBondSummaryCards(rows) {
@@ -321,7 +328,7 @@
             if (typeof echarts === 'undefined') { dom.innerHTML = '<p style="color:#999;padding:20px;">图表库未加载</p>'; return; }
             if (!bondScatterChart) bondScatterChart = echarts.init(dom);
             const years = [...new Set(rows.map(b => (b.issueDate || '').slice(0, 4)).filter(Boolean))].sort();
-            const colorOf = { '存续': '#2e9e5b', '已赎回': '#d9534f', '已到期': '#9aa7b8' };
+            const colorOf = STATUS_COLOR;
             const byStatus = {};
             rows.forEach(b => {
                 const y = (b.issueDate || '').slice(0, 4);
@@ -458,6 +465,72 @@
             sel.value = summaryYear;
         }
 
+        // 公司发行明细（全档案）面板：发行人下拉（拼音排序 + 发行只数）
+        function populateIssuerSelect() {
+            const sel = document.getElementById('bondIssuerSelect');
+            if (!sel || !insBonds || !insBonds.bonds) return;
+            const cnt = {};
+            allBonds().forEach(b => { const c = b.issuer || '未知'; cnt[c] = (cnt[c] || 0) + 1; });
+            const names = Object.keys(cnt).sort((a, b) => zhCollator.compare(a, b));
+            sel.innerHTML = '<option value="">请选择发行人</option>'
+                + names.map(n => `<option value="${n}">${n}（${cnt[n]} 只）</option>`).join('');
+        }
+
+        // 公司发行明细（全档案）面板：指标卡 + 明细表渲染
+        function renderIssuerDetail() {
+            const sumBox = document.getElementById('bondIssuerSummary');
+            const tbl = document.getElementById('bondIssuerTable');
+            const cntEl = document.getElementById('bondIssuerCount');
+            if (!sumBox || !tbl) return;
+            const card = (k, v, c) => `<div class="bcard"${c ? ` style="border-left-color:${c};"` : ''}><div class="bk">${k}</div><div class="bv">${v}</div></div>`;
+            if (!issuerSel) {
+                sumBox.innerHTML = '';
+                cntEl.textContent = '';
+                tbl.innerHTML = '<tbody><tr><td class="i-empty">请先在上方下拉框中选择发行人</td></tr></tbody>';
+                return;
+            }
+            let rows = allBonds().filter(b => (b.issuer || '未知') === issuerSel);
+            let allTyped = rows.length;
+            if (issuerType) rows = rows.filter(b => b.bondType === issuerType);
+            if (issuerStatus) rows = rows.filter(b => b.status === issuerStatus);
+            const totalAmnt = rows.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            const live = rows.filter(b => b.status === '存续');
+            const liveAmnt = live.reduce((s, b) => s + (b.issueAmnt || 0), 0);
+            const wa = wavgRate(rows);
+            cntEl.textContent = `共 ${rows.length} 只（该发行人在选类型/状态下）/ 全档案 ${allTyped} 只`;
+            sumBox.innerHTML = card('发行只数', rows.length)
+                + card('累计发行额', `${fmtAmnt(totalAmnt)} <small>亿元</small>`)
+                + card('存续', `${live.length} 只 · ${fmtAmnt(liveAmnt)} <small>亿</small>`)
+                + card('加权平均票面利率', wa == null ? '—' : `${fmtRate(wa)}`);
+            if (!rows.length) {
+                tbl.innerHTML = '<tbody><tr><td class="i-empty">该发行人暂无符合条件的债券</td></tr></tbody>';
+                return;
+            }
+            const sorted = [...rows].sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')));
+            const dateCell = b => (b.callDate && b.mrtyDate && b.callDate !== b.mrtyDate)
+                ? `${b.callDate}<span class="cnt-sub">${b.mrtyDate} 到期</span>`
+                : `${b.mrtyDate || b.callDate || '—'}<span class="cnt-sub">到期</span>`;
+            const rowsHtml = sorted.map(b => {
+                const typeCls = b.bondType === '永续债' ? 't-perp' : 't-cap';
+                const stCls = STATUS_COLOR[b.status] ? 'status-' + b.status : '';
+                return `<tr>`
+                    + `<td class="lft" title="${escHtml(b.bondShort || '')}">${escHtml(b.bondShort || '—')}</td>`
+                    + `<td class="i-type"><span class="${typeCls}">${escHtml(b.bondType || '—')}</span></td>`
+                    + `<td class="i-date">${escHtml(b.issueDate || '—')}</td>`
+                    + `<td class="i-date">${escHtml(b.valueDate || '—')}</td>`
+                    + `<td>${escHtml(b.bondPeriod || '—')}</td>`
+                    + `<td class="i-amt">${fmtAmnt(b.issueAmnt)}</td>`
+                    + `<td class="i-rate">${fmtRate(b.couponRate)}</td>`
+                    + `<td>${escHtml((b.ratingStr && b.ratingStr !== '---') ? b.ratingStr : '—')}</td>`
+                    + `<td class="i-mrd">${dateCell(b)}</td>`
+                    + `<td>${stCls ? `<span class="status-tag ${stCls}">${escHtml(b.status)}</span>` : escHtml(b.status || '—')}</td>`
+                    + `</tr>`;
+            }).join('');
+            tbl.innerHTML = `<colgroup><col style="width:16%"><col><col><col><col><col><col><col><col><col style="width:8%"></colgroup>`
+                + `<thead><tr><th class="lft">债券简称</th><th class="lft">类型</th><th>发行日</th><th>起息日</th><th>期限</th><th>发行额(亿)</th><th>票面利率</th><th>评级</th><th>行权/到期日</th><th>状态</th></tr></thead>`
+                + `<tbody>${rowsHtml}</tbody>`;
+        }
+
         function handleHashChange() {
             const hash = location.hash.replace('#', '');
             const validTypes = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
@@ -497,4 +570,11 @@
             const summaryRows = summaryYear === 'all' ? rows : rows.filter(b => (b.issueDate || '').slice(0, 4) === summaryYear);
             renderBondSummaryCards(summaryRows);
         });
+        // 公司发行明细（全档案）：发行人 / 类型 / 状态 三联动筛选
+        const isSel = document.getElementById('bondIssuerSelect');
+        if (isSel) isSel.addEventListener('change', function() { issuerSel = this.value; renderIssuerDetail(); });
+        const tfSel = document.getElementById('bondTypeFilter');
+        if (tfSel) tfSel.addEventListener('change', function() { issuerType = this.value; renderIssuerDetail(); });
+        const sfSel = document.getElementById('bondStatusFilter');
+        if (sfSel) sfSel.addEventListener('change', function() { issuerStatus = this.value; renderIssuerDetail(); });
 

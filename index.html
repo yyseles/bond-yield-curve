@@ -262,6 +262,25 @@
         .bonds-filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 12px; background: #f6f9fc; border: 1px solid #e4e9f0; border-radius: 10px; }
         .bonds-filters label { font-size: 13px; font-weight: 600; color: #3e5a7a; }
         .bonds-filters select { padding: 5px 10px; border-radius: 7px; border: 1px solid #cbd5e1; background: #fff; color: #3e5a7a; font-size: 13px; }
+        .bonds-filters .issuer-count { margin-left: auto; font-size: 12px; color: #8a99ad; font-weight: 600; white-space: nowrap; }
+        .iss-cards { grid-template-columns: repeat(4, 1fr); }
+        .iss-cards .bcard { border-left-color: #2e9e5b; }
+        .iss-cards .bcard:nth-child(2) { border-left-color: #1f4a7a; }
+        .iss-cards .bcard:nth-child(3) { border-left-color: #d9534f; }
+        .iss-cards .bcard:nth-child(4) { border-left-color: #b8651b; }
+        .iss-cards .bv small { margin-left: 0; }
+        @media (max-width: 900px) { .iss-cards { grid-template-columns: repeat(2, 1fr); } }
+        #bondIssuerTable { table-layout: fixed; min-width: 980px; }
+        #bondIssuerTable .i-date { white-space: nowrap; }
+        #bondIssuerTable .i-type { text-align: left; font-weight: 600; }
+        #bondIssuerTable .i-type .t-cap { color: #3b7dd8; }
+        #bondIssuerTable .i-type .t-perp { color: #b8860b; }
+        #bondIssuerTable .i-amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+        #bondIssuerTable .i-rate { font-weight: 700; color: #b8651b; font-variant-numeric: tabular-nums; }
+        #bondIssuerTable .i-mrd { font-size: 12px; line-height: 1.5; white-space: nowrap; }
+        #bondIssuerTable .i-mrd .cnt-sub { display: block; font-size: 10px; color: #8a99ad; font-weight: 400; }
+        #bondIssuerTable .i-empty { text-align: center; color: #8a99ad; padding: 40px 10px; font-size: 13px; }
+        @media (max-width: 760px) { .bonds-filters .issuer-count { margin-left: 0; } }
         .btn-download { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1px solid #1f4a7a; background: #1f4a7a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; }
         .btn-download:hover { background: #163a61; }
         /* 资本债板块：行1(组合图+年度表) 与 行2(分行业+散点) 统一高度，等高对齐 */
@@ -1239,6 +1258,40 @@
                 </span>
             </div>
             <div class="tbl-scroll"><table id="bondCompanyYearTable"></table></div>
+        </div>
+
+        <!-- 新增：公司发行明细（全档案筛选，含已赎回/已到期） -->
+        <div class="bonds-panel section-anchor" id="bondIssuerDetailSection">
+            <div class="panel-head">
+                <h4><span class="accent"></span>公司发行明细（全档案）</h4>
+                <span class="ph-spacer"></span>
+            </div>
+            <div class="bonds-filters" style="margin-bottom:14px;">
+                <label>发行人
+                    <select id="bondIssuerSelect" title="选择保险公司，查看其全部资本补充债/永续债档案">
+                        <option value="">请选择发行人</option>
+                    </select>
+                </label>
+                <label>类型
+                    <select id="bondTypeFilter" title="按债券类型筛选">
+                        <option value="">全部</option>
+                        <option value="资本补充债">资本补充债</option>
+                        <option value="永续债">永续债</option>
+                    </select>
+                </label>
+                <label>状态
+                    <select id="bondStatusFilter" title="按债券状态筛选">
+                        <option value="">全部</option>
+                        <option value="存续">存续</option>
+                        <option value="已赎回">已赎回</option>
+                        <option value="已到期">已到期</option>
+                    </select>
+                </label>
+                <span class="issuer-count" id="bondIssuerCount"></span>
+            </div>
+            <div class="bonds-cards iss-cards" id="bondIssuerSummary" style="margin-bottom:14px;"></div>
+            <div class="tbl-scroll"><table id="bondIssuerTable"></table></div>
+            <p class="bonds-note">选定发行人后展示其全部资本补充债/永续债档案（含已赎回、已到期），按发行日倒序排列；类型、状态下拉可叠加筛选。</p>
         </div>
     </div>
         <!-- ═══════════════════════════════════════════════
@@ -3800,7 +3853,8 @@
             ],
             bonds: [
                 ['bondSummaryCards', '发行总览'], ['bondYearSection', '年度汇总'],
-                ['bondIndustrySection', '行业与票面'], ['bondCompanySection', '公司明细']
+                ['bondIndustrySection', '行业与票面'], ['bondCompanySection', '公司明细'],
+                ['bondIssuerDetailSection', '公司全档案']
             ]
         };
 
