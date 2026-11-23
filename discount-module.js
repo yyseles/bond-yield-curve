@@ -1476,7 +1476,7 @@
             kh += '<th colspan="2">差异 (bp)</th></tr>';
             kh += '<tr>';
             rules.forEach(() => kLvls.forEach(l => kh += '<th>' + (l==='high'?'高':l==='mid'?'中':'低') + '</th>'));
-            kh += '<th>CROSS-SII</th><th>CROSS-ALM</th></tr>';
+            kh += '<th>SII-CROSS</th><th>ALM-CROSS</th></tr>';
             document.getElementById('discountOverviewKeyHead').innerHTML = kh;
 
             const metrics = [
@@ -1504,8 +1504,9 @@
                 const cCur = keyData.cross[kMode][curLvl][m.k];
                 const sCur = keyData.sii[kMode][curLvl][m.k];
                 const aCur = keyData.alm[kMode][curLvl][m.k];
-                const d1 = (cCur!=null && sCur!=null) ? ((cCur-sCur)*10000).toFixed(2) : '—';
-                const d2 = (cCur!=null && aCur!=null) ? ((cCur-aCur)*10000).toFixed(2) : '—';
+                // 方向：SII-CROSS = SII 减 CROSS；ALM-CROSS = ALM 减 CROSS（单位 bp）
+                const d1 = (cCur!=null && sCur!=null) ? ((sCur-cCur)*10000).toFixed(2) : '—';
+                const d2 = (cCur!=null && aCur!=null) ? ((aCur-cCur)*10000).toFixed(2) : '—';
                 const d1Cls = (d1!=='—' && parseFloat(d1)<0) ? 'diff-td neg' : 'diff-td';
                 const d2Cls = (d2!=='—' && parseFloat(d2)<0) ? 'diff-td neg' : 'diff-td';
                 kb += '<td class="' + d1Cls + '">' + d1 + '</td><td class="' + d2Cls + '">' + d2 + '</td></tr>';
