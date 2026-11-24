@@ -314,7 +314,34 @@ def dedup_bonds(bonds):
             if merged.get(k) in (None, "", "---") and v not in (None, "", "---"):
                 merged[k] = v
         out[hit_idx] = merged
-    return out
+    return sanitize_call_dates(out)
+
+
+def sanitize_call_dates(bonds):
+    """净化异常 callDate（防御接口脏数据; 2026-11 太平人寿两只债被写成 6460/7638 年）:
+    callDate 若 晚于 mrtyDate / 年份离谱(>today+15) / 与起息日年差不在 (0,15] 内,
+    按 (valueDate, bondPeriod) 重推; 重推仍异常则置空。"""
+    today = date.today()
+    fixed = 0
+    for b in bonds:
+        c = _norm_date(b.get("callDate") or "")
+        if not c:
+            continue
+        m = _norm_date(b.get("mrtyDate") or "")
+        v = _norm_date(b.get("valueDate") or "")
+        bad = (m and c > m) or c.year > today.year + 15 or (v and not (0 < c.year - v.year <= 15))
+        if not bad:
+            continue
+        nc = derive_call_date(v, b.get("bondPeriod") or "")
+        if nc and not (m and nc > m):
+            b["callDate"] = nc.isoformat()
+        else:
+            b["callDate"] = ""
+        fixed += 1
+        sys.stderr.write(f"  [sanitize] {b.get('bondShort')}: 异常 callDate {c.isoformat()} -> {b['callDate'] or '(空)'}\n")
+    if fixed:
+        print(f"[sanitize] 修正 {fixed} 条异常 callDate", flush=True)
+    return bonds
 
 
 # ---------- 抓取 ----------
@@ -361,6 +388,11 @@ def build_record(list_row, info):
     value_date = _norm_date(info.get("frstValueDate"))
     mrty_date = _norm_date(info.get("mrtyDate"))
     call_date = derive_call_date(value_date, bond_period)
+    # 防御接口脏数据: 赎回日晚于到期日或年差离谱时弃用（合法含权债 call ≤ mrty）
+    if call_date and mrty_date and call_date > mrty_date:
+        call_date = None
+    if call_date and value_date and not (0 < call_date.year - value_date.year <= 15):
+        call_date = None
     exercise_flag = info.get("exerciseInfoFlag") or "否"
     # 主体/债项评级: creditRateEntyList[0].creditSubjectRating 形如 "AA+/AAA"
     rating_str = ""

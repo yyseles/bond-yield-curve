@@ -2390,7 +2390,7 @@
    "debtRating": "AAA",
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "否",
-   "callDate": "6460-01-18",
+   "callDate": "2027-01-18",
    "status": "存续",
    "source": "Excel(用户维护)"
   },
@@ -2438,7 +2438,7 @@
    "debtRating": "AAA",
    "ratingStr": "AAA/AAA",
    "exerciseFlag": "否",
-   "callDate": "7638-12-06",
+   "callDate": "2026-12-06",
    "status": "已赎回",
    "source": "Excel(用户维护)"
   },
