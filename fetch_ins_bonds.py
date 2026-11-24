@@ -157,8 +157,10 @@ def _maybe_update_status_from_detail(rec, info):
             rec["status"] = new
             return ("updated", (old, new, f"dlstngDate={dlstng.isoformat()}"))
         return ("kept", rec.get("status"))
-    # 优先级 2: 备注里有"已赎回/已兑付"等关键字
+    # 优先级 2: 备注里有"已赎回/已兑付"等关键字 —— 但行权日未到时不得提前置已赎回
     if note and note != "---" and any(k in note for k in _REDEEM_NOTE_KEYS):
+        if not _redeem_effective(rec):
+            return ("kept", rec.get("status"))
         new = "已赎回"
         if rec.get("status") != new:
             old = rec.get("status")
@@ -559,6 +561,16 @@ def _match_notice_bond(bonds, title):
     return strong if strong else weak
 
 
+def _redeem_effective(rec):
+    """'行使'类信号(公告/官方备注)是否已到行权时点。
+    行权日(callDate)在今天之后 -> 尚未行权, 返回 False, 状态应保持存续。
+    例: 阳光产险 2026-10 底发行使公告, 2026-12-07 才行权; 期间不得标已赎回
+    (用户口径 2026-11-24: 按赎回公告中的行权日期判断, 公告发布日不算)。
+    callDate 缺失时保守返回 True(由摘牌信号 dlstngDate 兑底)。"""
+    c = _norm_date(rec.get("callDate") or "")
+    return not (c and c > date.today())
+
+
 def apply_notice_status(bonds, notices, verbose=True):
     """按公告标题更新 bonds 的 status(行使->已赎回 / 不行使->存续)。
     注: Excel(用户维护) 记录仅保护字段不被覆写, 官方赎回公告的状态判定必须生效
@@ -573,6 +585,17 @@ def apply_notice_status(bonds, notices, verbose=True):
             skipped.append((n["title"][:44], f"{len(cands)}只候选" if cands else "无匹配债"))
             continue
         b = cands[0]
+        if st == "已赎回" and not _redeem_effective(b):
+            # 行使公告已发但行权日未到(callDate 在未来) -> 仍存续;
+            # 行权日过后公告仍在窗口内, 下轮自动收敛为已赎回
+            if b.get("status") != "存续":
+                old = b.get("status")
+                b["status"] = "存续"
+                changed.append(((b.get("bondShort") or b.get("bondFull") or "?")[:24],
+                                old, "存续", f"{n['date']} {n['title'][:36]} (行权日{b.get('callDate')}未到)"))
+            elif verbose:
+                skipped.append((n["title"][:44], f"行使公告但行权日{b.get('callDate')}未到, 保持存续"))
+            continue
         if b.get("status") != st:
             old = b.get("status")
             b["status"] = st
