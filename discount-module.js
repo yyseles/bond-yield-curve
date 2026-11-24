@@ -840,6 +840,9 @@
             }
         }
 
+        // 摘要图图例默认/记忆状态: 默认只显示中档, 用户手动切换后在会话内保留
+        const discountSummaryLegendSel = { spot: null, fwd: null };
+
         function renderDiscountSummary(mode) {
             const d = discountDataCache;
             const gov = (typeof dataStores !== 'undefined' && dataStores.gov_spot) ? dataStores.gov_spot : dataStore;
@@ -876,15 +879,23 @@
             }));
             const chartDom = document.getElementById('discountSummaryChart');
             if (!discountChart) discountChart = echarts.init(chartDom);
+            if (!discountSummaryLegendSel[mode]) {
+                // 默认仅中档系列可见(负债即期-中/负债远期-中), 其余(高低档/利率情景)默认关
+                discountSummaryLegendSel[mode] = {};
+                series.forEach(s => { discountSummaryLegendSel[mode][s.name] = s.name.includes('-中'); });
+            }
             discountChart.setOption({
                 title: { text: '折现率曲线（' + (mode === 'fwd' ? '远期' : '即期') + '）· ' + ruleLabel(), left:'center', top: 4, textStyle:{fontSize:14} },
                 tooltip: { trigger:'axis' },
-                legend: { type:'scroll', top: 26, left:'center', textStyle:{fontSize:11} },
+                legend: { type:'scroll', top: 26, left:'center', textStyle:{fontSize:11}, selected: discountSummaryLegendSel[mode] },
                 grid: { left: 52, right: 22, top: 58, bottom: 50 },
                 xAxis: { type:'category', data: years, name:'年', nameLocation:'middle', nameGap: 28 },
                 yAxis: { type:'value', name:'%', axisLabel:{ formatter: v => v.toFixed(2) } },
                 series: series
             }, true);
+            discountChart.off('legendselectchanged').on('legendselectchanged', function(e) {
+                discountSummaryLegendSel[discountSF] = Object.assign({}, e.selected);
+            });
             // 右图：曲线对比（当前日 vs 对比日），仅负债中档 + 利率上升/下降
             const cmpDom = document.getElementById('discountCompareChart');
             if (cmpDom) {
