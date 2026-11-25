@@ -1357,13 +1357,9 @@
                     <span class="toolbar-hint">同一曲线在 A / B 两日的期限结构差异（A 实线 · B 虚线）</span>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>期限结构</span><span class="badge">A 实线 / B 虚线</span></div>
+                    <div class="card-title"><span>期限结构与收益率变动</span><span class="badge">左轴 % ｜ 右轴 bp</span></div>
                     <div class="chart-box tall" id="anaStructChart"></div>
-                </div>
-                <div class="card">
-                    <div class="card-title"><span>收益率变动（A − B）</span><span class="badge">bp</span></div>
-                    <div class="chart-box tall" id="anaStructSpreadChart"></div>
-                    <div class="footnote">各期限 A 日利率 − B 日利率（bp）；正值=上升（A&gt;B），负值=下降</div>
+                    <div class="footnote">实线=A日、虚线=B日（左轴，%）；柱形=各期限 A − B 变动（右轴，bp，正值=上升绿/负值=下降红）</div>
                 </div>
             </div>
 
@@ -1410,9 +1406,22 @@
                         <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日</div>
                     </div>
                 </div>
+                <h3 class="ana-subtitle" id="anaCreditSubtitle">③ 信用利差（企业债AAA − 国开即期，bp）</h3>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title"><span>信用利差时间序列</span><span class="badge">bp</span></div>
+                        <div class="chart-box ana-chart" id="anaCreditChart"></div>
+                        <div class="footnote" id="anaCreditFootnote">10Y 信用利差 = 中债企业债收益率曲线(AAA) 10Y − 国开债 10Y；虚线为所选基准日</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><span>信用利差水平与全周期特征</span><span class="badge" id="anaCreditAnchor">基准日 —</span></div>
+                        <div class="table-wrap"><table id="anaCreditTable"></table></div>
+                        <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日；分位数=当前值在历史区间中的位置</div>
+                    </div>
+                </div>
             </div>
 
-            <div class="footnote">税收溢价反映国开债相对国债的免税溢价；期限利差反映国债收益率曲线陡平。数据自 2008 起（早期长端可能缺失）。</div>
+            <div class="footnote">税收溢价反映国开债相对国债的免税溢价；期限利差反映国债收益率曲线陡平；信用利差反映AAA信用债相对国开债的信用风险溢价。数据自 2008 起（早期长端可能缺失）。</div>
         </div>
 
     <!-- ═══════════════════════════════════════════════
@@ -1703,14 +1712,14 @@
         let govSpotShortStore = null;  // sub-1Y 短端近期曲线（ALM 月度精确采样用）
         // 分析板独立 store：结构为 { dates, terms, rates(二维) }，与 monitor 板 loadFromRawData
         // 的对象数组 / allTerms 结构不同，必须隔离，否则复用 monitor 错误结构会导致 reading 'map'
-        let anaStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null };
+        let anaStores = { gov_spot: null, gov_ytm: null, cdb_spot: null, cdb_ytm: null, aaa10_spot: null, aaa10_ytm: null };
         let bondLoading = {};
         const bondNames = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开债即期', cdb_ytm: '国开债到期' };
-        const bondFiles = { gov_spot: 'data.json', gov_ytm: 'data_gov_ytm.json', cdb_spot: 'data_cdb.json', cdb_ytm: 'data_cdb_ytm.json' };
+        const bondFiles = { gov_spot: 'data.json', gov_ytm: 'data_gov_ytm.json', cdb_spot: 'data_cdb.json', cdb_ytm: 'data_cdb_ytm.json', aaa10_spot: 'data_aaa10_spot.json', aaa10_ytm: 'data_aaa10_ytm.json' };
         // 近期 12 个月滚动切片（体积恒定 ~100KB/个，不随时间增长）：先快速渲染，再后台加载全量
         // gov_spot 也需近期切片，否则默认 overview/利差视图会因 dataStores.gov_spot 缺失而空白（"不会秒出"）
-        const bondFilesRecent = { gov_spot: 'data_gov_spot_recent.json', gov_ytm: 'data_gov_ytm_recent.json', cdb_spot: 'data_cdb_recent.json', cdb_ytm: 'data_cdb_ytm_recent.json' };
-        const ANA_RECENT_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
+        const bondFilesRecent = { gov_spot: 'data_gov_spot_recent.json', gov_ytm: 'data_gov_ytm_recent.json', cdb_spot: 'data_cdb_recent.json', cdb_ytm: 'data_cdb_ytm_recent.json', aaa10_spot: 'data_aaa10_spot_recent.json', aaa10_ytm: 'data_aaa10_ytm_recent.json' };
+        const ANA_RECENT_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm', 'aaa10_spot', 'aaa10_ytm'];
         let anaFullLoaded = false; // 全量是否已加载（避免重复后台拉取）
         const bondShortNames = { gov_spot: '国债', gov_ytm: '国债', cdb_spot: '国开债', cdb_ytm: '国开债' };
         function bondName() { return bondNames[currentBondType]; }
@@ -5163,7 +5172,7 @@
         // 利率曲线分析（当日 / 横截面分析）
         // ================================================================
         const ANA_TYPES = ['gov_spot', 'gov_ytm', 'cdb_spot', 'cdb_ytm'];
-        const ANA_LABELS = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开即期', cdb_ytm: '国开到期' };
+        const ANA_LABELS = { gov_spot: '国债即期', gov_ytm: '国债到期', cdb_spot: '国开即期', cdb_ytm: '国开到期', aaa10_spot: '企业债AAA即期10Y', aaa10_ytm: '企业债AAA到期10Y' };
         const ANA_COLORS = { gov_spot: '#1f4a7a', gov_ytm: '#2e7d32', cdb_spot: '#c0392b', cdb_ytm: '#e67e22' };
         const ANA_SPOT = ['gov_spot', 'cdb_spot'];   // 即期曲线（上图）
         const ANA_YTM = ['gov_ytm', 'cdb_ytm'];       // 到期曲线（下图）
@@ -5376,22 +5385,27 @@
             const iA = s.dates.indexOf(dA), iB = s.dates.indexOf(dB);
             if (iA < 0 || iB < 0) return;
             const mk = (idx, dash) => ({ name: (dash ? dB : dA) + (dash ? ' (B)' : ' (A)'), type: 'line', data: s.terms.map((tm, i) => s.rates[idx][i]), showSymbol: false, connectNulls: false, lineStyle: { width: 2, type: dash ? 'dashed' : 'solid', color: ANA_COLORS[t] }, itemStyle: { color: ANA_COLORS[t] } });
-            drawAnaChart('anaStructChart', {
-                xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: '%', scale: true },
-                series: [mk(iA, false), mk(iB, true)], tooltip: { trigger: 'axis' }, legend: { data: [(dA + ' (A)'), (dB + ' (B)')], top: 0 }, grid: { top: 36, bottom: 30, left: 48, right: 16 }
-            }, { replace: false });
-            // 各期限收益率变动 A − B（bp），柱形图，正负分色
+            // 各期限收益率变动 A − B（bp），柱形，正绿负红，叠加在右轴
             const barData = s.terms.map((tm, i) => {
                 const a = s.rates[iA][i], b = s.rates[iB][i];
                 if (a == null || b == null) return { value: null };
                 const v = +((a - b) * 100).toFixed(2);
-                return { value: v, itemStyle: { color: v >= 0 ? '#2e7d32' : '#c0392b' } };
+                return { value: v, itemStyle: { color: v >= 0 ? '#2e7d32' : '#c0392b', opacity: 0.55 } };
             });
-            drawAnaChart('anaStructSpreadChart', {
-                xAxis: { type: 'category', data: s.terms, name: '期限(年)' }, yAxis: { type: 'value', name: 'bp', scale: true },
-                series: [{ name: '收益率变动(bp)', type: 'bar', data: barData, barMaxWidth: 26 }],
-                tooltip: { trigger: 'axis' }, grid: { top: 24, bottom: 30, left: 48, right: 16 }
-            }, { replace: false });
+            drawAnaChart('anaStructChart', {
+                xAxis: { type: 'category', data: s.terms, name: '期限(年)' },
+                yAxis: [
+                    { type: 'value', name: '%', scale: true },
+                    { type: 'value', name: 'bp', scale: true, splitLine: { show: false } }
+                ],
+                series: [
+                    { name: '变动 A−B (bp)', type: 'bar', yAxisIndex: 1, data: barData, barMaxWidth: 18, z: 1, barGap: '-100%' },
+                    mk(iA, false), mk(iB, true)
+                ],
+                tooltip: { trigger: 'axis' },
+                legend: { data: [(dA + ' (A)'), (dB + ' (B)'), '变动 A−B (bp)'], top: 0, type: 'scroll' },
+                grid: { top: 36, bottom: 30, left: 48, right: 52 }
+            }, { replace: true });
         }
         function renderAnaSpread() {
             // 即期/到期切换
@@ -5409,7 +5423,7 @@
             document.getElementById('anaTaxFootnote').textContent = `10Y 与 9Y 税收溢价（${cdbLabel} − ${govLabel}）；虚线为所选基准日`;
             document.getElementById('anaTermSubtitle').textContent = `② 期限利差（${govLabel}，bp）`;
             document.getElementById('anaTermFootnote').textContent = `10Y−1Y / 30Y−10Y / 5Y−1Y（${govLabel}）+ 自定义；虚线为所选基准日`;
-            document.getElementById('anaSpreadHint').textContent = `税收溢价 = ${cdbLabel} − ${govLabel}（bp）｜ 期限利差 = ${govLabel}两期限之差（bp）｜ MA250≈约1年，MA750≈近3年，MA2500≈约10年；指标均以所选基准日为「最新日」`;
+            document.getElementById('anaSpreadHint').textContent = `税收溢价 = ${cdbLabel} − ${govLabel}（bp）｜ 期限利差 = ${govLabel}两期限之差（bp）｜ 信用利差 = 企业债AAA − ${cdbLabel}（bp）｜ MA250≈约1年，MA750≈近3年，MA2500≈约10年；指标均以所选基准日为「最新日」`;
             if (!gs || !cs) return;
             const tiG = t => gs.terms.indexOf(t);
             const tiC = t => cs.terms.indexOf(t);
@@ -5545,6 +5559,63 @@
             tt += '</tbody>';
             document.getElementById('anaTermTable').innerHTML = tt;
             document.getElementById('anaTermAnchor').textContent = '基准日 ' + (anchorDateTerm || selDate);
+
+            // ---- 信用利差（企业债AAA 10Y − 国开 10Y，bp）----
+            document.getElementById('anaCreditSubtitle').textContent = `③ 信用利差（企业债AAA − ${cdbLabel}，bp）`;
+            document.getElementById('anaCreditFootnote').textContent = `10Y 信用利差 = 中债企业债收益率曲线(AAA) 10Y − 国开债 10Y（${cdbLabel}）；虚线为所选基准日`;
+            const aaaKey = isYtm ? 'aaa10_ytm' : 'aaa10_spot';
+            const aaa = anaStores[aaaKey];
+            if (!aaa) {
+                // 懒加载：AAA 10Y 数据到达后重渲染（loadAnaCurve 内部有缓存，不会死循环）
+                loadAnaCurve(aaaKey).then(s => { if (s && currentAnalysisView === 'spread') renderAnaSpread(); });
+                document.getElementById('anaCreditTable').innerHTML = '<tbody><tr><td>数据加载中…</td></tr></tbody>';
+                return;
+            }
+            const tA10 = aaa.terms.indexOf('10Y');
+            const aaaIdx = {};
+            aaa.dates.forEach((d, i) => { aaaIdx[d] = i; });
+            const credit = [];
+            for (let i = 0; i < cs.dates.length; i++) {
+                const d = cs.dates[i], ai = aaaIdx[d];
+                if (ai == null) continue;
+                const aV = aaa.rates[ai][tA10], cV = cs.rates[i][t10C];
+                if (aV != null && cV != null) credit.push([d, +((aV - cV) * 100).toFixed(2)]);
+            }
+            const aiCr = anchorIndex(credit, selDate);
+            const latestCr = aiCr >= 0 ? credit[aiCr][1] : null;
+            const ma2500Cr = aiCr >= 0 ? windowMean(credit, aiCr, 2500) : null;
+            const ma750Cr = aiCr >= 0 ? windowMean(credit, aiCr, 750) : null;
+            const ma250Cr = aiCr >= 0 ? windowMean(credit, aiCr, 250) : null;
+            const avgCr = statOver(credit, avgOf), minCr = statOver(credit, minOf), maxCr = statOver(credit, maxOf);
+            // 历史分位：当前值在截至基准日的历史序列中的位置（%）
+            const pctCr = (() => {
+                if (aiCr < 0 || latestCr == null) return null;
+                const vals = credit.slice(0, aiCr + 1).map(p => p[1]).filter(x => x != null && isFinite(x));
+                if (!vals.length) return null;
+                const below = vals.filter(x => x <= latestCr).length;
+                return (below / vals.length * 100).toFixed(0) + '%';
+            })();
+            drawAnaChart('anaCreditChart', {
+                xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
+                series: [
+                    { name: '10Y 信用利差', type: 'line', data: credit, showSymbol: false, lineStyle: { width: 1.5, color: '#0d88ed' }, itemStyle: { color: '#0d88ed' },
+                      markLine: { silent: true, symbol: 'none', lineStyle: { color: '#888', type: 'dashed' }, data: [{ xAxis: selDate }] } }
+                ],
+                tooltip: { trigger: 'axis' }, legend: { data: ['10Y 信用利差'], top: 0 },
+                dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 6 }], grid: { top: 36, bottom: 50, left: 48, right: 16 }
+            }, { replace: false });
+            let tc = '<thead><tr><th>指标</th><th>10Y 信用利差</th></tr></thead><tbody>';
+            tc += `<tr><td>最新信用利差（${aiCr >= 0 ? credit[aiCr][0] : selDate}）</td><td>${fmtBp(latestCr)}</td></tr>`;
+            tc += `<tr><td>MA250（约1年）</td><td>${fmtBp(ma250Cr)}</td></tr>`;
+            tc += `<tr><td>MA750（近3年）</td><td>${fmtBp(ma750Cr)}</td></tr>`;
+            tc += `<tr><td>MA2500（约10年）</td><td>${fmtBp(ma2500Cr)}</td></tr>`;
+            tc += `<tr><td>截至基准日均值</td><td>${fmtBp(avgCr)}</td></tr>`;
+            tc += `<tr><td>截至基准日最小</td><td>${fmtBp(minCr)}</td></tr>`;
+            tc += `<tr><td>截至基准日最大</td><td>${fmtBp(maxCr)}</td></tr>`;
+            tc += `<tr><td>历史分位数</td><td>${pctCr == null ? '—' : pctCr}</td></tr>`;
+            tc += '</tbody>';
+            document.getElementById('anaCreditTable').innerHTML = tc;
+            document.getElementById('anaCreditAnchor').textContent = '基准日 ' + (aiCr >= 0 ? credit[aiCr][0] : selDate);
         }
         // 动态自定义利差行管理
         let anaSpreadTermsCache = [];

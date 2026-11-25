@@ -56,6 +56,8 @@ RECENT_MAP = {
     'data_gov_ytm.json': 'data_gov_ytm_recent.json',
     'data_cdb.json':     'data_cdb_recent.json',
     'data_cdb_ytm.json': 'data_cdb_ytm_recent.json',
+    'data_aaa10_spot.json': 'data_aaa10_spot_recent.json',  # 企业债AAA 10Y（信用利差用）
+    'data_aaa10_ytm.json':  'data_aaa10_ytm_recent.json',
 }
 RECENT_WINDOW_DAYS = 365  # 约 12 个月
 
@@ -72,6 +74,9 @@ SEARCH_YC_HEADERS = {
 CDB_ID = "8a8b2ca037a7ca910137bfaa94fa5057"        # 国开债曲线（即期 qxll=1 / 到期 qxll=0）
 GOV_YTM_ID = "2c9081e50a2f9606010a3068cae70001"    # 国债到期曲线
 # (全量文件, 曲线ID, qxll, 名称) —— 需每日与国债即期日历同步补齐
+AAA10_ID = "2c9081e50a2f9606010a309f4af50111"       # 中债企业债收益率曲线(AAA)（即期 qxll=1 / 到期 qxll=0）
+AAA10_SPOT_FILE = "data_aaa10_spot.json"           # 仅存 10Y 单点（信用利差用）
+AAA10_YTM_FILE = "data_aaa10_ytm.json"
 SEARCHYC_CURVES = [
     ("data_cdb.json",     CDB_ID,     "1", "国开债即期"),
     ("data_gov_ytm.json", GOV_YTM_ID, "0", "国债到期"),
@@ -188,6 +193,44 @@ def make_recent_slice(src, dst, window=RECENT_WINDOW_DAYS):
     return True
 
 
+def update_aaa10(ref_dates):
+    """按国债即期交易日历，补齐企业债AAA 10Y 即期/到期的缺失日（仅 10Y 单点，信用利差用）。
+    曲线仅提供 1~30Y，早期无 10Y 点的日期存 null。"""
+    if not ref_dates:
+        return
+    print("\n同步企业债AAA 10Y 即期/到期（searchYc，信用利差）：")
+    for path, qxll, name in [(AAA10_SPOT_FILE, "1", "AAA10即期"), (AAA10_YTM_FILE, "0", "AAA10到期")]:
+        d = {"dates": [], "terms": ["10Y"], "rows": []}
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            if d.get("terms") != ["10Y"]:
+                d["terms"] = ["10Y"]
+        d2r = dict(zip(d["dates"], d["rows"]))
+        last = d["dates"][-1] if d["dates"] else None
+        todo = [x for x in ref_dates if (last is None or x > last)]
+        if not todo:
+            print(f"  {name}: 已最新 ({d['dates'][-1] if d['dates'] else '无'})")
+            continue
+        got = 0
+        for x in todo:
+            rates = fetch_searchyc(AAA10_ID, x, qxll)
+            if rates:
+                d2r[x] = [rates.get(10)]
+                got += 1
+                print(f"  ✓ {name} {x}: 10Y={d2r[x][0]}")
+            else:
+                # 曲线存在但无 10Y 点（早期）也记录 null，避免重复重抓
+                d2r[x] = [None]
+                print(f"  - {name} {x}: 无 10Y 数据，记 null")
+            time.sleep(0.2)
+        dates = sorted(d2r.keys())
+        out = {"terms": ["10Y"], "dates": dates, "rows": [d2r[x] for x in dates]}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False)
+        print(f"  {name}: 补齐 {got}/{len(todo)}，共 {len(dates)} 天")
+
+
 def generate_recent_slices(base_dir='.'):
     print("\n生成近期切片（滚动窗口，体积恒定）：")
     for src, dst in RECENT_MAP.items():
@@ -228,6 +271,11 @@ DATA_SOURCES = [
     {"file": "data_cdb_recent.json",          "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
     {"file": "data_cdb_ytm_recent.json",      "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
     {"file": "data_gov_spot_short_recent.json","kind": "dates_last", "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    # —— 每日：企业债AAA 10Y 单点（信用利差用，本 CI 抓取+切片） ——
+    {"file": "data_aaa10_spot.json",          "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_aaa10_ytm.json",           "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_aaa10_spot_recent.json",   "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
+    {"file": "data_aaa10_ytm_recent.json",    "kind": "dates_last",  "freq": "daily",   "max_lag_days": 4,  "commit": True},
     # —— 每日：首页 4 卡片 summary（本 CI 生成） ——
     {"file": "summary.json",                  "kind": "summary_date","freq": "daily",   "max_lag_days": 4,  "commit": True},
     # —— 周更：资本补充债/永续债（update-bonds.yml 维护，本 CI 不写，仅自检） ——
@@ -726,6 +774,9 @@ def main():
 
     # 同步国开债即期 / 国债到期 / 国开债到期（按国债即期日历补齐缺失日）
     update_searchyc_curves(existing.get("dates", []))
+
+    # 同步企业债AAA 10Y 即期/到期（信用利差用，按国债即期日历补齐）
+    update_aaa10(existing.get("dates", []))
 
     # 重新生成近期切片（滚动窗口，体积恒定 ~100KB/个，供分析板块快速首屏）
     generate_recent_slices()
