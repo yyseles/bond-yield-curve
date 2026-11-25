@@ -108,23 +108,16 @@ jobs:
           for i in $(seq 1 30); do
             VISIBLE=$(curl -s -H "Authorization: Bearer ${GH_TOKEN}" \
               "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=5" \
-              | python -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(any(a.get('name') == 'github-pages' and not a.get('expired') for a in d.get('artifacts', [])))
-except Exception:
-    print('False')
-")
+              | python -c "import sys,json; d=json.load(sys.stdin); print(any(a.get('name')=='github-pages' and not a.get('expired') for a in d.get('artifacts',[])))")
             if [ "$VISIBLE" = "True" ]; then
-              echo "✓ github-pages 产物已可见（第 ${i} 次轮询，间隔5s）"
+              echo "github-pages 产物已可见（第 ${i} 次轮询，间隔5s）"
               break
             fi
             echo "等待产物可见（第 ${i} / 30 次）..."
             sleep 5
           done
           if [ "$VISIBLE" != "True" ]; then
-            echo "⚠ 轮询30次仍未检测到产物，继续尝试部署（deploy-pages 内部自带重试）"
+            echo "轮询30次仍未检测到产物，继续尝试部署（deploy-pages 内部自带重试）"
           fi
 
       - name: 部署到 GitHub Pages
