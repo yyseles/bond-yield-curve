@@ -535,10 +535,10 @@
         /* 利率曲线分析 视图 */
         .view-analysis { padding-top: 6px; }
         .ana-toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .ana-toolbar .btn-group { display: flex; gap: 4px; background: #eef3fa; border-radius: 20px; padding: 2px; }
-        .ana-toolbar .btn-group button { border: none; background: transparent; padding: 4px 14px; border-radius: 18px; font-size: 12px; font-weight: 500; color: #3e5a7a; cursor: pointer; transition: .2s; white-space: nowrap; }
-        .ana-toolbar .btn-group button.active { background: #fff; color: #1f4a7a; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
-        .ana-toolbar .btn-group button:hover:not(.active) { background: rgba(255,255,255,.5); }
+        .ana-toolbar .btn-group { display: flex; gap: 4px; background: #e2eaf5; border-radius: 20px; padding: 3px; box-shadow: inset 0 0 0 1px #cddbee; }
+        .ana-toolbar .btn-group button { border: none; background: transparent; padding: 6px 16px; border-radius: 18px; font-size: 13px; font-weight: 600; color: #2c4a6e; cursor: pointer; transition: .2s; white-space: nowrap; }
+        .ana-toolbar .btn-group button.active { background: #1f4a7a; color: #fff; box-shadow: 0 2px 6px rgba(31,74,122,.35); }
+        .ana-toolbar .btn-group button:hover:not(.active) { background: rgba(255,255,255,.8); color: #1f4a7a; }
         .ana-curves { display: flex; gap: 16px; flex-wrap: wrap; }
         .ana-curves label { font-size: 13px; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
         .ana-controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 13px; }
@@ -5390,16 +5390,24 @@
                 const a = s.rates[iA][i], b = s.rates[iB][i];
                 if (a == null || b == null) return { value: null };
                 const v = +((a - b) * 100).toFixed(2);
-                return { value: v, itemStyle: { color: v >= 0 ? '#2e7d32' : '#c0392b', opacity: 0.55 } };
+                return { value: v, itemStyle: { color: v >= 0 ? '#2e7d32' : '#c0392b', opacity: 0.3 } };
             });
+            // 右轴范围放大约 2.5 倍，柱形压扁垫底作背景衬托，折线保持主体（用户口径 2026-11-25）
+            const barVals = barData.filter(d => d.value != null).map(d => d.value);
+            const bMin = barVals.length ? Math.min(...barVals) : 0;
+            const bMax = barVals.length ? Math.max(...barVals) : 0;
+            let bpMin, bpMax;
+            if (bMax <= 0) { bpMin = Math.floor(bMin * 2.5 / 5) * 5; bpMax = 0; }
+            else if (bMin >= 0) { bpMin = 0; bpMax = Math.ceil(bMax * 2.5 / 5) * 5; }
+            else { bpMin = Math.floor(bMin * 2 / 5) * 5; bpMax = Math.ceil(bMax * 2 / 5) * 5; }
             drawAnaChart('anaStructChart', {
                 xAxis: { type: 'category', data: s.terms, name: '期限(年)' },
                 yAxis: [
                     { type: 'value', name: '%', scale: true },
-                    { type: 'value', name: 'bp', scale: true, splitLine: { show: false } }
+                    { type: 'value', name: 'bp', min: bpMin, max: bpMax, splitLine: { show: false } }
                 ],
                 series: [
-                    { name: '变动 A−B (bp)', type: 'bar', yAxisIndex: 1, data: barData, barMaxWidth: 18, z: 1, barGap: '-100%' },
+                    { name: '变动 A−B (bp)', type: 'bar', yAxisIndex: 1, data: barData, barMaxWidth: 8, z: 1, barGap: '-100%' },
                     mk(iA, false), mk(iB, true)
                 ],
                 tooltip: { trigger: 'axis' },
