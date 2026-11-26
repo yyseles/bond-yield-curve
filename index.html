@@ -563,6 +563,7 @@
         .pano-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .pano-table th, .pano-table td { padding: 7px 10px; border-bottom: 1px solid #e8eef5; text-align: left; white-space: nowrap; }
         .pano-table th { color: #3e5a7a; font-size: 12px; font-weight: 600; background: #f6f9fc; }
+        .pano-table th.num { text-align: right; }
         .pano-table td.num { font-family: 'SF Mono', Consolas, monospace; text-align: right; }
         .pano-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .pano-q-extreme-low { background: #fde8e8; color: #b03030; }
@@ -570,7 +571,12 @@
         .pano-q-mid { background: #eef2f7; color: #64748b; }
         .pano-q-high { background: #eaf5ec; color: #2e7d32; }
         .pano-q-extreme-high { background: #d8efdc; color: #1e6b2e; }
-        /* 曲线形态监测条 */
+        /* 曲线形态监测条（金色系，与常规板块区分） */
+        .ana-subtitle.sub-shape { border-left-color: #d4a017; color: #8a6d1a; }
+        .shape-card { background: #fffbeb; border: 1px solid #f0e2c0; margin-bottom: 6px; }
+        .shape-card .form-cell { background: #fffdf5; border-color: #eadfc8; }
+        .shape-card .fc-label { color: #a1791c; }
+        .shape-card .footnote { color: #b0a080; }
         .form-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .form-cell { background: #f8fafc; border: 1px solid #e8eef5; border-radius: 10px; padding: 10px 14px; }
         .form-cell .fc-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
@@ -685,8 +691,8 @@
         <!-- 总览视图 -->
         <div class="view-overview" id="viewOverview">
             <div class="dashboard" id="dashboard">
-                <div class="dash-grid" id="dashGrid"></div>
                 <div class="dash-alerts" id="dashAlerts" style="display:none;"></div>
+                <div class="dash-grid" id="dashGrid"></div>
             </div>
         </div>
 
@@ -1424,6 +1430,12 @@
                     </div>
                 </div>
 
+                <h3 class="ana-subtitle sub-shape">📐 曲线形态监测（国债即期）</h3>
+                <div class="card shape-card">
+                    <div class="form-strip" id="anaShapeStrip"></div>
+                    <div class="footnote">平坦化速率 = 10Y−1Y 近20交易日均值 − 近250交易日均值，负值为平坦化；倒挂天数按截至基准日全历史统计</div>
+                </div>
+
                 <h3 class="ana-subtitle" id="anaTermSubtitle">② 期限利差（国债即期，bp）</h3>
                 <div class="ana-controls" style="margin-top:8px; margin-bottom:6px;">
                     <span style="font-size:12px;color:#94a3b8;">默认：10Y−1Y / 30Y−10Y / 5Y−1Y</span>
@@ -1441,11 +1453,6 @@
                         <div class="table-wrap"><table id="anaTermTable"></table></div>
                         <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日</div>
                     </div>
-                </div>
-                <h3 class="ana-subtitle">📐 曲线形态监测（国债即期）</h3>
-                <div class="card" style="margin-bottom:6px;">
-                    <div class="form-strip" id="anaShapeStrip"></div>
-                    <div class="footnote">平坦化速率 = 10Y−1Y 近20交易日均值 − 近250交易日均值，负值为平坦化；倒挂天数按截至基准日全历史统计</div>
                 </div>
                 <h3 class="ana-subtitle" id="anaCreditSubtitle">③ 信用利差（企业债AAA − 国开即期，bp）</h3>
                 <div class="grid-2">
@@ -5666,7 +5673,7 @@
                     creditArr ? panoRow('信用利差 10Y（AAA−国开）', creditArr)
                               : { name: '信用利差 10Y（AAA−国开）', latest: null, ma250: null, ma750: null, pct: null }
                 ];
-                let ph = '<thead><tr><th>利差</th><th>最新值</th><th>MA250</th><th>MA750</th><th>历史分位</th><th>状态</th></tr></thead><tbody>';
+                let ph = '<thead><tr><th>利差</th><th class="num">最新值</th><th class="num">MA250</th><th class="num">MA750</th><th class="num">历史分位</th><th>状态</th></tr></thead><tbody>';
                 rows.forEach(r => {
                     ph += `<tr><td>${r.name}</td><td class="num">${fmtBp(r.latest)}</td><td class="num">${fmtBp(r.ma250)}</td><td class="num">${fmtBp(r.ma750)}</td><td class="num">${r.pct == null ? '—' : r.pct.toFixed(0) + '%'}</td><td><span class="pano-badge ${panoQClass(r.pct)}">${panoQLabel(r.pct)}</span></td></tr>`;
                 });
