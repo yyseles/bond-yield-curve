@@ -559,6 +559,32 @@
         .custom-spread-row select { padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #fff; }
         .custom-spread-row .rm-btn { border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; border-radius: 4px; }
         .custom-spread-row .rm-btn:hover { color: #e74c3c; background: #fef0f0; }
+        /* 利差全景仪表盘 */
+        .pano-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .pano-table th, .pano-table td { padding: 7px 10px; border-bottom: 1px solid #e8eef5; text-align: left; white-space: nowrap; }
+        .pano-table th { color: #3e5a7a; font-size: 12px; font-weight: 600; background: #f6f9fc; }
+        .pano-table td.num { font-family: 'SF Mono', Consolas, monospace; text-align: right; }
+        .pano-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+        .pano-q-extreme-low { background: #fde8e8; color: #b03030; }
+        .pano-q-low { background: #fdf0ef; color: #c0392b; }
+        .pano-q-mid { background: #eef2f7; color: #64748b; }
+        .pano-q-high { background: #eaf5ec; color: #2e7d32; }
+        .pano-q-extreme-high { background: #d8efdc; color: #1e6b2e; }
+        /* 曲线形态监测条 */
+        .form-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .form-cell { background: #f8fafc; border: 1px solid #e8eef5; border-radius: 10px; padding: 10px 14px; }
+        .form-cell .fc-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .form-cell .fc-val { font-size: 18px; font-weight: 700; color: #1a2b44; font-family: 'SF Mono', Consolas, monospace; }
+        .form-cell .fc-note { font-size: 11.5px; color: #94a3b8; margin-top: 3px; }
+        .fc-flag-inverted { color: #c0392b; }
+        /* 首页今日异动条 */
+        .dash-alerts { margin-top: 14px; background: #fff; border-radius: 14px; box-shadow: 0 4px 16px rgba(15,35,60,0.06); padding: 12px 18px; font-size: 13px; }
+        .dash-alerts-title { font-weight: 600; color: #1f4a7a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .dash-alert-items { display: flex; flex-wrap: wrap; gap: 8px; }
+        .dash-alert-item { padding: 4px 12px; border-radius: 14px; font-size: 12.5px; font-weight: 600; }
+        .dash-alert-item.al-up { background: #fdecec; color: #c0392b; }
+        .dash-alert-item.al-dn { background: #e8f5e9; color: #2e7d32; }
+        .dash-alert-quiet { color: #64748b; }
 
         /* 响应式终态规则：置于各板块样式之后，避免通用高度再次覆盖移动端 */
         @media (max-width: 640px) {
@@ -581,6 +607,8 @@
             .chart-box.tall, .ana-panel .ana-chart { height: 280px; }
             .ana-toolbar .btn-group { width: 100%; flex-wrap: wrap; }
             .ana-toolbar .btn-group button { flex: 1 1 calc(50% - 4px); min-height: 36px; }
+            .form-strip { grid-template-columns: repeat(2, 1fr); }
+            .pano-table th, .pano-table td { padding: 6px 8px; }
             .ana-curves { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
             .card-title .date-selector { width: 100%; margin-left: 0; flex-wrap: wrap; }
             .preset-toolbar .toolbar-hint { margin-left: 0; }
@@ -658,6 +686,7 @@
         <div class="view-overview" id="viewOverview">
             <div class="dashboard" id="dashboard">
                 <div class="dash-grid" id="dashGrid"></div>
+                <div class="dash-alerts" id="dashAlerts" style="display:none;"></div>
             </div>
         </div>
 
@@ -1374,6 +1403,13 @@
                     <span class="toolbar-hint" id="anaSpreadHint">税收溢价 = 国开即期 − 国债即期（bp）｜ 期限利差 = 国债即期两期限之差（bp）｜ MA250≈约1年，MA750≈近3年，MA2500≈约10年；指标均以所选基准日为「最新日」</span>
                 </div>
 
+                <h3 class="ana-subtitle">⭐ 利差全景仪表盘</h3>
+                <div class="card" style="margin-bottom:6px;">
+                    <div class="card-title"><span>关键利差一览（当前值 · MA · 历史分位）</span><span class="badge" id="anaPanoAnchor">基准日 —</span></div>
+                    <div class="table-wrap"><table class="pano-table" id="anaPanoTable"></table></div>
+                    <div class="footnote">分位 = 当前值在截至基准日全历史中的位置；分位越低（红）利差保护越薄、越高（绿）配置价值越厚；随上方即期/到期口径与基准日联动</div>
+                </div>
+
                 <h3 class="ana-subtitle" id="anaTaxSubtitle">① 税收溢价（国开即期 − 国债即期，bp）</h3>
                 <div class="grid-2">
                     <div class="card">
@@ -1405,6 +1441,11 @@
                         <div class="table-wrap"><table id="anaTermTable"></table></div>
                         <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日</div>
                     </div>
+                </div>
+                <h3 class="ana-subtitle">📐 曲线形态监测（国债即期）</h3>
+                <div class="card" style="margin-bottom:6px;">
+                    <div class="form-strip" id="anaShapeStrip"></div>
+                    <div class="footnote">平坦化速率 = 10Y−1Y 近20交易日均值 − 近250交易日均值，负值为平坦化；倒挂天数按截至基准日全历史统计</div>
                 </div>
                 <h3 class="ana-subtitle" id="anaCreditSubtitle">③ 信用利差（企业债AAA − 国开即期，bp）</h3>
                 <div class="grid-2">
@@ -4469,6 +4510,48 @@
                     grid.appendChild(card);
                 }
 
+                // 今日异动摘要条（±2bp 阈值 + 10Y−1Y 倒挂警示）
+                const alertsEl = document.getElementById('dashAlerts');
+                if (alertsEl) {
+                    alertsEl.style.display = '';
+                    const items = [];
+                    for (const key of order) {
+                        const c = summary.curves[key];
+                        if (!c || !c.terms || !c.name) continue;
+                        for (const t of ['1Y', '5Y', '10Y', '20Y', '30Y']) {
+                            const td = c.terms[t];
+                            if (!td || td.change == null) continue;
+                            const chgBp = td.change * 100;
+                            if (Math.abs(chgBp) >= 2) items.push({ label: c.name + ' ' + t, chg: chgBp });
+                        }
+                    }
+                    const gsC = summary.curves['gov_spot'];
+                    if (gsC && gsC.terms && gsC.terms['10Y'] && gsC.terms['1Y'] &&
+                        gsC.terms['10Y'].value != null && gsC.terms['1Y'].value != null) {
+                        const spread = +(gsC.terms['10Y'].value - gsC.terms['1Y'].value).toFixed(2);
+                        if (spread < 0) items.unshift({ label: '国债 10Y−1Y ' + spread.toFixed(2) + 'bp 倒挂', invert: true });
+                    }
+                    let ah = '<div class="dash-alerts-title">📌 今日异动</div>';
+                    if (items.length) {
+                        ah += '<div class="dash-alert-items">' + items.slice(0, 8).map(it =>
+                            it.invert ? `<span class="dash-alert-item al-up">${it.label}</span>`
+                                      : `<span class="dash-alert-item ${it.chg > 0 ? 'al-up' : 'al-dn'}">${it.label} ${it.chg > 0 ? '+' : ''}${it.chg.toFixed(1)}bp</span>`
+                        ).join('') + '</div>';
+                    } else {
+                        let mx = 0;
+                        for (const key of order) {
+                            const c = summary.curves[key];
+                            if (!c || !c.terms) continue;
+                            for (const t in c.terms) {
+                                const td = c.terms[t];
+                                if (td && td.change != null) mx = Math.max(mx, Math.abs(td.change * 100));
+                            }
+                        }
+                        ah += `<div class="dash-alert-quiet">各关键期限波动平稳（最大变动 ${mx.toFixed(1)}bp，异动阈值 ±2bp）</div>`;
+                    }
+                    alertsEl.innerHTML = ah;
+                }
+
                 // 总览视图始终显示，有数据则渲染卡片
             } catch (e) {
                 console.warn('加载仪表盘失败:', e);
@@ -5545,6 +5628,52 @@
             const avgOf = a => a.reduce((x, y) => x + y, 0) / a.length;
             const minOf = a => Math.min(...a);
             const maxOf = a => Math.max(...a);
+            // ---- 利差全景仪表盘：当前值/MA/历史分位 聚合 ----
+            const pctlOf = (arr) => {
+                const ai = anchorIndex(arr, selDate);
+                if (ai < 0) return null;
+                const cur = arr[ai][1];
+                const vals = arr.slice(0, ai + 1).map(p => p[1]).filter(x => x != null && isFinite(x));
+                if (!vals.length || cur == null) return null;
+                return vals.filter(x => x <= cur).length / vals.length * 100;
+            };
+            const panoRow = (name, arr) => {
+                const ai = anchorIndex(arr, selDate);
+                return {
+                    name,
+                    latest: ai >= 0 ? arr[ai][1] : null,
+                    ma250: ai >= 0 ? windowMean(arr, ai, 250) : null,
+                    ma750: ai >= 0 ? windowMean(arr, ai, 750) : null,
+                    pct: pctlOf(arr)
+                };
+            };
+            const panoQClass = pct => {
+                if (pct == null) return 'pano-q-mid';
+                if (pct <= 10) return 'pano-q-extreme-low';
+                if (pct <= 30) return 'pano-q-low';
+                if (pct <= 70) return 'pano-q-mid';
+                if (pct <= 90) return 'pano-q-high';
+                return 'pano-q-extreme-high';
+            };
+            const panoQLabel = pct => pct == null ? '—' : (pct <= 10 ? '历史极低' : pct <= 30 ? '偏低' : pct <= 70 ? '中性' : pct <= 90 ? '偏高' : '历史极高');
+            const buildPano = (creditArr) => {
+                const rows = [
+                    panoRow('税收溢价 10Y（国开−国债）', tax10),
+                    panoRow('税收溢价 9Y（国开−国债）', tax9),
+                    panoRow('期限利差 10Y−1Y', s101),
+                    panoRow('期限利差 30Y−10Y', s3010),
+                    panoRow('期限利差 5Y−1Y', s51),
+                    creditArr ? panoRow('信用利差 10Y（AAA−国开）', creditArr)
+                              : { name: '信用利差 10Y（AAA−国开）', latest: null, ma250: null, ma750: null, pct: null }
+                ];
+                let ph = '<thead><tr><th>利差</th><th>最新值</th><th>MA250</th><th>MA750</th><th>历史分位</th><th>状态</th></tr></thead><tbody>';
+                rows.forEach(r => {
+                    ph += `<tr><td>${r.name}</td><td class="num">${fmtBp(r.latest)}</td><td class="num">${fmtBp(r.ma250)}</td><td class="num">${fmtBp(r.ma750)}</td><td class="num">${r.pct == null ? '—' : r.pct.toFixed(0) + '%'}</td><td><span class="pano-badge ${panoQClass(r.pct)}">${panoQLabel(r.pct)}</span></td></tr>`;
+                });
+                ph += '</tbody>';
+                document.getElementById('anaPanoTable').innerHTML = ph;
+                document.getElementById('anaPanoAnchor').textContent = '基准日 ' + (anchorDateTerm || selDate);
+            };
             const legendNames = ['10Y−1Y', '30Y−10Y', '5Y−1Y'].concat(customSpreads.map(s => s.name));
             drawAnaChart('anaTermChart', {
                 xAxis: { type: 'time' }, yAxis: { type: 'value', name: 'bp', scale: true },
@@ -5568,6 +5697,23 @@
             document.getElementById('anaTermTable').innerHTML = tt;
             document.getElementById('anaTermAnchor').textContent = '基准日 ' + (anchorDateTerm || selDate);
 
+            // ---- 曲线形态监测（倒挂/平坦化，国债即期）----
+            const aiSh = anchorIndex(s101, selDate);
+            const cur101 = aiSh >= 0 ? s101[aiSh][1] : null;
+            const cur3010s = latestOf(s3010);
+            const ma20s = aiSh >= 0 ? windowMean(s101, aiSh, 20) : null;
+            const ma250s = aiSh >= 0 ? windowMean(s101, aiSh, 250) : null;
+            const flatRate = (ma20s != null && ma250s != null) ? +(ma20s - ma250s).toFixed(1) : null;
+            let invDays = 0, lastInv = null;
+            const uptoSh = aiSh >= 0 ? aiSh : s101.length - 1;
+            for (let i = 0; i <= uptoSh; i++) { if (s101[i][1] < 0) { invDays++; lastInv = s101[i][0]; } }
+            const invFlag = cur101 != null && cur101 < 0;
+            document.getElementById('anaShapeStrip').innerHTML =
+                `<div class="form-cell"><div class="fc-label">10Y−1Y 当前</div><div class="fc-val ${invFlag ? 'fc-flag-inverted' : ''}">${fmtBp(cur101)}</div><div class="fc-note">${invFlag ? '⚠ 收益率曲线倒挂' : '曲线形态正常'}</div></div>` +
+                `<div class="form-cell"><div class="fc-label">30Y−10Y 当前</div><div class="fc-val ${cur3010s != null && cur3010s < 0 ? 'fc-flag-inverted' : ''}">${fmtBp(cur3010s)}</div><div class="fc-note">${cur3010s != null && cur3010s < 0 ? '⚠ 超长端倒挂' : '超长端溢价'}</div></div>` +
+                `<div class="form-cell"><div class="fc-label">平坦化速率（20日 − 250日均值）</div><div class="fc-val ${flatRate != null && flatRate < 0 ? 'fc-flag-inverted' : ''}">${flatRate == null ? '—' : (flatRate > 0 ? '+' : '') + flatRate.toFixed(1) + ' bp'}</div><div class="fc-note">${flatRate == null ? '—' : (flatRate < 0 ? '近期趋于平坦' : '近期趋于陡峭')}</div></div>` +
+                `<div class="form-cell"><div class="fc-label">历史倒挂天数（10Y−1Y<0）</div><div class="fc-val">${invDays}</div><div class="fc-note">${invDays > 0 ? '最近一次 ' + lastInv : '历史上从未倒挂'}</div></div>`;
+
             // ---- 信用利差（企业债AAA 10Y − 国开 10Y，bp）----
             document.getElementById('anaCreditSubtitle').textContent = `③ 信用利差（企业债AAA − ${cdbLabel}，bp）`;
             document.getElementById('anaCreditFootnote').textContent = `10Y 信用利差 = 中债企业债收益率曲线(AAA) 10Y − 国开债 10Y（${cdbLabel}）；虚线为所选基准日`;
@@ -5577,6 +5723,7 @@
                 // 懒加载：AAA 10Y 数据到达后重渲染（loadAnaCurve 内部有缓存，不会死循环）
                 loadAnaCurve(aaaKey).then(s => { if (s && currentAnalysisView === 'spread') renderAnaSpread(); });
                 document.getElementById('anaCreditTable').innerHTML = '<tbody><tr><td>数据加载中…</td></tr></tbody>';
+                buildPano(null);
                 return;
             }
             const tA10 = aaa.terms.indexOf('10Y');
@@ -5624,6 +5771,7 @@
             tc += '</tbody>';
             document.getElementById('anaCreditTable').innerHTML = tc;
             document.getElementById('anaCreditAnchor').textContent = '基准日 ' + (aiCr >= 0 ? credit[aiCr][0] : selDate);
+            buildPano(credit);
         }
         // 动态自定义利差行管理
         let anaSpreadTermsCache = [];
