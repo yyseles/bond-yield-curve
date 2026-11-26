@@ -559,18 +559,30 @@
         .custom-spread-row select { padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #fff; }
         .custom-spread-row .rm-btn { border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; border-radius: 4px; }
         .custom-spread-row .rm-btn:hover { color: #e74c3c; background: #fef0f0; }
-        /* 利差全景仪表盘 */
-        .pano-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .pano-table th, .pano-table td { padding: 7px 10px; border-bottom: 1px solid #e8eef5; text-align: left; white-space: nowrap; }
-        .pano-table th { color: #3e5a7a; font-size: 12px; font-weight: 600; background: #f6f9fc; }
-        .pano-table th.num { text-align: right; }
-        .pano-table td.num { font-family: 'SF Mono', Consolas, monospace; text-align: right; }
+        /* 利差全景仪表盘：卡片网格 + 分位进度条 */
+        .pano-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .pano-card { background: #f8fafc; border: 1px solid #e8eef5; border-radius: 10px; padding: 10px 14px; }
+        .pano-card .pc-name { font-size: 12px; color: #64748b; }
+        .pano-card .pc-val { font-size: 22px; font-weight: 700; color: #1a2b44; font-family: 'SF Mono', Consolas, monospace; margin: 2px 0 7px; }
+        .pano-card .pc-unit { font-size: 12px; font-weight: 500; color: #94a3b8; margin-left: 3px; }
+        .pano-card .pc-bar { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(to right, #f2b8b3 0 10%, #fad9cd 10% 30%, #e2e8f0 30% 70%, #d4e8c8 70% 90%, #a8d8b0 90% 100%); }
+        .pano-card .pc-bar-cursor { position: absolute; top: -3px; width: 3px; height: 14px; background: #1a2b44; border-radius: 2px; transform: translateX(-50%); }
+        .pano-card .pc-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; }
+        .pano-card .pc-pct { font-size: 12px; color: #64748b; }
+        .pano-card .pc-ma { font-size: 11.5px; color: #94a3b8; margin-top: 4px; }
         .pano-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
         .pano-q-extreme-low { background: #fde8e8; color: #b03030; }
         .pano-q-low { background: #fdf0ef; color: #c0392b; }
         .pano-q-mid { background: #eef2f7; color: #64748b; }
         .pano-q-high { background: #eaf5ec; color: #2e7d32; }
         .pano-q-extreme-high { background: #d8efdc; color: #1e6b2e; }
+        /* 利差分析子页手风琴折叠 */
+        .ana-fold { margin: 18px 0 10px; }
+        .ana-fold > summary { list-style: none; cursor: pointer; user-select: none; }
+        .ana-fold > summary::-webkit-details-marker { display: none; }
+        .ana-fold > summary::after { content: '▾'; float: right; color: #94a3b8; font-size: 13px; transition: transform .2s; }
+        .ana-fold[open] > summary::after { transform: rotate(180deg); }
+        .ana-fold[open] > summary { margin-bottom: 10px; }
         /* 曲线形态监测条（金色系，与常规板块区分） */
         .ana-subtitle.sub-shape { border-left-color: #d4a017; color: #8a6d1a; }
         .shape-card { background: #fffbeb; border: 1px solid #f0e2c0; margin-bottom: 6px; }
@@ -1411,12 +1423,19 @@
 
                 <h3 class="ana-subtitle">⭐ 利差全景仪表盘</h3>
                 <div class="card" style="margin-bottom:6px;">
-                    <div class="card-title"><span>关键利差一览（当前值 · MA · 历史分位）</span><span class="badge" id="anaPanoAnchor">基准日 —</span></div>
-                    <div class="table-wrap"><table class="pano-table" id="anaPanoTable"></table></div>
-                    <div class="footnote">分位 = 当前值在截至基准日全历史中的位置；分位越低（红）利差保护越薄、越高（绿）配置价值越厚；随上方即期/到期口径与基准日联动</div>
+                    <div class="card-title"><span>关键利差分位一览（点击下方分组展开明细图表）</span><span class="badge" id="anaPanoAnchor">基准日 —</span></div>
+                    <div class="pano-grid" id="anaPanoGrid"></div>
+                    <div class="footnote">进度条 = 当前值在截至基准日全历史中的分位（游标位置）；越偏左（红区）利差保护越薄，越偏右（绿区）配置价值越厚；随上方即期/到期口径与基准日联动</div>
                 </div>
 
-                <h3 class="ana-subtitle" id="anaTaxSubtitle">① 税收溢价（国开即期 − 国债即期，bp）</h3>
+                <h3 class="ana-subtitle sub-shape">📐 曲线形态监测（国债即期）</h3>
+                <div class="card shape-card">
+                    <div class="form-strip" id="anaShapeStrip"></div>
+                    <div class="footnote">平坦化速率 = 10Y−1Y 近20交易日均值 − 近250交易日均值，负值为平坦化；倒挂天数按截至基准日全历史统计</div>
+                </div>
+
+                <details class="ana-fold" id="anaFoldTax">
+                <summary class="ana-subtitle" id="anaTaxSubtitle">① 税收溢价（国开即期 − 国债即期，bp）</summary>
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-title"><span>税收溢价时间序列</span><span class="badge">bp</span></div>
@@ -1429,14 +1448,10 @@
                         <div class="footnote">MA250=基准日前约1年均值；MA750=基准日前近3年均值；MA2500=基准日前约10年均值</div>
                     </div>
                 </div>
+                </details>
 
-                <h3 class="ana-subtitle sub-shape">📐 曲线形态监测（国债即期）</h3>
-                <div class="card shape-card">
-                    <div class="form-strip" id="anaShapeStrip"></div>
-                    <div class="footnote">平坦化速率 = 10Y−1Y 近20交易日均值 − 近250交易日均值，负值为平坦化；倒挂天数按截至基准日全历史统计</div>
-                </div>
-
-                <h3 class="ana-subtitle" id="anaTermSubtitle">② 期限利差（国债即期，bp）</h3>
+                <details class="ana-fold" id="anaFoldTerm">
+                <summary class="ana-subtitle" id="anaTermSubtitle">② 期限利差（国债即期，bp）</summary>
                 <div class="ana-controls" style="margin-top:8px; margin-bottom:6px;">
                     <span style="font-size:12px;color:#94a3b8;">默认：10Y−1Y / 30Y−10Y / 5Y−1Y</span>
                     <div id="anaCustomSpreadContainer" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;"></div>
@@ -1454,7 +1469,9 @@
                         <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日</div>
                     </div>
                 </div>
-                <h3 class="ana-subtitle" id="anaCreditSubtitle">③ 信用利差（企业债AAA − 国开即期，bp）</h3>
+                </details>
+                <details class="ana-fold" id="anaFoldCredit">
+                <summary class="ana-subtitle" id="anaCreditSubtitle">③ 信用利差（企业债AAA − 国开即期，bp）</summary>
                 <div class="grid-2">
                     <div class="card">
                         <div class="card-title"><span>信用利差时间序列</span><span class="badge">bp</span></div>
@@ -1467,6 +1484,7 @@
                         <div class="footnote">MA250=基准日前约1年均值；其余特征值区间=自数据起点至基准日；分位数=当前值在历史区间中的位置</div>
                     </div>
                 </div>
+                </details>
             </div>
 
             <div class="footnote">税收溢价反映国开债相对国债的免税溢价；期限利差反映国债收益率曲线陡平；信用利差反映AAA信用债相对国开债的信用风险溢价。数据自 2008 起（早期长端可能缺失）。</div>
@@ -5673,12 +5691,18 @@
                     creditArr ? panoRow('信用利差 10Y（AAA−国开）', creditArr)
                               : { name: '信用利差 10Y（AAA−国开）', latest: null, ma250: null, ma750: null, pct: null }
                 ];
-                let ph = '<thead><tr><th>利差</th><th class="num">最新值</th><th class="num">MA250</th><th class="num">MA750</th><th class="num">历史分位</th><th>状态</th></tr></thead><tbody>';
+                let ph = '';
                 rows.forEach(r => {
-                    ph += `<tr><td>${r.name}</td><td class="num">${fmtBp(r.latest)}</td><td class="num">${fmtBp(r.ma250)}</td><td class="num">${fmtBp(r.ma750)}</td><td class="num">${r.pct == null ? '—' : r.pct.toFixed(0) + '%'}</td><td><span class="pano-badge ${panoQClass(r.pct)}">${panoQLabel(r.pct)}</span></td></tr>`;
+                    const pctW = r.pct == null ? 0 : Math.min(100, Math.max(0, r.pct));
+                    ph += `<div class="pano-card">` +
+                        `<div class="pc-name">${r.name}</div>` +
+                        `<div class="pc-val">${r.latest == null ? '—' : r.latest.toFixed(1)}<span class="pc-unit">bp</span></div>` +
+                        `<div class="pc-bar"><div class="pc-bar-cursor" style="left:${pctW}%"></div></div>` +
+                        `<div class="pc-meta"><span class="pano-badge ${panoQClass(r.pct)}">${panoQLabel(r.pct)}</span><span class="pc-pct">${r.pct == null ? '—' : r.pct.toFixed(0) + '% 分位'}</span></div>` +
+                        `<div class="pc-ma">MA250 ${fmtBp(r.ma250)} · MA750 ${fmtBp(r.ma750)}</div>` +
+                        `</div>`;
                 });
-                ph += '</tbody>';
-                document.getElementById('anaPanoTable').innerHTML = ph;
+                document.getElementById('anaPanoGrid').innerHTML = ph;
                 document.getElementById('anaPanoAnchor').textContent = '基准日 ' + (anchorDateTerm || selDate);
             };
             const legendNames = ['10Y−1Y', '30Y−10Y', '5Y−1Y'].concat(customSpreads.map(s => s.name));
@@ -5827,6 +5851,17 @@
             // ＋自定义利差按钮
             const addBtn = document.getElementById('anaAddSpreadBtn');
             if (addBtn) addBtn.addEventListener('click', () => addCustomSpreadRow());
+            // 折叠组展开时重绘内部图表（隐藏容器中 init 的图表尺寸为 0）
+            document.querySelectorAll('#anaSpread details.ana-fold').forEach(d => {
+                d.addEventListener('toggle', () => {
+                    if (d.open) requestAnimationFrame(() => {
+                        d.querySelectorAll('.ana-chart').forEach(el => {
+                            const c = anaCharts[el.id];
+                            if (c) c.resize();
+                        });
+                    });
+                });
+            });
         }
         // 任一曲线已加载（dates/terms/rows 齐备）即视为有可用数据
         function hasAnyAnaData() {
